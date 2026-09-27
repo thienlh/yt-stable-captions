@@ -1,0 +1,54 @@
+#ytsc-overlay {
+  --ytsc-font: 28px;
+  position: absolute;
+  left: 50%;
+  bottom: 14%;
+  transform: translateX(-50%);
+  width: max-content;
+  /* ~14em keeps a 30-char chunk to at most 2 lines */
+  max-width: min(80%, 14em);
+  display: none;
+  z-index: 30;
+  pointer-events: none;
+  text-align: center;
+  font-family: "Montserrat", "Inter", "Helvetica Neue", Arial, sans-serif;
+  font-size: var(--ytsc-font);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+  color: #fff;
+  text-shadow:
+    -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000,
+    -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
+    0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  overflow-wrap: anywhere;
+}
+
+#ytsc-overlay.ytsc-visible {
+  display: block;
+}
+
+#ytsc-overlay.ytsc-pop {
+  animation: ytsc-pop 140ms ease-out;
+}
+
+#ytsc-overlay .ytsc-word {
+  display: inline-block;
+  transition: color 80ms linear, transform 80ms ease-out;
+}
+
+#ytsc-overlay .ytsc-word.ytsc-active {
+  color: #ffe135;
+  transform: scale(1.08);
+}
+
+@keyframes ytsc-pop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+}

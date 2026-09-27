@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "YT Stable Captions (MVP)",
+  "version": "0.1.0",
+  "description": "Replace flowing YouTube auto-captions with short TikTok-style caption chunks.",
+  "host_permissions": ["https://www.youtube.com/*"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "world": "MAIN",
+      "js": ["src/content/timedtext-tap.js"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://www.youtube.com/*"],
+      "world": "MAIN",
+      "js": [
+        "src/core/text-utils.js",
+        "src/core/rolling-merger.js",
+        "src/core/json3-parser.js",
+        "src/core/cue-lookup.js",
+        "src/core/chunker.js",
+        "src/content/track-provider.js",
+        "src/content/live-source.js",
+        "src/content/overlay.js",
+        "src/content/main.js"
+      ],
+      "css": ["src/content/styles.css"],
+      "run_at": "document_idle"
+    }
+  ]
+}
