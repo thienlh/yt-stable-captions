@@ -35,7 +35,8 @@ remove the flowing-text distraction.
 - `src/content/live-source.js` — caption DOM → new words → live chunks
 - `src/content/track-provider.js` — track discovery + `fmt=json3` fetch
 - `src/content/overlay.js` — DOM rendering only
-- `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>` (isolated world)
+- `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>`, font registration (isolated world)
+- `src/content/page-loader.js` — injects page-world scripts when `world: MAIN` is unsupported (Safari)
 - `src/popup/` — toolbar popup: caption style (Frosted / TikTok), text size
 - `src/content/main.js` — composition root (`StableCaptionsController`)
 
@@ -60,6 +61,27 @@ npm test
 7. Native captions disappear; short chunks appear on a translucent frosted panel
 
 To disable: `chrome://extensions` → toggle off.
+
+## Try in Safari (macOS)
+
+Needs Xcode. From a clone of this repo:
+
+```bash
+xcrun safari-web-extension-converter . --app-name "YT Stable Captions" --macos-only --copy-resources
+```
+
+1. Xcode opens the generated project → **Run** (⌘R); a small host app launches
+2. Safari → Settings → Advanced → **Show features for web developers**
+3. **Develop → Allow Unsigned Extensions** (resets on every Safari quit unless signed
+   with a paid Apple Developer team)
+4. Safari → Settings → Extensions → enable **YT Stable Captions**, allow on youtube.com
+
+Safari notes:
+- If Safari ignores `"world": "MAIN"`, `src/content/page-loader.js` injects the same
+  page-world scripts via `<script src>` (web-accessible resources) instead
+- The font is registered at runtime with the browser's own extension URL; on Safari the
+  caption uses the real system font (SF Pro) via `@supports (font: -apple-system-body)`
+- Settings use `storage.sync` when available, else `storage.local` (per-Mac)
 
 ## Playgrounds
 

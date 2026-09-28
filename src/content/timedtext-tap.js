@@ -8,8 +8,12 @@
    * Runs at document_start in the MAIN world, before the player boots.
    * Single responsibility: observe timedtext responses, publish them.
    */
+  // Only useful in the page's own JS world; page-loader.js re-injects us there
+  // if the browser ran this file as an isolated content script (Safari).
+  if ((globalThis.browser ?? globalThis.chrome)?.runtime?.id) return;
   if (window.__ytscTapInstalled) return;
   window.__ytscTapInstalled = true;
+  document.documentElement.dataset.ytscTap = '1';
 
   const isTimedtext = (url) => /\/api\/timedtext/.test(String(url || ''));
 

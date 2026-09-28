@@ -1,10 +1,5 @@
-/* Bundled so the look doesn't depend on installed fonts (SF Pro is used when present). */
-@font-face {
-  font-family: "YTSC Inter";
-  src: url("chrome-extension://__MSG_@@extension_id__/fonts/InterVariable.woff2") format("woff2");
-  font-weight: 100 900;
-  font-display: swap;
-}
+/* "YTSC Inter" (bundled) is registered by settings-bridge.js with the extension's
+   real URL, which differs per browser (chrome-extension:// vs safari-web-extension://). */
 
 /* Frosted block (visionOS-inspired): one translucent blurred panel per chunk. */
 #ytsc-overlay {
@@ -36,6 +31,14 @@
   /* Faint shadow keeps white text legible now that the panel is lighter. */
   text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
   transition: bottom 150ms ease-out;
+}
+
+/* Safari/WebKit only: use the real system font (SF Pro). Chrome on Linux maps
+   -apple-system to its default UI font, so it can't go in the main stack. */
+@supports (font: -apple-system-body) {
+  #ytsc-overlay {
+    font-family: -apple-system, "SF Pro Text", "YTSC Inter", system-ui, sans-serif;
+  }
 }
 
 /* Size setting (popup → html[data-ytsc-size]); medium is the default above. */

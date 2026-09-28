@@ -37,6 +37,15 @@
       "matches": [
         "https://www.youtube.com/*"
       ],
+      "js": [
+        "src/content/page-loader.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
       "world": "MAIN",
       "js": [
         "src/core/text-utils.js",
@@ -53,12 +62,23 @@
         "src/content/styles.css"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/page-loader.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
       "resources": [
-        "fonts/*"
+        "fonts/*",
+        "src/core/*.js",
+        "src/content/*.js"
       ],
       "matches": [
         "https://www.youtube.com/*"
