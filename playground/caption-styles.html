@@ -1,0 +1,556 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caption Styles Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500&family=Source+Serif+4:opsz,wght@8..60,400;8..60,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f4f2;
+    --panel: #ffffff;
+    --ink: #1c1c1e;
+    --muted: #6b6b70;
+    --line: #dcdcd8;
+    --accent: #0a66d8;
+    --sf: "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif; /* no -apple-system: Chrome on Linux maps it to the default UI font */
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111113;
+      --panel: #1b1b1f;
+      --ink: #ececef;
+      --muted: #9a9aa2;
+      --line: #2e2e34;
+      --accent: #5aa2ff;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+    display: grid;
+    gap: 10px;
+  }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  h1 { font-size: 16px; margin: 0; margin-right: auto; }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  button, select {
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 76px; }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  kbd {
+    font: 11px ui-monospace, monospace;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  main {
+    padding: 16px;
+    display: grid;
+    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr));
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .card.focus { grid-column: 1 / -1; }
+  .card-head { padding: 10px 12px 2px; display: flex; gap: 8px; align-items: baseline; }
+  .card-head b { font-size: 14px; }
+  .card-head .src { font-size: 11px; color: var(--muted); margin-left: auto; text-align: right; }
+  .card p { margin: 0; padding: 4px 12px 10px; color: var(--muted); font-size: 12.5px; min-height: calc(2 * 1.45em + 14px); }
+  .card .player { margin-top: auto; }
+
+  /* ---------- Fake video frames (scenes) ---------- */
+  .player {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    cursor: zoom-in;
+    container-type: size;
+  }
+  .card.focus .player { cursor: zoom-out; }
+  .scene-dark .player {
+    background:
+      radial-gradient(ellipse at 30% 35%, #4b5d6b 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 60%, #6b4f3f 0%, transparent 50%),
+      linear-gradient(160deg, #26313a, #15181c);
+  }
+  .scene-bright .player {
+    background:
+      radial-gradient(ellipse at 70% 20%, #fffdf2 0%, transparent 45%),
+      linear-gradient(180deg, #bcd9f2 0%, #e9f2f8 55%, #f3e6c8 56%, #e8d3a6 100%);
+  }
+  .scene-busy .player {
+    background:
+      radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.85) 0 6%, transparent 7%),
+      radial-gradient(circle at 62% 74%, rgba(255, 236, 170, 0.9) 0 5%, transparent 6%),
+      repeating-linear-gradient(115deg, #d9d2c4 0 18px, #3d4a3f 18px 30px, #f2efe7 30px 44px, #7a5b3e 44px 52px),
+      #999;
+  }
+
+  /* ---------- Caption base (shared) ---------- */
+  .cap {
+    --size: 5.5cqh;
+    position: absolute;
+    left: 50%;
+    bottom: 8%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: min(88%, var(--measure, 42ch));
+    text-align: center;
+    text-wrap: balance;
+    font-size: calc(var(--size) * var(--scale, 1));
+    pointer-events: none;
+    display: none;
+  }
+  .cap.visible { display: block; }
+  .cap .line { box-decoration-break: clone; -webkit-box-decoration-break: clone; }
+  .cap .w { transition: opacity 90ms linear, color 90ms linear; }
+
+  /* Global: highlight mode */
+  .hl-reveal .cap .w.future { opacity: 0.42; }
+  /* Mirrors src/content/styles.css (.ytsc-word / .ytsc-active) */
+  .hl-accent .cap .w { opacity: 0.68; }
+  .hl-accent .cap .w.current { opacity: 1; text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.45), 0 0.03em 0.12em rgba(0, 0, 0, 0.35); }
+
+  /* Global: transition */
+  .tx-fade .cap.fresh { animation: cap-fade 160ms ease-out; }
+  @keyframes cap-fade { from { opacity: 0; } to { opacity: 1; } }
+
+  /* ---------- Styles ---------- */
+
+  /* Apple tvOS / iOS "Default": system font, per-line translucent rounded boxes */
+  .st-tvos .cap { font-family: var(--sf); font-weight: 600; line-height: 1.38; letter-spacing: -0.005em; color: #fff; }
+  .st-tvos .cap .line {
+    background: rgba(0, 0, 0, 0.6);
+    padding: 0.06em 0.38em;
+    border-radius: 0.22em;
+  }
+
+  /* Apple "Transparent Background": no box, soft wide shadow */
+  .st-tvos-clear .cap {
+    font-family: var(--sf); font-weight: 600; line-height: 1.25; color: #fff;
+    text-shadow: 0 0 0.12em rgba(0, 0, 0, 0.9), 0 0.04em 0.35em rgba(0, 0, 0, 0.75);
+  }
+
+  /* visionOS / Apple TV app–inspired: one frosted block */
+  .st-glass .cap {
+    font-family: var(--sf); font-weight: 600; line-height: 1.3; color: #fff;
+    padding: 0.35em 0.7em;
+    border-radius: 0.6em;
+    background: rgba(28, 28, 32, 0.38);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.2em 0.8em rgba(0, 0, 0, 0.2);
+    text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
+  }
+
+  /* Netflix Timed Text Style Guide: white, proportional sans (Arial placeholder), drop shadow */
+  .st-netflix .cap {
+    font-family: Arial, "Helvetica Neue", Helvetica, sans-serif; font-weight: 500; line-height: 1.22; color: #fff;
+    text-shadow: 0 0.05em 0.06em rgba(0, 0, 0, 0.95), 0 0 0.25em rgba(0, 0, 0, 0.6);
+  }
+
+  /* BBC Subtitle Guidelines: white on solid black, tight per-line boxes */
+  .st-bbc .cap { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; font-weight: 500; line-height: 1.32; color: #fff; }
+  .st-bbc .cap .line { background: #000; padding: 0.02em 0.28em; }
+
+  /* YouTube native look, for familiarity */
+  .st-youtube .cap { font-family: "YouTube Noto", Roboto, Arial, sans-serif; font-weight: 400; line-height: 1.3; color: #fff; }
+  .st-youtube .cap .line { background: rgba(8, 8, 8, 0.75); padding: 0.02em 0.25em; }
+
+  /* Editorial serif (arthouse / Criterion-like releases) */
+  .st-serif .cap {
+    font-family: "Source Serif 4", "Iowan Old Style", Georgia, serif; font-weight: 500; line-height: 1.25;
+    letter-spacing: 0.005em; color: #f6f1e4;
+    text-shadow: 0 0.04em 0.08em rgba(0, 0, 0, 0.9), 0 0 0.3em rgba(0, 0, 0, 0.55);
+  }
+
+  /* Current extension style (for comparison) */
+  .st-tiktok .cap {
+    --measure: 14em;
+    bottom: 14%;
+    font-family: "Montserrat", "Inter", "Helvetica Neue", Arial, sans-serif; font-weight: 800; line-height: 1.2;
+    color: #fff;
+    text-shadow:
+      -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000, -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
+      0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  }
+  .st-tiktok .cap .w { display: inline-block; }
+  .st-tiktok .cap .w.current { color: #ffe135; opacity: 1; transform: scale(1.08); }
+</style>
+</head>
+<body class="scene-dark hl-none tx-cut">
+<header>
+  <div class="row">
+    <h1>Caption styles playground</h1>
+    <label>Sample
+      <select id="sample">
+        <option value="en">English · documentary</option>
+        <option value="de">Deutsch · vlog</option>
+        <option value="vi">Tiếng Việt · cooking</option>
+      </select>
+    </label>
+    <label>Scene
+      <select id="scene">
+        <option value="dark">Dark</option>
+        <option value="bright">Bright sky</option>
+        <option value="busy">Busy / high contrast</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <label>Chunks
+      <select id="chunks">
+        <option value="short">Short phrases (≤30 chars) · current</option>
+        <option value="line">One subtitle line (≤42 chars)</option>
+        <option value="two">Two lines (≤84 chars) · broadcast</option>
+      </select>
+    </label>
+    <label>Size
+      <select id="size">
+        <option value="0.82">Small</option>
+        <option value="1" selected>Medium</option>
+        <option value="1.2">Large</option>
+      </select>
+    </label>
+    <label>Word highlight
+      <select id="hl">
+        <option value="none">None (convention)</option>
+        <option value="reveal">Soft reveal (upcoming words dimmed)</option>
+        <option value="accent">Subtle current word · extension</option>
+      </select>
+    </label>
+    <label>Transition
+      <select id="tx">
+        <option value="cut">Cut (convention)</option>
+        <option value="fade">Quick fade</option>
+      </select>
+    </label>
+  </div>
+  <div class="row">
+    <button id="play" class="primary">Play</button>
+    <button id="restart" title="Restart">⟲</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+    <span class="time" id="time">0:00 / 0:00</span>
+    <label>Speed
+      <select id="rate">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+      </select>
+    </label>
+  </div>
+  <div class="hint">
+    <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> seek 3s · click a player to enlarge it.
+    Real <code>src/core</code> parser + chunker. SF Pro isn't on Linux, so Apple styles fall back to Inter (very close).
+  </div>
+</header>
+
+<main id="grid"></main>
+
+<script src="../src/core/text-utils.js"></script>
+<script src="../src/core/rolling-merger.js"></script>
+<script src="../src/core/json3-parser.js"></script>
+<script src="../src/core/cue-lookup.js"></script>
+<script src="../src/core/chunker.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { Json3Parser, CaptionChunker, cueAtTime } = globalThis.YTSC;
+
+  const STYLES = [
+    {
+      id: 'tvos', name: 'Apple tvOS · Default', src: 'Apple system captions',
+      desc: 'System font, per-line translucent rounded boxes. Readable on any scene without feeling heavy.',
+    },
+    {
+      id: 'tvos-clear', name: 'Apple · Transparent background', src: 'Apple system captions',
+      desc: 'Same type, no box; a wide soft shadow instead of an outline. Cleanest, weakest on bright scenes.',
+    },
+    {
+      id: 'glass', name: 'Frosted block · extension', src: 'visionOS / Apple TV app–inspired',
+      desc: 'One blurred rounded panel behind the whole chunk. Modern and calm; hides a bit more of the video.',
+    },
+    {
+      id: 'netflix', name: 'Netflix', src: 'Netflix Timed Text Style Guide',
+      desc: 'White proportional sans with a drop shadow, no box, ≤42 chars per line, max 2 lines.',
+    },
+    {
+      id: 'bbc', name: 'BBC broadcast', src: 'BBC Subtitle Guidelines',
+      desc: 'White on solid black, tight per-line boxes. Maximum legibility; the most "TV" looking.',
+    },
+    {
+      id: 'youtube', name: 'YouTube look', src: 'YouTube player default',
+      desc: 'Roboto on 75% black per-line boxes. Familiar, but stable chunks instead of rolling rows.',
+    },
+    {
+      id: 'serif', name: 'Editorial serif', src: 'Arthouse / Blu-ray releases',
+      desc: 'Warm off-white serif with a soft shadow. Elegant for documentaries; less crisp at small sizes.',
+    },
+    {
+      id: 'tiktok', name: 'TikTok · extension option', src: 'Popup setting, for fun',
+      desc: 'Heavy outlined text with a yellow active word. Ignores the Highlight setting.',
+    },
+  ];
+
+  const CHUNKS = {
+    short: {},
+    line: { maxWords: 99, maxChars: 42, minCommaWords: 6 },
+    two: { maxWords: 99, maxChars: 84, minCommaWords: 99 }, // broadcast: fill two lines, sentence ends still break
+  };
+
+  const SAMPLES = {
+    en: 'Every autumn, millions of monarch butterflies begin a journey of nearly five thousand kilometres. ' +
+      'None of them has ever made the trip before, yet somehow they know exactly where to go. ' +
+      'Scientists are still trying to understand how, and the answer seems to involve the sun, ' +
+      'a tiny internal clock, and perhaps even the magnetic field of the Earth itself.',
+    de: 'Liebe Freunde der Sonne, herzlich willkommen zu einem neuen Video. ' +
+      'Wir wollen heute über das Wort erst sprechen. Was bedeutet dieses Wort? ' +
+      'In welchen Kontexten benutzen wir das? Diese Fragen werde ich euch heute beantworten, ' +
+      'und wir benutzen dafür natürlich unsere Fantasie.',
+    vi: 'Chào mừng các bạn quay trở lại kênh. Hôm nay chúng ta sẽ cùng nhau nấu một món ăn rất đặc biệt của miền Trung. ' +
+      'Đầu tiên, hãy chuẩn bị nguyên liệu thật tươi, vì đó là bí quyết quan trọng nhất. ' +
+      'Sau đó, chúng ta ướp thịt với nước mắm, tiêu và một chút đường trong khoảng ba mươi phút.',
+  };
+
+  // ---------- Synthetic YouTube ASR track (json3 rollup rows, per-word offsets) ----------
+
+  function timedWords(text) {
+    const words = [];
+    let t = 700;
+    for (const w of text.split(' ')) {
+      words.push({ text: w, t });
+      t += 150 + 36 * [...w].length + (/[.?!]$/.test(w) ? 320 : /,$/.test(w) ? 160 : 0);
+    }
+    return { words, duration: t + 1500 };
+  }
+
+  function toJson3(words) {
+    const rows = [];
+    let row = [];
+    let chars = 0;
+    for (const w of words) {
+      if (row.length && chars + w.text.length + 1 > 32) {
+        rows.push(row);
+        row = [];
+        chars = 0;
+      }
+      row.push(w);
+      chars += w.text.length + 1;
+    }
+    if (row.length) rows.push(row);
+    const events = [{ tStartMs: 0, dDurationMs: 999999, wWinId: 0 }];
+    rows.forEach((r, i) => {
+      const start = r[0].t;
+      const next = rows[i + 1]?.[0].t;
+      const end = (next ?? r[r.length - 1].t) + 2500;
+      events.push({
+        tStartMs: start,
+        dDurationMs: end - start,
+        wWinId: 1,
+        segs: r.map((w, j) => (j ? { utf8: ` ${w.text}`, tOffsetMs: w.t - start } : { utf8: w.text })),
+      });
+      if (next != null) events.push({ tStartMs: next - 10, dDurationMs: 2500, wWinId: 1, aAppend: 1, segs: [{ utf8: '\n' }] });
+    });
+    return { events };
+  }
+
+  // ---------- Rendering ----------
+
+  class StyleCard {
+    constructor(style, grid) {
+      this.el = document.createElement('section');
+      this.el.className = `card st-${style.id}`;
+      this.el.innerHTML = `
+        <div class="card-head"><b></b><span class="src"></span></div>
+        <p></p>
+        <div class="player"><div class="cap"></div></div>`;
+      this.el.querySelector('b').textContent = style.name;
+      this.el.querySelector('.src').textContent = style.src;
+      this.el.querySelector('p').textContent = style.desc;
+      this.cap = this.el.querySelector('.cap');
+      this.el.querySelector('.player').addEventListener('click', () => {
+        this.el.classList.toggle('focus');
+        this.el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+      grid.appendChild(this.el);
+    }
+
+    reset() {
+      this.current = undefined;
+      this.cap.textContent = '';
+      this.cap.classList.remove('visible');
+    }
+
+    render(chunks, t) {
+      const chunk = cueAtTime(chunks, t);
+      if (chunk !== this.current) this._paint(chunk);
+      if (!chunk) return;
+      let active = -1;
+      chunk.words.forEach((w, i) => { if (w.startMs <= t) active = i; });
+      if (active === this.active) return;
+      this.active = active;
+      this.spans.forEach((s, i) => {
+        s.classList.toggle('current', i === active);
+        s.classList.toggle('future', i > active);
+      });
+    }
+
+    _paint(chunk) {
+      this.current = chunk;
+      this.active = null;
+      const cap = this.cap;
+      cap.textContent = '';
+      cap.classList.remove('fresh');
+      if (!chunk) {
+        cap.classList.remove('visible');
+        return;
+      }
+      // One inline .line so per-line boxes (box-decoration-break) wrap like real subtitles.
+      const line = document.createElement('span');
+      line.className = 'line';
+      this.spans = chunk.words.map((w, i) => {
+        if (i) line.append(' ');
+        const s = document.createElement('span');
+        s.className = 'w';
+        s.textContent = w.text;
+        line.append(s);
+        return s;
+      });
+      cap.append(line);
+      cap.classList.add('visible');
+      void cap.offsetWidth;
+      cap.classList.add('fresh');
+    }
+  }
+
+  // ---------- State + transport ----------
+
+  const $ = (id) => document.getElementById(id);
+  const grid = $('grid');
+  const cards = STYLES.map((s) => new StyleCard(s, grid));
+  const clock = { t: 0, playing: false, last: 0, rate: 1, duration: 1 };
+  let words = [];
+  let chunks = [];
+
+  function rebuild() {
+    const { words: source, duration } = timedWords(SAMPLES[$('sample').value]);
+    words = new Json3Parser().parseWords(toJson3(source));
+    chunks = new CaptionChunker(CHUNKS[$('chunks').value]).build(words);
+    clock.duration = duration;
+    clock.t = Math.min(clock.t, duration);
+    cards.forEach((c) => c.reset());
+    draw();
+  }
+
+  function applyClasses() {
+    document.body.className = `scene-${$('scene').value} hl-${$('hl').value} tx-${$('tx').value}`;
+    document.documentElement.style.setProperty('--scale', $('size').value);
+  }
+
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  function draw() {
+    cards.forEach((c) => c.render(chunks, clock.t));
+    $('seek').value = Math.round((clock.t / clock.duration) * 1000);
+    $('time').textContent = `${fmt(clock.t)} / ${fmt(clock.duration)}`;
+  }
+
+  function setPlaying(on) {
+    if (on && clock.t >= clock.duration) clock.t = 0;
+    clock.playing = on;
+    clock.last = performance.now();
+    $('play').textContent = on ? 'Pause' : 'Play';
+  }
+
+  function frame(now) {
+    if (clock.playing) {
+      clock.t += (now - clock.last) * clock.rate;
+      if (clock.t >= clock.duration) {
+        clock.t = clock.duration;
+        setPlaying(false);
+      }
+      draw();
+    }
+    clock.last = now;
+    requestAnimationFrame(frame);
+  }
+
+  const seekBy = (ms) => {
+    clock.t = Math.min(clock.duration, Math.max(0, clock.t + ms));
+    draw();
+  };
+
+  // Remember the viewer's control choices between reloads.
+  const CONTROLS = ['sample', 'scene', 'chunks', 'size', 'hl', 'tx', 'rate'];
+  const params = new URLSearchParams(location.search);
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('ytsc-style-playground') || '{}'); } catch { /* private mode */ }
+  for (const id of CONTROLS) {
+    const value = params.get(id) ?? saved[id];
+    if (value != null && [...$(id).options].some((o) => o.value === value)) $(id).value = value;
+    $(id).addEventListener('change', () => {
+      try {
+        localStorage.setItem('ytsc-style-playground', JSON.stringify(Object.fromEntries(CONTROLS.map((c) => [c, $(c).value]))));
+      } catch { /* ignore */ }
+      if (id === 'sample' || id === 'chunks') rebuild();
+      else if (id === 'rate') clock.rate = Number($(id).value);
+      else applyClasses();
+    });
+  }
+
+  $('play').addEventListener('click', () => setPlaying(!clock.playing));
+  $('restart').addEventListener('click', () => { clock.t = 0; setPlaying(true); });
+  $('seek').addEventListener('input', (e) => {
+    clock.t = (Number(e.target.value) / 1000) * clock.duration;
+    draw();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('select, input')) return;
+    if (e.code === 'Space') { e.preventDefault(); setPlaying(!clock.playing); }
+    if (e.code === 'ArrowLeft') seekBy(-3000);
+    if (e.code === 'ArrowRight') seekBy(3000);
+  });
+
+  clock.rate = Number($('rate').value);
+  applyClasses();
+  rebuild();
+  if (params.has('t')) seekBy(Number(params.get('t')) || 0);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

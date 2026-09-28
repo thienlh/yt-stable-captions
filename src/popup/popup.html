@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>YT Stable Captions</title>
+<style>
+  @font-face {
+    font-family: "YTSC Inter";
+    src: url("../../fonts/InterVariable.woff2") format("woff2");
+    font-weight: 100 900;
+  }
+  :root {
+    --bg: #ffffff;
+    --ink: #1c1c1e;
+    --muted: #6b6b70;
+    --line: #dcdcd8;
+    --accent: #0a66d8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1b1b1f; --ink: #ececef; --muted: #9a9aa2; --line: #34343a; --accent: #5aa2ff; }
+  }
+  body {
+    margin: 0;
+    width: 300px;
+    padding: 14px;
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.4 "YTSC Inter", system-ui, sans-serif;
+  }
+  h1 { font-size: 14px; margin: 0 0 2px; }
+  p { margin: 0 0 12px; color: var(--muted); }
+  fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
+  legend { font-weight: 600; margin-bottom: 8px; }
+  label {
+    display: grid;
+    gap: 8px;
+    padding: 8px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  label:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+  .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+  .name small { font-weight: 400; color: var(--muted); margin-left: auto; }
+  input { accent-color: var(--accent); margin: 0; }
+
+  .preview {
+    height: 64px;
+    border-radius: 6px;
+    display: grid;
+    place-items: center;
+    background:
+      radial-gradient(ellipse at 30% 35%, #4b5d6b 0%, transparent 60%),
+      radial-gradient(ellipse at 75% 60%, #6b4f3f 0%, transparent 55%),
+      linear-gradient(160deg, #26313a, #15181c);
+    font-size: 15px;
+  }
+  /* Miniatures of src/content/styles.css */
+  .frosted span {
+    font-family: "YTSC Inter", system-ui, sans-serif;
+    font-weight: 600;
+    color: #fff;
+    padding: 0.35em 0.7em;
+    border-radius: 0.6em;
+    background: rgba(28, 28, 32, 0.38);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  }
+  .frosted i { font-style: normal; opacity: 0.68; }
+  .frosted b { font-weight: inherit; text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.45); }
+  .tiktok span {
+    font-family: "YTSC Inter", sans-serif;
+    font-weight: 800;
+    font-size: 16px;
+    color: #fff;
+    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.6);
+  }
+  .tiktok b { color: #ffe135; font-weight: inherit; }
+  .note { margin: 12px 0 0; font-size: 12px; }
+</style>
+</head>
+<body>
+  <h1>YT Stable Captions</h1>
+  <p>Stable caption chunks instead of YouTube's rolling text.</p>
+  <fieldset>
+    <legend>Caption style</legend>
+    <label>
+      <span class="name"><input type="radio" name="style" value="frosted"> Frosted <small>calm, default</small></span>
+      <span class="preview frosted"><span><i>Every autumn,</i> <b>millions</b> <i>of</i></span></span>
+    </label>
+    <label>
+      <span class="name"><input type="radio" name="style" value="tiktok"> TikTok <small>bold, for fun</small></span>
+      <span class="preview tiktok"><span>Every autumn, <b>millions</b> of</span></span>
+    </label>
+  </fieldset>
+  <p class="note">Changes apply instantly to open YouTube tabs.</p>
+  <script src="popup.js"></script>
+</body>
+</html>

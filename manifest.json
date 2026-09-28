@@ -2,17 +2,41 @@
   "manifest_version": 3,
   "name": "YT Stable Captions (MVP)",
   "version": "0.1.0",
-  "description": "Replace flowing YouTube auto-captions with short TikTok-style caption chunks.",
-  "host_permissions": ["https://www.youtube.com/*"],
+  "description": "Replace flowing YouTube auto-captions with calm, stable caption chunks.",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://www.youtube.com/*"
+  ],
+  "action": {
+    "default_title": "YT Stable Captions",
+    "default_popup": "src/popup/popup.html"
+  },
   "content_scripts": [
     {
-      "matches": ["https://www.youtube.com/*"],
-      "world": "MAIN",
-      "js": ["src/content/timedtext-tap.js"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "js": [
+        "src/content/settings-bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://www.youtube.com/*"],
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
+      "world": "MAIN",
+      "js": [
+        "src/content/timedtext-tap.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://www.youtube.com/*"
+      ],
       "world": "MAIN",
       "js": [
         "src/core/text-utils.js",
@@ -25,8 +49,20 @@
         "src/content/overlay.js",
         "src/content/main.js"
       ],
-      "css": ["src/content/styles.css"],
+      "css": [
+        "src/content/styles.css"
+      ],
       "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "fonts/*"
+      ],
+      "matches": [
+        "https://www.youtube.com/*"
+      ]
     }
   ]
 }

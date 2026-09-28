@@ -2,9 +2,9 @@
   'use strict';
 
   /**
-   * TikTok-style caption overlay rendered inside the YouTube player.
+   * Caption overlay rendered inside the YouTube player (frosted-block style).
    * Hides the native caption windows, paints one short chunk at a time and
-   * highlights the word being spoken.
+   * marks the word being spoken (styling decides how subtle that is).
    * Single responsibility: DOM rendering only.
    */
   class CaptionOverlay {
@@ -30,7 +30,7 @@
         player.appendChild(this.el);
         // Scale text with the player (theater, fullscreen, mini player).
         this.resizeObserver = new ResizeObserver(() => {
-          const px = Math.max(16, Math.round(player.clientHeight * 0.06));
+          const px = Math.max(16, Math.round(player.clientHeight * 0.055));
           this.el.style.setProperty('--ytsc-font', `${px}px`);
         });
         this.resizeObserver.observe(player);
@@ -49,6 +49,7 @@
         return;
       }
       if (chunk !== this.chunk) this._paint(chunk);
+      this.el.classList.toggle('ytsc-untimed', timeMs == null);
       if (timeMs != null) this._highlight(timeMs);
     }
 
@@ -58,7 +59,7 @@
       this.activeIndex = -1;
       if (this.el) {
         this.el.textContent = '';
-        this.el.classList.remove('ytsc-visible', 'ytsc-pop');
+        this.el.classList.remove('ytsc-visible', 'ytsc-fresh');
       }
     }
 
@@ -86,10 +87,10 @@
         return span;
       });
       this.el.classList.add('ytsc-visible');
-      // Restart the pop-in animation for each new chunk.
-      this.el.classList.remove('ytsc-pop');
+      // Restart the per-chunk entrance animation (only the TikTok style defines one).
+      this.el.classList.remove('ytsc-fresh');
       void this.el.offsetWidth;
-      this.el.classList.add('ytsc-pop');
+      this.el.classList.add('ytsc-fresh');
     }
 
     _highlight(timeMs) {
