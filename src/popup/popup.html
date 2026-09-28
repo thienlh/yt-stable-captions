@@ -77,6 +77,15 @@
   }
   .tiktok b { color: #ffe135; font-weight: inherit; }
   .note { margin: 12px 0 0; font-size: 12px; }
+
+  /* Size: segmented control */
+  .sizes { margin-top: 14px; }
+  .segmented { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .segmented label { border: 0; border-radius: 0; padding: 6px 0; gap: 0; place-items: center; text-align: center; }
+  .segmented label + label { border-left: 1px solid var(--line); }
+  .segmented label:has(input:checked) { box-shadow: none; background: var(--accent); color: #fff; }
+  .segmented input { position: absolute; opacity: 0; pointer-events: none; }
+  .segmented span { font-weight: 600; line-height: 1; }
 </style>
 </head>
 <body>
@@ -92,6 +101,15 @@
       <span class="name"><input type="radio" name="style" value="tiktok"> TikTok <small>bold, for fun</small></span>
       <span class="preview tiktok"><span>Every autumn, <b>millions</b> of</span></span>
     </label>
+  </fieldset>
+  <fieldset class="sizes">
+    <legend>Text size</legend>
+    <div class="segmented">
+      <label title="Small"><input type="radio" name="size" value="small"><span style="font-size: 11px">A</span></label>
+      <label title="Medium (default)"><input type="radio" name="size" value="medium"><span style="font-size: 13px">A</span></label>
+      <label title="Large"><input type="radio" name="size" value="large"><span style="font-size: 15px">A</span></label>
+      <label title="Extra large"><input type="radio" name="size" value="xlarge"><span style="font-size: 18px">A</span></label>
+    </div>
   </fieldset>
   <p class="note">Changes apply instantly to open YouTube tabs.</p>
   <script src="popup.js"></script>

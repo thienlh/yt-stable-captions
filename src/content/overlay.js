@@ -28,10 +28,10 @@
         this.el.id = 'ytsc-overlay';
         this.el.setAttribute('aria-live', 'off');
         player.appendChild(this.el);
-        // Scale text with the player (theater, fullscreen, mini player).
+        // Scale text with the player (theater, fullscreen, mini player); styles.css
+        // turns this into a font size using the size setting.
         this.resizeObserver = new ResizeObserver(() => {
-          const px = Math.max(16, Math.round(player.clientHeight * 0.055));
-          this.el.style.setProperty('--ytsc-font', `${px}px`);
+          this.el.style.setProperty('--ytsc-player-h', `${player.clientHeight}px`);
         });
         this.resizeObserver.observe(player);
       }

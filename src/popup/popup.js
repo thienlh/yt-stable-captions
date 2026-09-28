@@ -1,18 +1,20 @@
 (() => {
   'use strict';
 
-  /** Popup: reads/writes the caption style; settings-bridge.js applies it to open tabs. */
-  const DEFAULTS = { style: 'frosted' };
-  const radios = [...document.querySelectorAll('input[name="style"]')];
+  /** Popup: reads/writes settings; settings-bridge.js applies them to open tabs. */
+  const DEFAULTS = { style: 'frosted', size: 'medium' };
 
-  chrome.storage.sync.get(DEFAULTS, ({ style }) => {
-    const current = radios.find((r) => r.value === style) || radios[0];
-    current.checked = true;
+  chrome.storage.sync.get(DEFAULTS, (settings) => {
+    for (const [key, value] of Object.entries(settings)) {
+      const radios = [...document.querySelectorAll(`input[name="${key}"]`)];
+      const current = radios.find((r) => r.value === value) || radios[0];
+      if (current) current.checked = true;
+    }
   });
 
-  for (const radio of radios) {
+  for (const radio of document.querySelectorAll('input[type="radio"]')) {
     radio.addEventListener('change', () => {
-      if (radio.checked) chrome.storage.sync.set({ style: radio.value });
+      if (radio.checked) chrome.storage.sync.set({ [radio.name]: radio.value });
     });
   }
 })();

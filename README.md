@@ -35,8 +35,8 @@ remove the flowing-text distraction.
 - `src/content/live-source.js` — caption DOM → new words → live chunks
 - `src/content/track-provider.js` — track discovery + `fmt=json3` fetch
 - `src/content/overlay.js` — DOM rendering only
-- `src/content/settings-bridge.js` — popup setting → `<html data-ytsc-style>` (isolated world)
-- `src/popup/` — toolbar popup: caption style (Frosted / TikTok)
+- `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>` (isolated world)
+- `src/popup/` — toolbar popup: caption style (Frosted / TikTok), text size
 - `src/content/main.js` — composition root (`StableCaptionsController`)
 
 Core files attach to `globalThis.YTSC` and also export via CommonJS, so the
@@ -73,5 +73,5 @@ Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICEN
 ## Next iterations
 
 1. Punctuation/AI pass (local Ollama helper, cached by videoId+lang)
-2. More popup settings: chunk size, font size, hold time
+2. More popup settings: chunk size, hold time
 3. Side transcript panel (Omarchy app candidate — reader, not overlay)
