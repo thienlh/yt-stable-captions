@@ -80,6 +80,7 @@ Same keys as YouTube's own captions:
 | `c` | Captions on/off — YouTube's own toggle; the overlay follows the player's CC state |
 | `=` / `+` | Larger caption text (while stable captions are showing) |
 | `-` | Smaller caption text |
+| `w` | Cycle background: frosted panel Clear → Light → Medium → Dark → Solid; TikTok box Off → 25–100% |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach

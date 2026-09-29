@@ -3,6 +3,7 @@
 
   /** Popup: reads/writes settings; settings-bridge.js applies them to open tabs. */
   const DEFAULTS = { style: 'frosted', size: 'medium', clean: false };
+  // (frostedWindow / tiktokWindow are shortcut-only: `w` on the video.)
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
 

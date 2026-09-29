@@ -24,9 +24,10 @@
   color: #fff;
   padding: 0.35em 0.7em;
   border-radius: 0.6em;
-  background: rgba(28, 28, 32, 0.38);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  backdrop-filter: blur(16px) saturate(1.4);
+  /* Panel strength: `w` shortcut → html[data-ytsc-frosted-window] (see below). */
+  background: rgba(28, 28, 32, var(--ytsc-panel-alpha, 0.38));
+  -webkit-backdrop-filter: blur(var(--ytsc-panel-blur, 16px)) saturate(1.4);
+  backdrop-filter: blur(var(--ytsc-panel-blur, 16px)) saturate(1.4);
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.2em 0.8em rgba(0, 0, 0, 0.2);
   /* Faint shadow keeps white text legible now that the panel is lighter. */
   text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
@@ -46,6 +47,18 @@ html[data-ytsc-size="xsmall"] #ytsc-overlay { --ytsc-size: 0.036; }
 html[data-ytsc-size="small"] #ytsc-overlay { --ytsc-size: 0.042; }
 html[data-ytsc-size="large"] #ytsc-overlay { --ytsc-size: 0.055; }
 html[data-ytsc-size="xlarge"] #ytsc-overlay { --ytsc-size: 0.064; }
+
+/* Window setting. Set on <html> as variables so every overlay rule (incl. the
+   controls-visible one) picks them up without specificity fights. */
+html[data-ytsc-frosted-window="clear"] { --ytsc-panel-alpha: 0.12; --ytsc-panel-blur: 10px; }
+html[data-ytsc-frosted-window="light"] { --ytsc-panel-alpha: 0.25; --ytsc-panel-blur: 14px; }
+html[data-ytsc-frosted-window="dark"] { --ytsc-panel-alpha: 0.55; --ytsc-panel-blur: 18px; }
+html[data-ytsc-frosted-window="solid"] { --ytsc-panel-alpha: 0.78; --ytsc-panel-blur: 20px; }
+html[data-ytsc-tiktok-window="25"] { --ytsc-tt-alpha: 0.25; }
+html[data-ytsc-tiktok-window="50"] { --ytsc-tt-alpha: 0.5; }
+html[data-ytsc-tiktok-window="75"] { --ytsc-tt-alpha: 0.75; }
+html[data-ytsc-tiktok-window="100"] { --ytsc-tt-alpha: 1; }
+html[data-ytsc-tiktok-window]:not([data-ytsc-tiktok-window="off"]) { --ytsc-tt-pad: 0.12em 0.45em; --ytsc-tt-radius: 0.3em; }
 
 /* Sit above the control bar while it is showing, like native captions. */
 .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
@@ -107,9 +120,11 @@ html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-over
   font-weight: 800;
   line-height: 1.2;
   letter-spacing: 0.01em;
-  padding: 0;
-  border-radius: 0;
-  background: none;
+  /* Room for the enlarged active word, which would otherwise cover the space after it. */
+  word-spacing: 0.12em;
+  padding: var(--ytsc-tt-pad, 0);
+  border-radius: var(--ytsc-tt-radius, 0);
+  background: rgba(0, 0, 0, var(--ytsc-tt-alpha, 0));
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: none;

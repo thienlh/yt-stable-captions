@@ -4,7 +4,7 @@
   /**
    * Mirrors the popup settings onto <html data-ytsc-style="…" data-ytsc-size="…">,
    * registers the bundled font with this browser's extension URL, and handles
-   * the shortcuts that change settings (=/+ and - size, Shift+C clean verbatim).
+   * the shortcuts that change settings (=/+ and - size, w window, Shift+C clean verbatim).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
@@ -23,8 +23,15 @@
   }`;
   document.documentElement.appendChild(font);
 
-  const DEFAULTS = { style: 'frosted', size: 'medium', clean: false };
-  const ATTRS = { style: 'ytscStyle', size: 'ytscSize', clean: 'ytscClean' };
+  // Window (background) opacity is per style: the frosted panel vs. a box behind TikTok text.
+  const DEFAULTS = { style: 'frosted', size: 'medium', clean: false, frostedWindow: 'medium', tiktokWindow: 'off' };
+  const ATTRS = {
+    style: 'ytscStyle',
+    size: 'ytscSize',
+    clean: 'ytscClean',
+    frostedWindow: 'ytscFrostedWindow',
+    tiktokWindow: 'ytscTiktokWindow',
+  };
   const current = { ...DEFAULTS };
   const apply = (settings) => {
     for (const [key, attr] of Object.entries(ATTRS)) {
@@ -49,6 +56,12 @@
   const SIZES = ['xsmall', 'small', 'medium', 'large', 'xlarge'];
   const SIZE_LABELS = { xsmall: 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', xlarge: 'Extra large' };
   const SIZE_KEYS = { '=': 1, '+': 1, '-': -1 };
+  // `w` cycles like YouTube's own window-opacity key (wraps around).
+  const WINDOWS = {
+    frosted: { key: 'frostedWindow', levels: ['clear', 'light', 'medium', 'dark', 'solid'], label: 'Frosted panel' },
+    tiktok: { key: 'tiktokWindow', levels: ['off', '25', '50', '75', '100'], label: 'Background' },
+  };
+  const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
 
   const isTyping = (el) =>
     el instanceof Element &&
@@ -90,13 +103,20 @@
       if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const delta = SIZE_KEYS[e.key];
       const cleanKey = e.key === 'C' && e.shiftKey;
-      if (!delta && !cleanKey) return;
+      const windowKey = e.key === 'w' && !e.shiftKey;
+      if (!delta && !cleanKey && !windowKey) return;
       if (isTyping(e.target) || !captionsShowing()) return;
       e.preventDefault();
       e.stopImmediatePropagation();
       if (cleanKey) {
         const on = !current.clean;
         setting('clean', on, on ? 'Clean captions: on (no um, uh, repeats)' : 'Clean captions: off');
+        return;
+      }
+      if (windowKey) {
+        const w = WINDOWS[current.style] || WINDOWS.frosted;
+        const next = w.levels[(w.levels.indexOf(current[w.key]) + 1) % w.levels.length];
+        setting(w.key, next, `${w.label}: ${WINDOW_LABELS[next] || `${next}%`}`);
         return;
       }
       const index = Math.max(0, SIZES.indexOf(current.size));
