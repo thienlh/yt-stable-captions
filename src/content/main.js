@@ -147,6 +147,12 @@
       }
     }
 
+    /** Follows the player's own CC toggle (the `c` key or the CC button). */
+    captionsEnabled() {
+      const button = document.querySelector('.ytp-subtitles-button');
+      return !button || button.getAttribute('aria-pressed') !== 'false';
+    }
+
     attachVideo() {
       this.video = document.querySelector('video.html5-main-video');
       if (!this.video) return;
@@ -163,7 +169,8 @@
           }
         }
         const timeMs = this.video.currentTime * 1000;
-        this.overlay.render(this.lookup.atTime(this.cues, timeMs), timeMs);
+        const cue = this.captionsEnabled() ? this.lookup.atTime(this.cues, timeMs) : null;
+        this.overlay.render(cue, timeMs);
         this.raf = requestAnimationFrame(tick);
       };
       tick();
@@ -182,6 +189,7 @@
       }
       this.live = new DomSource({
         onChunk: (chunk) => {
+          if (!this.captionsEnabled()) return;
           this.overlay.render(chunk);
           clearTimeout(this.liveHold);
           this.liveHold = setTimeout(() => this.overlay.render(null), 3000);

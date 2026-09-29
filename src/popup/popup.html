@@ -77,6 +77,15 @@
   }
   .tiktok b { color: #ffe135; font-weight: inherit; }
   .note { margin: 12px 0 0; font-size: 12px; }
+  .keys { margin-top: 6px; color: var(--muted); }
+  kbd {
+    font: 600 11px/1 "YTSC Inter", system-ui, sans-serif;
+    padding: 2px 5px;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    color: var(--ink);
+  }
 
   /* Size: segmented control */
   .sizes { margin-top: 14px; }
@@ -112,6 +121,7 @@
     </div>
   </fieldset>
   <p class="note">Changes apply instantly to open YouTube tabs.</p>
+  <p class="note keys"><kbd>C</kbd> captions on/off · <kbd>+</kbd> / <kbd>−</kbd> caption size</p>
   <script src="popup.js"></script>
 </body>
 </html>

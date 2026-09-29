@@ -62,6 +62,19 @@ npm test
 
 To disable: `chrome://extensions` → toggle off.
 
+## Keyboard shortcuts
+
+Same keys as YouTube's own captions:
+
+| Key | Action |
+|---|---|
+| `c` | Captions on/off — YouTube's own toggle; the overlay follows the player's CC state |
+| `=` / `+` | Larger caption text (while stable captions are showing) |
+| `-` | Smaller caption text |
+
+Size keys are taken over only while the stable captions are visible (otherwise they reach
+YouTube as usual), are ignored while typing or with Ctrl/⌘/Alt, and save to the popup setting.
+
 ## Try in Safari (macOS)
 
 Needs Xcode. From a clone of this repo:

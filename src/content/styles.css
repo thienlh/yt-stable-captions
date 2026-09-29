@@ -71,6 +71,30 @@ html[data-ytsc-size="xlarge"] #ytsc-overlay { --ytsc-size: 0.064; }
   opacity: 1;
 }
 
+/* Shortcut feedback (=/+/- size keys), styled like the frosted panel. */
+#ytsc-toast {
+  position: absolute;
+  top: 10%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 31;
+  pointer-events: none;
+  padding: 0.45em 0.9em;
+  border-radius: 999px;
+  font: 600 15px/1.2 "SF Pro Text", "YTSC Inter", system-ui, sans-serif;
+  color: #fff;
+  background: rgba(28, 28, 32, 0.5);
+  -webkit-backdrop-filter: blur(16px) saturate(1.4);
+  backdrop-filter: blur(16px) saturate(1.4);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+  opacity: 0;
+  transition: opacity 160ms ease-out;
+}
+
+#ytsc-toast.ytsc-toast-visible {
+  opacity: 1;
+}
+
 /* ---------- Optional "TikTok" style (popup setting → html[data-ytsc-style]) ---------- */
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay,
