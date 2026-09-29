@@ -25,6 +25,7 @@
         'src/core/json3-parser.js',
         'src/core/cue-lookup.js',
         'src/core/chunker.js',
+        'src/core/disfluency.js',
         'src/content/track-provider.js',
         'src/content/live-source.js',
         'src/content/overlay.js',

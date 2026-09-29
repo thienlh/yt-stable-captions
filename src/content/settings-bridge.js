@@ -4,7 +4,7 @@
   /**
    * Mirrors the popup settings onto <html data-ytsc-style="…" data-ytsc-size="…">,
    * registers the bundled font with this browser's extension URL, and handles
-   * the caption-size shortcuts (=/+ and -), which need storage to persist.
+   * the shortcuts that change settings (=/+ and - size, Shift+C clean verbatim).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
@@ -23,14 +23,14 @@
   }`;
   document.documentElement.appendChild(font);
 
-  const DEFAULTS = { style: 'frosted', size: 'medium' };
-  const ATTRS = { style: 'ytscStyle', size: 'ytscSize' };
+  const DEFAULTS = { style: 'frosted', size: 'medium', clean: false };
+  const ATTRS = { style: 'ytscStyle', size: 'ytscSize', clean: 'ytscClean' };
   const current = { ...DEFAULTS };
   const apply = (settings) => {
     for (const [key, attr] of Object.entries(ATTRS)) {
       if (!(key in settings)) continue;
-      current[key] = settings[key] || DEFAULTS[key];
-      document.documentElement.dataset[attr] = current[key];
+      current[key] = settings[key] ?? DEFAULTS[key];
+      document.documentElement.dataset[attr] = String(current[key]);
     }
   };
 
@@ -76,21 +76,32 @@
     toastTimer = setTimeout(() => el.classList.remove('ytsc-toast-visible'), 1200);
   };
 
+  const setting = (key, value, message) => {
+    apply({ [key]: value });
+    store.set({ [key]: value }).catch(() => {});
+    toast(message);
+  };
+
   // Capture phase at window runs before YouTube's own handlers, so while our
-  // captions are showing, size keys resize ours instead of the hidden native ones.
+  // captions are showing, these keys drive ours instead of the hidden native ones.
   window.addEventListener(
     'keydown',
     (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
       const delta = SIZE_KEYS[e.key];
-      if (!delta || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
+      const cleanKey = e.key === 'C' && e.shiftKey;
+      if (!delta && !cleanKey) return;
       if (isTyping(e.target) || !captionsShowing()) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (cleanKey) {
+        const on = !current.clean;
+        setting('clean', on, on ? 'Clean captions: on (no um, uh, repeats)' : 'Clean captions: off');
+        return;
+      }
       const index = Math.max(0, SIZES.indexOf(current.size));
       const next = SIZES[Math.min(SIZES.length - 1, Math.max(0, index + delta))];
-      apply({ size: next });
-      store.set({ size: next }).catch(() => {});
-      toast(`Caption size: ${SIZE_LABELS[next]}`);
+      setting('size', next, `Caption size: ${SIZE_LABELS[next]}`);
     },
     true
   );

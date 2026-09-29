@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Disfluency Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f4f4f2;
+    --panel: #ffffff;
+    --ink: #1c1c1e;
+    --muted: #6b6b70;
+    --line: #dcdcd8;
+    --accent: #0a66d8;
+    --filler: #b26a00;
+    --repeat: #7a3db8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111113;
+      --panel: #1b1b1f;
+      --ink: #ececef;
+      --muted: #9a9aa2;
+      --line: #2e2e34;
+      --accent: #5aa2ff;
+      --filler: #f0a640;
+      --repeat: #b98cf0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  header {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 16px;
+    display: grid;
+    gap: 10px;
+  }
+  .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; }
+  h1 { font-size: 16px; margin: 0; margin-right: auto; }
+  label { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+  button, select {
+    font: inherit;
+    color: var(--ink);
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 4px 8px;
+    cursor: pointer;
+  }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; min-width: 76px; }
+  input[type=range] { flex: 1; min-width: 160px; accent-color: var(--accent); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  .time { font-variant-numeric: tabular-nums; color: var(--muted); min-width: 92px; }
+  .hint { color: var(--muted); font-size: 12px; }
+  kbd {
+    font: 11px ui-monospace, monospace;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  details.transcript { font-size: 13px; }
+  details.transcript summary { cursor: pointer; color: var(--muted); }
+  details.transcript p { margin: 6px 0 0; line-height: 1.7; }
+  .t-filler { color: var(--filler); text-decoration: underline dotted; text-underline-offset: 3px; }
+  .t-repeat { color: var(--repeat); text-decoration: underline dotted; text-underline-offset: 3px; }
+  .legend { display: inline-flex; gap: 12px; font-size: 12px; }
+
+  main { padding: 16px; display: grid; gap: 18px; }
+  .approach {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .approach-head { padding: 10px 12px 8px; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+  .approach-head b { font-size: 14px; }
+  .approach-head span { color: var(--muted); font-size: 12.5px; }
+  .approach-head .tag { margin-left: auto; font-size: 11px; white-space: nowrap; }
+  .pair { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 1px; background: var(--line); }
+  .slot { background: var(--panel); }
+  .slot-label { font-size: 11px; color: var(--muted); padding: 5px 10px; }
+
+  .player {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    container-type: size;
+    background:
+      radial-gradient(ellipse at 30% 35%, #4b5d6b 0%, transparent 55%),
+      radial-gradient(ellipse at 75% 60%, #6b4f3f 0%, transparent 50%),
+      linear-gradient(160deg, #26313a, #15181c);
+  }
+
+  /* ---------- Caption styles (mirror src/content/styles.css) ---------- */
+  .cap {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: max-content;
+    text-align: center;
+    text-wrap: balance;
+    pointer-events: none;
+    display: none;
+    color: #fff;
+  }
+  .cap.visible { display: block; }
+  .cap .w { transition: opacity 90ms linear, text-shadow 90ms linear, color 80ms linear, transform 80ms ease-out; }
+
+  .cap.frosted {
+    bottom: 8%;
+    max-width: min(88%, 42ch);
+    font-family: "SF Pro Text", "SF Pro Display", "Inter", system-ui, sans-serif;
+    font-size: 4.8cqh;
+    font-weight: 600;
+    line-height: 1.3;
+    padding: 0.35em 0.7em;
+    border-radius: 0.6em;
+    background: rgba(28, 28, 32, 0.38);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.2em 0.8em rgba(0, 0, 0, 0.2);
+    text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
+  }
+  .cap.frosted .w { opacity: 0.68; }
+  .cap.frosted .w.current { opacity: 1; text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.45), 0 0.03em 0.12em rgba(0, 0, 0, 0.35); }
+
+  .cap.tiktok {
+    bottom: 14%;
+    max-width: min(80%, 14em);
+    font-family: "Montserrat", "Inter", "Helvetica Neue", Arial, sans-serif;
+    font-size: 5.3cqh;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    text-shadow:
+      -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000, -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
+      0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  }
+  .cap.tiktok .w { display: inline-block; }
+  .cap.tiktok .w.current { color: #ffe135; transform: scale(1.08); }
+
+  /* ---------- De-emphasis treatments ---------- */
+  /* dim: lower brightness; the current-word cue still shows, but stays muted */
+  .cap.frosted.fx-dim .w.soft { opacity: 0.36; }
+  .cap.frosted.fx-dim .w.soft.current { opacity: 0.55; text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35); }
+  .cap.tiktok.fx-dim .w.soft { opacity: 0.5; }
+  .cap.tiktok.fx-dim .w.soft.current { color: #fff; opacity: 0.7; transform: none; }
+
+  /* shrink: dim + smaller + lighter, so fillers read as asides */
+  .cap.frosted.fx-shrink .w.soft { opacity: 0.4; font-size: 0.78em; font-weight: 500; }
+  .cap.frosted.fx-shrink .w.soft.current { opacity: 0.58; text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35); }
+  .cap.tiktok.fx-shrink .w.soft { opacity: 0.55; font-size: 0.72em; font-weight: 700; }
+  .cap.tiktok.fx-shrink .w.soft.current { color: #fff; opacity: 0.75; transform: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <h1>Disfluency playground · um, uh, I I I…</h1>
+    <label>Sample
+      <select id="sample">
+        <option value="en">English · podcast</option>
+        <option value="de">Deutsch · Interview</option>
+        <option value="vi">Tiếng Việt · vlog</option>
+      </select>
+    </label>
+    <label title="Also treat 'like', 'you know', 'I mean' (and similar) as fillers">
+      <input type="checkbox" id="aggressive"> Aggressive fillers (like, you know, I mean)
+    </label>
+  </div>
+  <div class="bar">
+    <button id="play" class="primary">Play</button>
+    <button id="restart" title="Restart">⟲</button>
+    <input id="seek" type="range" min="0" max="1000" value="0" aria-label="Seek">
+    <span class="time" id="time">0:00 / 0:00</span>
+    <label>Speed
+      <select id="rate">
+        <option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option>
+        <option value="1.25">1.25×</option>
+      </select>
+    </label>
+  </div>
+  <details class="transcript">
+    <summary>
+      Transcript with detections
+      <span class="legend"><span class="t-filler">filler</span><span class="t-repeat">repeat</span><span id="counts"></span></span>
+    </summary>
+    <p id="transcript"></p>
+  </details>
+  <div class="hint">
+    <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> seek 3s. Real <code>src/core</code> parser + chunker, Frosted and TikTok as in the extension.
+  </div>
+</header>
+
+<main id="grid"></main>
+
+<script src="../src/core/text-utils.js"></script>
+<script src="../src/core/rolling-merger.js"></script>
+<script src="../src/core/json3-parser.js"></script>
+<script src="../src/core/cue-lookup.js"></script>
+<script src="../src/core/chunker.js"></script>
+<script src="../src/core/disfluency.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { Json3Parser, CaptionChunker, Disfluency, cueAtTime } = globalThis.YTSC;
+  const $ = (id) => document.getElementById(id);
+
+  // ---------- Samples (as YouTube ASR might transcribe them) ----------
+
+  const SAMPLES = {
+    en: "So, um, I I I think the the main thing is, uh, you know, we we didn't really plan any of this. " +
+      "Um, it just kind of happened. And, uh, like, when we started, I mean, nobody, nobody believed it would work. " +
+      "Uh, but, but here we are, you know, ten years later. It's, um, it's honestly still a little surreal.",
+    de: "Also, äh, ich ich glaube, das das Wichtigste ist, ähm, dass wir nie wirklich was geplant haben. " +
+      "Äh, es ist einfach so passiert. Und, ähm, am Anfang hat, hat uns keiner geglaubt. " +
+      "Aber, äh, jetzt sind wir hier, zehn Jahre später.",
+    vi: "Thì, ờ, mình mình nghĩ là cái cái quan trọng nhất là, ừm, tụi mình không hề lên kế hoạch gì cả. " +
+      "Ờ, nó cứ thế mà xảy ra thôi. Lúc, ừm, lúc mới bắt đầu thì không ai, không ai tin là sẽ thành công. " +
+      "Vậy mà, ờ, bây giờ đã mười năm rồi.",
+  };
+
+  // ---------- Detection: the extension's own src/core/disfluency.js ----------
+
+  const disfluency = (opts) => new Disfluency({ aggressive: $('aggressive').checked, ...opts });
+  const withKinds = (words, d = disfluency()) => {
+    const kinds = d.detect(words);
+    return words.map((w, i) => ({ ...w, kind: kinds[i] }));
+  };
+  const isFiller = (w) => disfluency().detect([{ text: w }])[0] === 'filler';
+
+  const APPROACHES = [
+    {
+      id: 'verbatim', name: 'A · Verbatim', tag: 'current extension',
+      desc: 'Everything as transcribed.',
+      words: (w) => w,
+    },
+    {
+      id: 'dim', name: 'B · Dim', tag: 'de-emphasize',
+      desc: 'Fillers and repeats stay in place at lower brightness; nothing moves.',
+      fx: 'dim',
+      words: (w) => withKinds(w),
+    },
+    {
+      id: 'shrink', name: 'C · Dim + smaller', tag: 'de-emphasize more',
+      desc: 'Also smaller and lighter, so they read like asides.',
+      fx: 'shrink',
+      words: (w) => withKinds(w),
+    },
+    {
+      id: 'mixed', name: 'D · Drop repeats, dim fillers', tag: 'middle ground',
+      desc: '"I I I think" → "I think"; "um" stays but dimmed (keeps the hesitation feel).',
+      fx: 'dim',
+      words: (w) => withKinds(disfluency({ drop: ['repeat'] }).clean(w)),
+    },
+    {
+      id: 'clean', name: 'E · Clean verbatim', tag: 'extension setting (⇧C)',
+      desc: 'Fillers and repeats removed; punctuation, capitals and timing repaired.',
+      words: (w) => disfluency().clean(w),
+    },
+  ];
+
+  // ---------- Synthetic YouTube ASR track (json3 rollup rows, per-word offsets) ----------
+
+  function timedWords(text) {
+    const words = [];
+    let t = 700;
+    for (const w of text.split(' ')) {
+      words.push({ text: w, t });
+      const filler = isFiller(w);
+      t += (filler ? 330 : 150 + 36 * [...w].length) +
+        (/[.?!]$/.test(w) ? 320 : /,$/.test(w) ? 160 : 0);
+    }
+    return { words, duration: t + 1500 };
+  }
+
+  function toJson3(words) {
+    const rows = [];
+    let row = [];
+    let chars = 0;
+    for (const w of words) {
+      if (row.length && chars + w.text.length + 1 > 32) {
+        rows.push(row);
+        row = [];
+        chars = 0;
+      }
+      row.push(w);
+      chars += w.text.length + 1;
+    }
+    if (row.length) rows.push(row);
+    const events = [{ tStartMs: 0, dDurationMs: 999999, wWinId: 0 }];
+    rows.forEach((r, i) => {
+      const start = r[0].t;
+      const next = rows[i + 1]?.[0].t;
+      events.push({
+        tStartMs: start,
+        dDurationMs: (next ?? r[r.length - 1].t) + 2500 - start,
+        wWinId: 1,
+        segs: r.map((w, j) => (j ? { utf8: ` ${w.text}`, tOffsetMs: w.t - start } : { utf8: w.text })),
+      });
+      if (next != null) events.push({ tStartMs: next - 10, dDurationMs: 2500, wWinId: 1, aAppend: 1, segs: [{ utf8: '\n' }] });
+    });
+    return { events };
+  }
+
+  // ---------- Rendering ----------
+
+  class Player {
+    constructor(slot, style, fx) {
+      slot.innerHTML = `<div class="slot-label"></div><div class="player"><div class="cap ${style}"></div></div>`;
+      slot.querySelector('.slot-label').textContent = style === 'frosted' ? 'Frosted' : 'TikTok';
+      this.cap = slot.querySelector('.cap');
+      if (fx) this.cap.classList.add(`fx-${fx}`);
+    }
+
+    load(chunks) {
+      this.chunks = chunks;
+      this.current = undefined;
+      this.cap.textContent = '';
+      this.cap.classList.remove('visible');
+    }
+
+    render(t) {
+      const chunk = cueAtTime(this.chunks, t);
+      if (chunk !== this.current) this._paint(chunk);
+      if (!chunk) return;
+      let active = -1;
+      chunk.words.forEach((w, i) => { if (w.startMs <= t) active = i; });
+      if (active === this.active) return;
+      this.spans[this.active]?.classList.remove('current');
+      this.spans[active]?.classList.add('current');
+      this.active = active;
+    }
+
+    _paint(chunk) {
+      this.current = chunk;
+      this.active = -1;
+      this.spans = [];
+      this.cap.textContent = '';
+      if (!chunk) {
+        this.cap.classList.remove('visible');
+        return;
+      }
+      chunk.words.forEach((w, i) => {
+        if (i) this.cap.append(' ');
+        const s = document.createElement('span');
+        s.className = `w${w.kind ? ' soft' : ''}`;
+        s.textContent = w.text;
+        this.cap.append(s);
+        this.spans.push(s);
+      });
+      this.cap.classList.add('visible');
+    }
+  }
+
+  const grid = $('grid');
+  const rows = APPROACHES.map((a) => {
+    const section = document.createElement('section');
+    section.className = 'approach';
+    section.innerHTML = `
+      <div class="approach-head"><b></b><span class="desc"></span><span class="tag"></span></div>
+      <div class="pair"><div class="slot"></div><div class="slot"></div></div>`;
+    section.querySelector('b').textContent = a.name;
+    section.querySelector('.desc').textContent = a.desc;
+    section.querySelector('.tag').textContent = a.tag;
+    const [s1, s2] = section.querySelectorAll('.slot');
+    grid.appendChild(section);
+    return { a, players: [new Player(s1, 'frosted', a.fx), new Player(s2, 'tiktok', a.fx)] };
+  });
+
+  const clock = { t: 0, playing: false, last: 0, rate: 1, duration: 1 };
+
+  function rebuild() {
+    const { words: source, duration } = timedWords(SAMPLES[$('sample').value]);
+    const words = new Json3Parser().parseWords(toJson3(source));
+    const kinds = disfluency().detect(words);
+
+    for (const { a, players } of rows) {
+      const chunks = new CaptionChunker().build(a.words(words));
+      players.forEach((p) => p.load(chunks));
+    }
+
+    const t = $('transcript');
+    t.textContent = '';
+    words.forEach((w, i) => {
+      if (i) t.append(' ');
+      const s = document.createElement('span');
+      if (kinds[i]) s.className = `t-${kinds[i]}`;
+      s.textContent = w.text;
+      t.append(s);
+    });
+    const fillers = kinds.filter((k) => k === 'filler').length;
+    const repeats = kinds.filter((k) => k === 'repeat').length;
+    $('counts').textContent = `· ${fillers} fillers, ${repeats} repeats`;
+
+    clock.duration = duration;
+    clock.t = Math.min(clock.t, duration);
+    draw();
+  }
+
+  const fmt = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+  };
+
+  function draw() {
+    for (const { players } of rows) players.forEach((p) => p.render(clock.t));
+    $('seek').value = Math.round((clock.t / clock.duration) * 1000);
+    $('time').textContent = `${fmt(clock.t)} / ${fmt(clock.duration)}`;
+  }
+
+  function setPlaying(on) {
+    if (on && clock.t >= clock.duration) clock.t = 0;
+    clock.playing = on;
+    clock.last = performance.now();
+    $('play').textContent = on ? 'Pause' : 'Play';
+  }
+
+  function frame(now) {
+    if (clock.playing) {
+      clock.t += (now - clock.last) * clock.rate;
+      if (clock.t >= clock.duration) {
+        clock.t = clock.duration;
+        setPlaying(false);
+      }
+      draw();
+    }
+    clock.last = now;
+    requestAnimationFrame(frame);
+  }
+
+  const seekBy = (ms) => {
+    clock.t = Math.min(clock.duration, Math.max(0, clock.t + ms));
+    draw();
+  };
+
+  $('play').addEventListener('click', () => setPlaying(!clock.playing));
+  $('restart').addEventListener('click', () => { clock.t = 0; setPlaying(true); });
+  $('seek').addEventListener('input', (e) => {
+    clock.t = (Number(e.target.value) / 1000) * clock.duration;
+    draw();
+  });
+  $('rate').addEventListener('change', (e) => { clock.rate = Number(e.target.value); });
+  $('sample').addEventListener('change', rebuild);
+  $('aggressive').addEventListener('change', rebuild);
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest('select, input')) return;
+    if (e.code === 'Space') { e.preventDefault(); setPlaying(!clock.playing); }
+    if (e.code === 'ArrowLeft') seekBy(-3000);
+    if (e.code === 'ArrowRight') seekBy(3000);
+  });
+
+  // ?sample=de&aggressive=1&t=4000 opens a specific moment.
+  const params = new URLSearchParams(location.search);
+  if (SAMPLES[params.get('sample')]) $('sample').value = params.get('sample');
+  if (params.get('aggressive') === '1') $('aggressive').checked = true;
+  rebuild();
+  if (params.has('t')) seekBy(Number(params.get('t')) || 0);
+  window.__playground = { rows };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

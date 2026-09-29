@@ -10,6 +10,7 @@
       provider,
       parser,
       chunker,
+      disfluency,
       lookup,
       overlay,
       log = () => {},
@@ -18,10 +19,12 @@
       this.provider = provider || new NS.TrackProvider();
       this.parser = parser || new NS.Json3Parser();
       this.chunker = chunker || new NS.CaptionChunker();
+      this.disfluency = disfluency || new NS.Disfluency();
       this.lookup = lookup || new NS.CueLookup();
       this.overlay = overlay || new NS.CaptionOverlay();
       this.log = log;
-      this.cues = []; // TikTok-style chunks
+      this.cues = []; // caption chunks
+      this.words = []; // timed words of the loaded track (re-chunked when settings change)
       this.loadedUrl = null;
       this.videoId = null;
       this.raf = 0;
@@ -34,7 +37,24 @@
       // The player's own (signed) caption download, captured by timedtext-tap.js.
       // Also fires when the user switches CC language, so we follow their choice.
       window.addEventListener('ytsc:timedtext', (e) => this.onTap(e.detail));
+      // "Clean verbatim" is a popup setting mirrored onto <html> by settings-bridge.js.
+      new MutationObserver(() => this.rechunk()).observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['data-ytsc-clean'],
+      });
       this.reload();
+    }
+
+    cleanEnabled() {
+      return document.documentElement.dataset.ytscClean === 'true';
+    }
+
+    buildChunks(words) {
+      return this.chunker.build(this.cleanEnabled() ? this.disfluency.clean(words) : words);
+    }
+
+    rechunk() {
+      if (this.words.length) this.cues = this.buildChunks(this.words);
     }
 
     tapFor(videoId) {
@@ -64,9 +84,11 @@
     }
 
     useTimeline(payload, url, label) {
-      const chunks = this.chunker.build(this.parser.parseWords(payload));
-      if (!chunks.length) return false;
+      const words = this.parser.parseWords(payload);
+      const chunks = this.buildChunks(words);
+      if (!words.length) return false;
       this.stop();
+      this.words = words;
       this.cues = chunks;
       this.loadedUrl = url;
       this.log(`[ytsc] ${chunks.length} chunks (${label})`);
@@ -190,6 +212,12 @@
       this.live = new DomSource({
         onChunk: (chunk) => {
           if (!this.captionsEnabled()) return;
+          // Live chunks are cleaned one at a time (repeats spanning two chunks stay).
+          if (this.cleanEnabled()) {
+            const words = this.disfluency.clean(chunk.words);
+            if (!words.length) return;
+            chunk = { ...chunk, words, text: words.map((w) => w.text).join(' ') };
+          }
           this.overlay.render(chunk);
           clearTimeout(this.liveHold);
           this.liveHold = setTimeout(() => this.overlay.render(null), 3000);
@@ -202,6 +230,7 @@
       cancelAnimationFrame(this.raf);
       this.raf = 0;
       this.cues = [];
+      this.words = [];
       this.loadedUrl = null;
       this.video = null;
       clearTimeout(this.liveHold);

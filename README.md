@@ -31,6 +31,7 @@ remove the flowing-text distraction.
 - `src/core/json3-parser.js` — JSON3 → stable cues (rollup + streaming paths)
 - `src/core/cue-lookup.js` — binary-search `cueAtTime`
 - `src/core/chunker.js` — timed words → short chunks (batch + live)
+- `src/core/disfluency.js` — clean verbatim: drop fillers (en/de/vi) and repeats, repair punctuation/timing
 - `src/content/timedtext-tap.js` — captures the player's caption response
 - `src/content/live-source.js` — caption DOM → new words → live chunks
 - `src/content/track-provider.js` — track discovery + `fmt=json3` fetch
@@ -62,6 +63,14 @@ npm test
 
 To disable: `chrome://extensions` → toggle off.
 
+## Clean verbatim (optional, off by default)
+
+Popup toggle or `Shift+C`. Drops hesitation fillers (*um, uh, er* · *äh, ähm* · *ờ, ừm*) and
+stumbles (*I I I think*, *It's, um, it's*), keeping the last copy of a repeat; moves sentence
+punctuation and capitals onto neighbouring words and absorbs the dropped time so chunks don't
+split on fake pauses. In live mode it works per chunk, so repeats spanning two chunks remain.
+Known rough edges: a leftover comma (*Und, am Anfang*) and legitimate doubles (*that that*).
+
 ## Keyboard shortcuts
 
 Same keys as YouTube's own captions:
@@ -71,8 +80,9 @@ Same keys as YouTube's own captions:
 | `c` | Captions on/off — YouTube's own toggle; the overlay follows the player's CC state |
 | `=` / `+` | Larger caption text (while stable captions are showing) |
 | `-` | Smaller caption text |
+| `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 
-Size keys are taken over only while the stable captions are visible (otherwise they reach
+Setting keys are taken over only while the stable captions are visible (otherwise they reach
 YouTube as usual), are ignored while typing or with Ctrl/⌘/Alt, and save to the popup setting.
 
 ## Try in Safari (macOS)
@@ -102,6 +112,7 @@ Open directly in Chromium (no build step); both run the real `src/core` code:
 
 - `playground/caption-styles.html` — compare caption styles, chunk sizes, highlight modes
 - `playground/speaker-marks.html` — ways to handle YouTube's `>>` speaker-change marks
+- `playground/disfluency.html` — verbatim vs dimmed vs cleaned fillers/repeats, both styles
 
 Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICENSE.txt`).
 
