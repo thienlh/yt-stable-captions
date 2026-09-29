@@ -89,7 +89,7 @@
 
   /* Size: segmented control */
   .sizes { margin-top: 14px; }
-  .segmented { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .segmented { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
   .segmented label { border: 0; border-radius: 0; padding: 6px 0; gap: 0; place-items: center; text-align: center; }
   .segmented label + label { border-left: 1px solid var(--line); }
   .segmented label:has(input:checked) { box-shadow: none; background: var(--accent); color: #fff; }
@@ -114,6 +114,7 @@
   <fieldset class="sizes">
     <legend>Text size</legend>
     <div class="segmented">
+      <label title="Extra small"><input type="radio" name="size" value="xsmall"><span style="font-size: 9px">A</span></label>
       <label title="Small"><input type="radio" name="size" value="small"><span style="font-size: 11px">A</span></label>
       <label title="Medium (default)"><input type="radio" name="size" value="medium"><span style="font-size: 13px">A</span></label>
       <label title="Large"><input type="radio" name="size" value="large"><span style="font-size: 15px">A</span></label>

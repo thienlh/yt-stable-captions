@@ -46,8 +46,8 @@
 
   // ---- Keyboard shortcuts (mirror YouTube's caption keys) ----
 
-  const SIZES = ['small', 'medium', 'large', 'xlarge'];
-  const SIZE_LABELS = { small: 'Small', medium: 'Medium', large: 'Large', xlarge: 'Extra large' };
+  const SIZES = ['xsmall', 'small', 'medium', 'large', 'xlarge'];
+  const SIZE_LABELS = { xsmall: 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', xlarge: 'Extra large' };
   const SIZE_KEYS = { '=': 1, '+': 1, '-': -1 };
 
   const isTyping = (el) =>
