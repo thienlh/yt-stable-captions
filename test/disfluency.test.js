@@ -69,6 +69,27 @@ test('drop option removes only the chosen kinds', () => {
   assert.equal(cleanText('So, um, I I think', { drop: ['filler'] }), 'So, I I think');
 });
 
+test('turns [Music] tags into a standalone ♪', () => {
+  assert.equal(cleanText('[Music] So today we'), '♪ So today we');
+  assert.equal(cleanText('[Musik] Also, äh, ich'), '♪ Also, ich');
+  assert.equal(cleanText('[âm nhạc] Xin chào'), '♪ Xin chào', 'multi-word tag');
+  assert.equal(cleanText('[Applause] [Laughter] thanks'), '[Applause] [Laughter] thanks', 'other tags stay');
+  assert.equal(cleanText('[Musical] notes'), '[Musical] notes', 'whole-tag match only');
+  assert.equal(cleanText('[Music] um. Hi'), '♪ Hi', 'the note takes no punctuation from dropped words');
+});
+
+test('merges consecutive music tags into one note spanning their time', () => {
+  const words = [
+    { text: '[Music]', startMs: 0, endMs: 2000 },
+    { text: '[Music]', startMs: 2000, endMs: 5000 },
+    { text: 'Hello', startMs: 5200, endMs: 5500 },
+  ];
+  const out = new Disfluency().clean(words);
+  assert.deepEqual(out.map((w) => [w.text, w.startMs, w.endMs]), [['♪', 0, 5000], ['Hello', 5200, 5500]]);
+  // The note is its own chunk even without a pause before the next words.
+  assert.deepEqual(new CaptionChunker().build(out).map((c) => c.text), ['♪', 'Hello']);
+});
+
 test('handles empty and filler-only input', () => {
   const d = new Disfluency();
   assert.deepEqual(d.clean([]), []);

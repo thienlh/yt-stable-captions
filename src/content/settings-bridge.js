@@ -4,7 +4,8 @@
   /**
    * Mirrors the popup settings onto <html data-ytsc-style="…" data-ytsc-size="…">,
    * registers the bundled font with this browser's extension URL, and handles
-   * the shortcuts that change settings (=/+ and - size, w window, Shift+C clean verbatim).
+   * the shortcuts that change settings (=/+ and - size, w window, Shift+C clean
+   * verbatim, Alt/Option+C style).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
@@ -61,6 +62,8 @@
     frosted: { key: 'frostedWindow', levels: ['clear', 'light', 'medium', 'dark', 'solid'], label: 'Frosted panel' },
     tiktok: { key: 'tiktokWindow', levels: ['off', '25', '50', '75', '100'], label: 'Background' },
   };
+  const STYLES = ['frosted', 'tiktok'];
+  const STYLE_LABELS = { frosted: 'Frosted', tiktok: 'TikTok' };
   const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
 
   const isTyping = (el) =>
@@ -100,14 +103,22 @@
   window.addEventListener(
     'keydown',
     (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) return;
-      const delta = SIZE_KEYS[e.key];
-      const cleanKey = e.key === 'C' && e.shiftKey;
-      const windowKey = e.key === 'w' && !e.shiftKey;
-      if (!delta && !cleanKey && !windowKey) return;
+      if (e.ctrlKey || e.metaKey || e.repeat) return;
+      // Alt/Option+C: match the physical key, since Option+C types "ç" on a Mac.
+      const styleKey = e.altKey && !e.shiftKey && e.code === 'KeyC';
+      if (e.altKey && !styleKey) return;
+      const delta = !e.altKey && SIZE_KEYS[e.key];
+      const cleanKey = !e.altKey && e.key === 'C' && e.shiftKey;
+      const windowKey = !e.altKey && e.key === 'w' && !e.shiftKey;
+      if (!delta && !cleanKey && !windowKey && !styleKey) return;
       if (isTyping(e.target) || !captionsShowing()) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (styleKey) {
+        const next = STYLES[(STYLES.indexOf(current.style) + 1) % STYLES.length];
+        setting('style', next, `Style: ${STYLE_LABELS[next]}`);
+        return;
+      }
       if (cleanKey) {
         const on = !current.clean;
         setting('clean', on, on ? 'Clean captions: on (no um, uh, repeats)' : 'Clean captions: off');

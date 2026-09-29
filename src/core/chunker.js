@@ -27,6 +27,8 @@
 
     breakBefore(current, next) {
       if (!current.length) return false;
+      // Standalone words (e.g. the ♪ music cue) always get a chunk of their own.
+      if (next.standalone || current[current.length - 1].standalone) return true;
       const o = this.opts;
       if (current.length >= o.maxWords) return true;
       const chars = current.reduce((n, w) => n + w.text.length + 1, 0) + next.text.length;

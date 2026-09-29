@@ -13,12 +13,17 @@
     'äh', 'ähm', 'öh', 'ehm', // de
     'ờ', 'ừm', 'ừ', 'ơ', 'ờm', // vi
   ]);
+  // Sound tags YouTube's ASR inserts for music ("[Music]", "[Musik]", "[âm nhạc]").
+  const MUSIC_TAGS = new Set(['music', 'musik', 'música', 'musique', 'musica', 'muziek', 'âm nhạc', 'nhạc']);
+  const MUSIC_NOTE = '♪';
+
   // Discourse markers that are often, but not always, filler (opt-in).
   const AGGRESSIVE_PHRASES = [['you', 'know'], ['i', 'mean'], ['weißt', 'du'], ['kiểu', 'như']];
 
   /**
    * "Clean verbatim" captions: drops fillers (um, uh, äh, ờ…) and stumbles
-   * ("I I I think", "It's, um, it's"), the way subtitle guidelines ask.
+   * ("I I I think", "It's, um, it's"), the way subtitle guidelines ask, and
+   * turns "[Music]" tags into a standalone ♪.
    * Works on timed words { text, startMs, endMs }. Pure, no DOM.
    * Single responsibility: disfluency detection and removal.
    */
@@ -65,12 +70,44 @@
     }
 
     /**
+     * "[Music]" (possibly spanning words, like "[âm nhạc]") -> one standalone ♪
+     * covering the tag's time; consecutive tags merge into a single note.
+     */
+    replaceMusicTags(words) {
+      const out = [];
+      for (let i = 0; i < words.length; i++) {
+        const end = this._bracketEnd(words, i);
+        const inner = end < 0 ? null : words.slice(i, end + 1).map((w) => w.text).join(' ');
+        const tag = inner?.replace(/^\[|\][.,!?…]*$/gu, '').trim().toLocaleLowerCase();
+        if (!tag || !MUSIC_TAGS.has(tag)) {
+          out.push(words[i]);
+          continue;
+        }
+        const prev = out[out.length - 1];
+        if (prev?.text === MUSIC_NOTE) prev.endMs = Math.max(prev.endMs, words[end].endMs);
+        else out.push({ text: MUSIC_NOTE, startMs: words[i].startMs, endMs: words[end].endMs, standalone: true });
+        i = end;
+      }
+      return out;
+    }
+
+    /** Index of the word closing a "[…]" tag that starts at i (max 3 words), or -1. */
+    _bracketEnd(words, i) {
+      if (!words[i].text.startsWith('[')) return -1;
+      for (let j = i; j < Math.min(words.length, i + 3); j++) {
+        if (/\][.,!?…]*$/u.test(words[j].text)) return j;
+      }
+      return -1;
+    }
+
+    /**
      * Returns new words without fillers and repeats, kept well-formed:
      * a dropped word's terminal punctuation moves to the previous word, a
      * dropped sentence-initial capital passes to the next word, and the
      * previous word absorbs the dropped time (so no fake pause splits chunks).
      */
     clean(words) {
+      words = this.replaceMusicTags(words);
       const kinds = this.detect(words);
       const out = [];
       let capitalizeNext = false;
@@ -87,7 +124,7 @@
         const prev = out[out.length - 1];
         const startsSentence = !prev || this.text.sentenceIsComplete(prev.text);
         if (startsSentence && /^\p{Lu}/u.test(word.text)) capitalizeNext = true;
-        if (!prev) return;
+        if (!prev || prev.standalone) return; // the ♪ cue takes no punctuation or extra time
         const terminal = word.text.match(/[.!?…]+$/u)?.[0];
         if (terminal && !/[.!?…,;:]$/u.test(prev.text)) prev.text += terminal;
         prev.endMs = Math.max(prev.endMs, word.endMs);
@@ -95,6 +132,8 @@
       return out;
     }
   }
+
+  Disfluency.MUSIC_NOTE = MUSIC_NOTE;
 
   const api = { Disfluency };
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, api);
