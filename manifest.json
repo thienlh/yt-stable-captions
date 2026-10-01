@@ -19,6 +19,7 @@
         "https://www.youtube.com/*"
       ],
       "js": [
+        "src/core/settings.js",
         "src/content/settings-bridge.js"
       ],
       "run_at": "document_start"

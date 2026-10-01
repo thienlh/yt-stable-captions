@@ -24,8 +24,7 @@
   }`;
   document.documentElement.appendChild(font);
 
-  // Window (background) opacity is per style: the frosted panel vs. a box behind TikTok text.
-  const DEFAULTS = { style: 'frosted', size: 'medium', clean: false, frostedWindow: 'medium', tiktokWindow: 'off' };
+  const { DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel } = globalThis.YTSC.Settings;
   const ATTRS = {
     style: 'ytscStyle',
     size: 'ytscSize',
@@ -54,17 +53,7 @@
 
   // ---- Keyboard shortcuts (mirror YouTube's caption keys) ----
 
-  const SIZES = ['xsmall', 'small', 'medium', 'large', 'xlarge'];
-  const SIZE_LABELS = { xsmall: 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', xlarge: 'Extra large' };
   const SIZE_KEYS = { '=': 1, '+': 1, '-': -1 };
-  // `w` cycles like YouTube's own window-opacity key (wraps around).
-  const WINDOWS = {
-    frosted: { key: 'frostedWindow', levels: ['clear', 'light', 'medium', 'dark', 'solid'], label: 'Frosted panel' },
-    tiktok: { key: 'tiktokWindow', levels: ['off', '25', '50', '75', '100'], label: 'Background' },
-  };
-  const STYLES = ['frosted', 'tiktok'];
-  const STYLE_LABELS = { frosted: 'Frosted', tiktok: 'TikTok' };
-  const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
 
   const isTyping = (el) =>
     el instanceof Element &&
@@ -124,10 +113,10 @@
         setting('clean', on, on ? 'Clean captions: on (no um, uh, repeats)' : 'Clean captions: off');
         return;
       }
-      if (windowKey) {
+      if (windowKey) { // cycles like YouTube's own window-opacity key (wraps around)
         const w = WINDOWS[current.style] || WINDOWS.frosted;
         const next = w.levels[(w.levels.indexOf(current[w.key]) + 1) % w.levels.length];
-        setting(w.key, next, `${w.label}: ${WINDOW_LABELS[next] || `${next}%`}`);
+        setting(w.key, next, `${w.label}: ${windowLabel(next)}`);
         return;
       }
       const index = Math.max(0, SIZES.indexOf(current.size));

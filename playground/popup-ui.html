@@ -1,0 +1,1236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Popup UI Playground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,300..700,0..100,0..1;1,9..144,300..700,0..100,0..1&family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ================= Page chrome (not part of any proposal) ================= */
+  :root {
+    --accent: #7aa2f7;
+    --page: #ecebe7;
+    --page-ink: #1d1d20;
+    --page-muted: #6b6b70;
+    --page-line: #d6d4ce;
+  }
+  :root[data-mode="dark"] {
+    --page: #0f0f12;
+    --page-ink: #e9e9ee;
+    --page-muted: #9a9aa3;
+    --page-line: #2a2a31;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--page-ink);
+    font: 14px/1.45 "Inter", system-ui, sans-serif;
+  }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px 20px;
+    align-items: center;
+    padding: 12px 20px;
+    background: color-mix(in srgb, var(--page) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--page-line);
+  }
+  .topbar h1 { font-size: 15px; margin: 0 auto 0 0; font-weight: 600; }
+  .topbar label { display: inline-flex; align-items: center; gap: 8px; color: var(--page-muted); font-size: 13px; }
+  .swatches { display: inline-flex; gap: 6px; }
+  .swatches button {
+    width: 20px; height: 20px; border-radius: 50%;
+    border: 2px solid transparent; cursor: pointer; padding: 0;
+    box-shadow: inset 0 0 0 1px rgba(0,0,0,.15);
+  }
+  .swatches button[aria-pressed="true"] { border-color: var(--page-ink); }
+  .seg-page { display: inline-flex; border: 1px solid var(--page-line); border-radius: 8px; overflow: hidden; }
+  .seg-page button { font: inherit; font-size: 12px; background: none; border: 0; padding: 4px 10px; color: var(--page-ink); cursor: pointer; }
+  .seg-page button[aria-pressed="true"] { background: var(--page-ink); color: var(--page); }
+  .hint { width: 100%; color: var(--page-muted); font-size: 12px; }
+  .hint kbd { font: 11px ui-monospace, monospace; border: 1px solid var(--page-line); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+
+  .stage {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 36px;
+    padding: 32px 16px 56px;
+  }
+  .proposal { display: grid; gap: 12px; justify-items: center; }
+  .proposal > header { text-align: center; max-width: 340px; }
+  .proposal > header b { font-size: 14px; }
+  .proposal > header p { margin: 2px 0 0; color: var(--page-muted); font-size: 12.5px; }
+
+  /* A popup-sized frame. Chrome/Safari popups are <= 800x600; these sit at 340 wide. */
+  .popup {
+    width: 340px;
+    max-width: calc(100vw - 32px);
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 18px 50px -18px rgba(0,0,0,.35), 0 0 0 1px rgba(0,0,0,.06);
+  }
+
+  kbd.k {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.9em;
+    height: 1.9em;
+    padding: 0 .45em;
+    border-radius: 6px;
+    font: 600 11px/1 "Inter", system-ui, sans-serif;
+    transition: transform 120ms cubic-bezier(.34,1.56,.64,1), background-color 120ms, box-shadow 120ms;
+  }
+  kbd.k.pressed { transform: translateY(1px) scale(.92); }
+
+  /* ================= Shared mini caption preview ================= */
+  .pv {
+    position: relative;
+    aspect-ratio: 16 / 9;
+    overflow: hidden;
+    container-type: size;
+    background:
+      radial-gradient(ellipse at 28% 32%, #52677a 0%, transparent 58%),
+      radial-gradient(ellipse at 76% 64%, #7a5a44 0%, transparent 52%),
+      linear-gradient(160deg, #27323c, #14171b);
+  }
+  .pv::after { /* slow light drift, so the frosted blur has something to blur */
+    content: "";
+    position: absolute; inset: -20%;
+    background: radial-gradient(circle at 30% 40%, rgba(255,214,150,.22), transparent 35%);
+    animation: pv-drift 14s ease-in-out infinite alternate;
+    pointer-events: none;
+  }
+  @keyframes pv-drift { from { transform: translate(-6%, -4%); } to { transform: translate(10%, 6%); } }
+  .pv-cap {
+    --fs: calc(var(--pv-size, .048) * 2.3 * 100cqh);
+    position: absolute;
+    z-index: 1;
+    left: 50%;
+    bottom: 9%;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: 88%;
+    text-align: center;
+    text-wrap: balance;
+    font-size: var(--fs);
+    color: #fff;
+    display: none;
+    transition: font-size 220ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .pv-cap.on { display: block; }
+  .pv-cap.frosted {
+    font: 600 var(--fs)/1.3 "Inter", system-ui, sans-serif;
+    padding: .35em .7em;
+    border-radius: .6em;
+    background: rgba(28, 28, 32, var(--pv-alpha, .38));
+    backdrop-filter: blur(var(--pv-blur, 16px)) saturate(1.4);
+    -webkit-backdrop-filter: blur(var(--pv-blur, 16px)) saturate(1.4);
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.14), 0 .2em .8em rgba(0,0,0,.2);
+    text-shadow: 0 .03em .12em rgba(0,0,0,.35);
+  }
+  .pv-cap.frosted .w { opacity: .68; transition: opacity 90ms; }
+  .pv-cap.frosted .w.cur { opacity: 1; text-shadow: 0 0 .4em rgba(255,255,255,.45); }
+  .pv-cap.tiktok {
+    font: 800 calc(var(--fs) * 1.1)/1.2 "Inter", sans-serif;
+    max-width: 70%;
+    word-spacing: .12em;
+    bottom: 13%;
+    padding: var(--pv-tt-pad, 0);
+    border-radius: .3em;
+    background: rgba(0,0,0,var(--pv-tt-alpha, 0));
+    text-shadow: -.06em -.06em 0 #000, .06em -.06em 0 #000, -.06em .06em 0 #000, .06em .06em 0 #000, 0 .12em .25em rgba(0,0,0,.6);
+  }
+  .pv-cap.tiktok.fresh { animation: pv-pop 140ms ease-out; }
+  .pv-cap.tiktok .w { display: inline-block; transition: color 80ms, transform 80ms; }
+  .pv-cap.tiktok .w.cur { color: #ffe135; transform: scale(1.08); }
+  @keyframes pv-pop { from { opacity: 0; transform: translateX(-50%) scale(.85); } to { opacity: 1; transform: translateX(-50%) scale(1); } }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+  }
+
+  /* ======================================================================
+     A · COMFORT — closest to comfortcloud: quiet surfaces, serif accent title,
+     drifting accent wash behind the hero, eyebrow labels, watermark glyph.
+     ====================================================================== */
+  .v-comfort {
+    --bg: #fbfaf8; --ink: #1c1c20; --dim: #74747c;
+    --fill: .025; --fill-hover: .065; --tint: .085; --edge: .16; --edge-sel: .48;
+    --ink-rgb: 28, 28, 32;
+    background: var(--bg);
+    color: var(--ink);
+    font: 13px/1.4 "Inter", system-ui, sans-serif;
+    padding: 16px 16px 14px;
+    display: grid;
+    gap: 14px;
+  }
+  :root[data-mode="dark"] .v-comfort,
+  :root .v-comfort.force-dark { --bg: #1a1b20; --ink: #e8e8ee; --dim: #8d8e98; --ink-rgb: 232, 232, 238; }
+  :root .v-comfort.force-light { --bg: #fbfaf8; --ink: #1c1c20; --dim: #74747c; --ink-rgb: 28, 28, 32; }
+  .v-comfort .title { display: flex; align-items: center; justify-content: space-between; }
+  .v-comfort .title h2 {
+    margin: 0;
+    font: 400 26px/1 "Instrument Serif", "Iowan Old Style", Georgia, serif;
+    color: var(--accent);
+    letter-spacing: -.005em;
+  }
+  .v-comfort .live {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim);
+  }
+  .v-comfort .live i {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent);
+    animation: c-breathe 2.8s ease-in-out infinite;
+  }
+  @keyframes c-breathe { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); } }
+  .v-comfort .hero {
+    position: relative;
+    border-radius: 12px;
+    padding: 10px;
+    background: rgba(var(--ink-rgb), var(--fill));
+    border: 1px solid color-mix(in srgb, var(--accent) calc(var(--edge) * 100%), transparent);
+    overflow: hidden;
+  }
+  .v-comfort .wash {
+    position: absolute; inset: -14px;
+    color: var(--accent);
+    animation: c-wash 15s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @keyframes c-wash {
+    0%, 100% { transform: rotate(0) scale(1) translateX(0); }
+    25% { transform: rotate(.7deg) scale(1.014) translateX(2px); }
+    70% { transform: rotate(-.7deg) scale(.986) translateX(-2px); }
+  }
+  .v-comfort .hero .pv { border-radius: 8px; position: relative; }
+  .v-comfort .meta {
+    position: relative;
+    margin-top: 8px;
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 10.5px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim);
+  }
+  .v-comfort .eyebrow {
+    font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--dim);
+    margin-bottom: 6px;
+  }
+  .v-comfort .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .v-comfort .pill {
+    font: inherit; color: var(--ink);
+    height: 28px; padding: 0 12px;
+    border-radius: 9px;
+    background: rgba(var(--ink-rgb), var(--fill));
+    border: 1px solid color-mix(in srgb, var(--accent) calc(var(--edge) * 100%), transparent);
+    cursor: pointer;
+    transition: background-color 90ms, border-color 90ms, color 90ms, transform 260ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-comfort .pill:hover { background: rgba(var(--ink-rgb), var(--fill-hover)); }
+  .v-comfort .pill:active { transform: scale(.96); }
+  .v-comfort .pill.sel {
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) calc(var(--tint) * 100%), transparent);
+    border-color: color-mix(in srgb, var(--accent) calc(var(--edge-sel) * 100%), transparent);
+  }
+  .v-comfort .pill.small { height: 24px; padding: 0 9px; font-size: 12px; }
+  .v-comfort .stepper { display: flex; align-items: center; gap: 10px; }
+  .v-comfort .step {
+    width: 24px; height: 24px; border-radius: 9px; padding: 0;
+    display: grid; place-items: center; font: 500 15px/1 "Inter", sans-serif;
+  }
+  .v-comfort .dots { display: flex; gap: 6px; align-items: center; }
+  .v-comfort .dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: rgba(var(--ink-rgb), .16);
+    transition: transform 260ms cubic-bezier(.34,1.56,.64,1), background-color 160ms;
+  }
+  .v-comfort .dots span.lit { background: var(--accent); }
+  .v-comfort .dots span.here { transform: scale(1.6); }
+  .v-comfort .stepper output { margin-left: auto; color: var(--dim); font-size: 12px; }
+  .v-comfort .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .v-comfort .toggle-row small { display: block; color: var(--dim); font-size: 11.5px; margin-top: 1px; }
+  .v-comfort .keys {
+    display: grid; grid-template-columns: repeat(3, max-content); justify-content: start; gap: 6px 16px;
+    color: var(--dim); font-size: 11.5px; padding-top: 10px; border-top: 1px solid rgba(var(--ink-rgb), .07);
+  }
+  .v-comfort .keys span { display: grid; grid-template-columns: 38px auto; align-items: center; justify-items: start; }
+  .v-comfort kbd.k {
+    color: var(--ink);
+    background: rgba(var(--ink-rgb), var(--fill));
+    border: 1px solid color-mix(in srgb, var(--accent) calc(var(--edge) * 100%), transparent);
+  }
+  .v-comfort kbd.k.pressed { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); }
+  .v-comfort .watermark {
+    position: absolute; right: 10px; bottom: 8px; width: 64px;
+    color: var(--ink); opacity: .07; pointer-events: none;
+  }
+
+  /* ---------- Comfort: live style cards (A2 / A3) ---------- */
+  .v-comfort .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .v-comfort .style-card {
+    position: relative; overflow: hidden;
+    font: inherit; color: var(--ink); text-align: left; cursor: pointer;
+    padding: 6px; border-radius: 12px; display: grid; gap: 6px;
+    background: rgba(var(--ink-rgb), var(--fill));
+    border: 1px solid color-mix(in srgb, var(--accent) calc(var(--edge) * 100%), transparent);
+    transition: background-color 120ms, border-color 120ms, transform 260ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-comfort .style-card:hover { background: rgba(var(--ink-rgb), var(--fill-hover)); }
+  .v-comfort .style-card:active { transform: scale(.97); }
+  .v-comfort .style-card .wash { inset: -10px; }
+  .v-comfort .style-card .pv { border-radius: 8px; position: relative; transition: filter 200ms, opacity 200ms; }
+  .v-comfort .style-card:not(.sel) .pv { filter: saturate(.75); opacity: .78; }
+  .v-comfort .style-card:not(.sel):hover .pv { filter: none; opacity: 1; }
+  .v-comfort .style-card .wash { opacity: 0; animation-play-state: paused; transition: opacity 300ms; }
+  .v-comfort .style-card.sel .wash { opacity: 1; animation-play-state: running; }
+  .v-comfort .style-card.sel {
+    background: color-mix(in srgb, var(--accent) calc(var(--tint) * 100%), transparent);
+    border-color: color-mix(in srgb, var(--accent) calc(var(--edge-sel) * 100%), transparent);
+  }
+  .v-comfort .sc-name { position: relative; display: flex; align-items: baseline; gap: 6px; padding: 0 3px 1px; }
+  .v-comfort .sc-name b { font-weight: 600; font-size: 13px; }
+  .v-comfort .sc-name small { color: var(--dim); font-size: 10px; letter-spacing: 1.1px; text-transform: uppercase; }
+  .v-comfort .sc-name .check {
+    margin-left: auto; width: 16px; height: 16px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 10px; font-style: normal; color: var(--bg);
+    background: var(--accent); transform: scale(0); transition: transform 260ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-comfort .style-card.sel .sc-name b { color: var(--accent); }
+  .v-comfort .style-card.sel .check { transform: scale(1); }
+  .v-comfort.a3 .cards .pv { aspect-ratio: 16 / 8; }
+
+  /* Popups can't be taller than 600px in Chrome/Safari: show where that falls. */
+  .popup .limit {
+    position: absolute; left: 0; right: 0; top: 600px; height: 0; z-index: 5; pointer-events: none;
+    border-top: 1.5px dashed #e5484d;
+  }
+  .popup .limit::after {
+    content: "600px popup limit"; position: absolute; right: 8px; top: 2px;
+    font: 600 10px/1 "Inter", sans-serif; color: #e5484d; background: var(--page); padding: 2px 4px; border-radius: 3px;
+  }
+  .popup-wrap { position: relative; }
+  .height-note { font-size: 11.5px; color: var(--page-muted); text-align: center; }
+
+  .earlier { text-align: center; margin: 8px 0 -12px; }
+  .earlier h3 { margin: 0; font-size: 13px; color: var(--page-muted); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+  .stage.dim { opacity: .9; }
+
+  /* ======================================================================
+     B · PAPER — editorial and a little wonky: soft Fraunces, warm paper,
+     hand-drawn squiggle underlines that draw in, and a sentence that shows
+     what "clean verbatim" does by actually striking the ums out.
+     ====================================================================== */
+  .v-paper {
+    --bg: #f6f1e7; --ink: #2a2520; --dim: #857a6c; --line: #e3d9c7; --card: #fffaf0;
+    background:
+      radial-gradient(circle at 110% -10%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 45%),
+      var(--bg);
+    color: var(--ink);
+    font: 13px/1.45 "Inter", system-ui, sans-serif;
+    padding: 18px 18px 14px;
+    display: grid;
+    gap: 16px;
+  }
+  :root[data-mode="dark"] .v-paper { --bg: #221f1b; --ink: #efe6d6; --dim: #a39684; --line: #3a342c; --card: #2a2621; }
+  .v-paper h2 {
+    margin: 0;
+    font: 560 30px/1 "Fraunces", Georgia, serif;
+    font-variation-settings: "SOFT" 100, "WONK" 1, "opsz" 96;
+    letter-spacing: -.02em;
+  }
+  .v-paper h2 em { font-style: italic; color: var(--accent); font-weight: 450; }
+  .v-paper .sub { margin: 4px 0 0; color: var(--dim); font: italic 14px/1.3 "Fraunces", serif; font-variation-settings: "SOFT" 100, "opsz" 14; }
+  .v-paper .label { font: 600 12px/1 "Inter", sans-serif; margin-bottom: 8px; display: flex; justify-content: space-between; }
+  .v-paper .label output { font-weight: 400; color: var(--dim); font-family: "Fraunces", serif; font-style: italic; font-size: 13px; }
+  .v-paper .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .v-paper .card {
+    font: inherit; color: inherit; text-align: left; cursor: pointer;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 6px; display: grid; gap: 6px;
+    transition: transform 280ms cubic-bezier(.34,1.56,.64,1), box-shadow 200ms, border-color 200ms;
+  }
+  .v-paper .card:hover { transform: rotate(-.6deg) translateY(-1px); }
+  .v-paper .card:nth-child(2):hover { transform: rotate(.6deg) translateY(-1px); }
+  .v-paper .card.sel { border-color: color-mix(in srgb, var(--accent) 60%, var(--line)); box-shadow: 0 6px 18px -10px color-mix(in srgb, var(--accent) 70%, transparent); }
+  .v-paper .card .pv { border-radius: 8px; }
+  .v-paper .card .name { padding: 0 4px 2px; font: 500 14px/1 "Fraunces", serif; font-variation-settings: "SOFT" 100; position: relative; justify-self: start; }
+  .v-paper .squiggle {
+    /* SVG is a replaced element: left+right won't stretch it, so size it explicitly. */
+    position: absolute; left: -2px; width: calc(100% + 4px); bottom: -7px; height: 8px; overflow: visible;
+    color: var(--accent);
+  }
+  .v-paper .squiggle path { stroke-dasharray: 120; stroke-dashoffset: 120; transition: stroke-dashoffset 480ms cubic-bezier(.65,0,.35,1); }
+  .v-paper .sel .squiggle path { stroke-dashoffset: 0; }
+  .v-paper .sizes { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 4px; }
+  .v-paper .sizes button {
+    background: none; border: 0; padding: 2px 6px 8px; cursor: pointer; color: var(--dim);
+    font-family: "Fraunces", serif; font-variation-settings: "SOFT" 100, "WONK" 1; font-weight: 500;
+    position: relative; transition: color 150ms, transform 260ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-paper .sizes button:hover { transform: translateY(-2px); }
+  .v-paper .sizes button.sel { color: var(--ink); }
+  .v-paper .sizes .squiggle { bottom: -1px; left: 4px; width: calc(100% - 8px); }
+  .v-paper .bgbar { display: flex; gap: 6px; }
+  .v-paper .bgbar button {
+    flex: 1; height: 26px; border-radius: 7px; cursor: pointer; border: 1px solid var(--line);
+    background: linear-gradient(90deg, #d9cbb3, #8b7b63); position: relative; overflow: hidden;
+    transition: transform 260ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-paper .bgbar button::after { content: ""; position: absolute; inset: 0; background: rgba(30, 28, 32, var(--a)); }
+  .v-paper .bgbar button.sel { outline: 2px solid var(--accent); outline-offset: 2px; transform: translateY(-1px); }
+  .v-paper .clean {
+    display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; align-items: center;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px;
+  }
+  .v-paper .demo { grid-column: 1 / -1; font: 15px/1.35 "Fraunces", serif; font-variation-settings: "SOFT" 100, "opsz" 14; }
+  .v-paper .demo .dw { display: inline-block; transition: max-width 420ms cubic-bezier(.65,0,.35,1), opacity 300ms, margin 420ms; max-width: 8em; overflow: hidden; vertical-align: bottom; white-space: nowrap; margin-right: .25em; position: relative; }
+  .v-paper .demo .dw.drop::after {
+    content: ""; position: absolute; left: 0; right: 0; top: 55%; height: 1.5px; background: var(--accent);
+    transform: scaleX(0); transform-origin: left; transition: transform 260ms ease-out;
+  }
+  .v-paper.clean-on .demo .dw.drop::after { transform: scaleX(1); }
+  .v-paper.clean-on .demo .dw.drop { max-width: 0; opacity: 0; margin-right: 0; transition-delay: 260ms; }
+  .v-paper .switch {
+    width: 42px; height: 24px; border-radius: 999px; border: 0; cursor: pointer; padding: 3px;
+    background: var(--line); transition: background-color 200ms;
+  }
+  .v-paper .switch::before {
+    content: ""; display: block; width: 18px; height: 18px; border-radius: 50%; background: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    transition: transform 320ms cubic-bezier(.34,1.56,.64,1), width 160ms;
+  }
+  .v-paper .switch:active::before { width: 22px; }
+  .v-paper .switch[aria-pressed="true"] { background: var(--accent); }
+  .v-paper .switch[aria-pressed="true"]::before { transform: translateX(18px); }
+  .v-paper .switch[aria-pressed="true"]:active::before { transform: translateX(14px); }
+  .v-paper .keys { font: italic 12.5px/1.8 "Fraunces", serif; color: var(--dim); text-align: center; }
+  .v-paper kbd.k { font-style: normal; background: var(--card); border: 1px solid var(--line); border-bottom-width: 2px; color: var(--ink); }
+  .v-paper kbd.k.pressed { border-bottom-width: 1px; background: color-mix(in srgb, var(--accent) 20%, var(--card)); }
+
+  /* ======================================================================
+     C · STUDIO — dark, cinematic, visionOS-ish glass: big preview, springy
+     segmented thumbs and a detented size slider over a soft aurora.
+     ====================================================================== */
+  .v-studio {
+    --glass: rgba(255,255,255,.07); --glass-edge: rgba(255,255,255,.12); --txt: #f3f3f7; --dim: rgba(243,243,247,.55);
+    color: var(--txt);
+    font: 13px/1.4 "Inter", system-ui, sans-serif;
+    background:
+      radial-gradient(120% 70% at 0% 0%, color-mix(in srgb, var(--accent) 38%, transparent), transparent 60%),
+      radial-gradient(90% 60% at 100% 100%, rgba(255,140,90,.18), transparent 60%),
+      #101117;
+    padding: 14px;
+    display: grid;
+    gap: 12px;
+  }
+  .v-studio .top { display: flex; align-items: baseline; justify-content: space-between; }
+  .v-studio h2 { margin: 0; font: 700 17px/1 "Inter", sans-serif; letter-spacing: -.01em; }
+  .v-studio h2 em { font: italic 400 21px/1 "Instrument Serif", serif; color: color-mix(in srgb, var(--accent) 70%, white); letter-spacing: 0; }
+  .v-studio .top small { color: var(--dim); font-size: 11px; }
+  .v-studio .screen { border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px var(--glass-edge), 0 12px 30px -12px rgba(0,0,0,.7); position: relative; }
+  .v-studio .screen::before { /* film grain */
+    content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: .09; mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><filter id='n'><feTurbulence baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='120' height='120' filter='url(%23n)'/></svg>");
+  }
+  .v-studio .group { background: var(--glass); border: 1px solid var(--glass-edge); border-radius: 14px; padding: 10px 12px; display: grid; gap: 10px; backdrop-filter: blur(20px); }
+  .v-studio .line { display: grid; grid-template-columns: 78px 1fr; align-items: center; gap: 10px; }
+  .v-studio .line > span { color: var(--dim); font-size: 12px; }
+  .v-studio .seg {
+    --n: 2; --i: 0;
+    position: relative; display: grid; grid-template-columns: repeat(var(--n), 1fr);
+    background: rgba(0,0,0,.28); border-radius: 9px; padding: 3px;
+  }
+  .v-studio .seg .thumb {
+    position: absolute; top: 3px; bottom: 3px; left: 3px;
+    width: calc((100% - 6px) / var(--n));
+    transform: translateX(calc(var(--i) * 100%));
+    border-radius: 7px;
+    background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.12));
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.16), 0 2px 8px rgba(0,0,0,.3);
+    transition: transform 380ms cubic-bezier(.34,1.56,.64,1);
+  }
+  .v-studio .seg button { position: relative; z-index: 1; background: none; border: 0; color: var(--dim); font: 600 12px/1 "Inter", sans-serif; padding: 7px 0; cursor: pointer; transition: color 150ms; }
+  .v-studio .seg button.sel { color: var(--txt); }
+  .v-studio .slider { position: relative; height: 28px; cursor: pointer; }
+  .v-studio .slider .track { position: absolute; left: 8px; right: 8px; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: rgba(0,0,0,.35); }
+  .v-studio .slider .fill { position: absolute; left: 8px; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px; background: var(--accent); width: calc((100% - 16px) * var(--p)); transition: width 380ms cubic-bezier(.34,1.56,.64,1); }
+  .v-studio .slider .tick { position: absolute; top: 50%; width: 4px; height: 4px; margin: -2px 0 0 -2px; border-radius: 50%; background: rgba(255,255,255,.35); }
+  .v-studio .slider .knob {
+    position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%;
+    left: calc(8px + (100% - 16px) * var(--p));
+    background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4);
+    transition: left 380ms cubic-bezier(.34,1.56,.64,1), transform 160ms;
+    display: grid; place-items: center; font: 700 9px/1 "Inter", sans-serif; color: #111;
+  }
+  .v-studio .slider:active .knob { transform: scale(1.15); }
+  .v-studio .bgdots { display: flex; gap: 6px; }
+  .v-studio .bgdots button {
+    flex: 1; height: 22px; border-radius: 6px; border: 1px solid var(--glass-edge); cursor: pointer;
+    background: rgba(20, 20, 26, var(--a)); backdrop-filter: blur(var(--b));
+    transition: transform 260ms cubic-bezier(.34,1.56,.64,1), box-shadow 150ms;
+  }
+  .v-studio .bgdots button.sel { box-shadow: 0 0 0 2px var(--accent); transform: translateY(-1px); }
+  .v-studio .switch-row { display: flex; align-items: center; justify-content: space-between; }
+  .v-studio .switch-row small { display: block; color: var(--dim); font-size: 11px; }
+  .v-studio .switch { width: 44px; height: 26px; border-radius: 999px; border: 0; padding: 3px; background: rgba(0,0,0,.35); cursor: pointer; box-shadow: inset 0 0 0 1px var(--glass-edge); transition: background-color 200ms; }
+  .v-studio .switch::before { content: ""; display: block; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform 360ms cubic-bezier(.34,1.56,.64,1); }
+  .v-studio .switch[aria-pressed="true"] { background: var(--accent); }
+  .v-studio .switch[aria-pressed="true"]::before { transform: translateX(18px); }
+  .v-studio .keys { display: flex; justify-content: space-between; color: var(--dim); font-size: 10.5px; }
+  .v-studio .keys span { display: grid; justify-items: center; gap: 4px; }
+  .v-studio kbd.k { color: var(--txt); background: rgba(255,255,255,.08); box-shadow: inset 0 -2px 0 rgba(0,0,0,.35), inset 0 0 0 1px var(--glass-edge); }
+  .v-studio kbd.k.pressed { background: color-mix(in srgb, var(--accent) 45%, transparent); box-shadow: inset 0 0 0 1px var(--glass-edge); }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <h1>Popup UI playground · A2</h1>
+  <label>Theme accent
+    <span class="swatches" id="swatches"></span>
+  </label>
+  <label>Mode
+    <span class="seg-page" id="mode">
+      <button data-mode="light" aria-pressed="true">Light</button>
+      <button data-mode="dark">Dark</button>
+    </span>
+  </label>
+  <div class="hint">
+    Every popup shares one state. The Mode switch only changes the page and the earlier proposals; A2 is shown in both modes. Real shortcuts work here too:
+    <kbd>=</kbd>/<kbd>-</kbd> size · <kbd>w</kbd> background · <kbd>Shift</kbd>+<kbd>C</kbd> clean · <kbd>Alt</kbd>+<kbd>C</kbd> style.
+    Previews run the extension's own chunker and cleaner.
+  </div>
+</div>
+
+<main class="stage">
+  <!-- ============================== A2 · COMFORT, LIVE CARDS ============================== -->
+  <section class="proposal">
+    <header><b>A2 · Light</b></header>
+    <div class="popup v-comfort a2 force-light">
+      <div class="title">
+        <h2>Stable Captions</h2>
+        <span class="live"><i></i>On YouTube</span>
+      </div>
+
+      <div>
+        <div class="eyebrow">Style</div>
+        <div class="cards">
+          <button class="style-card" data-style="frosted">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="frosted"></div>
+            <span class="sc-name"><b>Frosted</b><small>calm</small><i class="check">✓</i></span>
+          </button>
+          <button class="style-card" data-style="tiktok">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="tiktok"></div>
+            <span class="sc-name"><b>Short</b><small>fun</small><i class="check">✓</i></span>
+          </button>
+        </div>
+        <div class="meta"><span data-text="meta"></span><span data-text="cleanShort"></span></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Text size</div>
+        <div class="stepper">
+          <button class="pill step" data-size-step="-1" aria-label="Smaller">−</button>
+          <span class="dots" data-size-dots></span>
+          <button class="pill step" data-size-step="1" aria-label="Larger">+</button>
+          <output data-text="sizeLabel"></output>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow" data-text="windowTitle"></div>
+        <div class="row" data-window-list data-window-class="pill small"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="eyebrow" style="margin:0">Clean verbatim</div>
+          <small>Hide um, uh and “I I I” stumbles</small>
+        </div>
+        <button class="pill" data-clean-toggle><span data-text="cleanLabel"></span></button>
+      </div>
+
+      <div class="keys">
+        <span><kbd class="k" data-key="c">C</kbd> captions</span>
+        <span><kbd class="k" data-key="size">+ −</kbd> size</span>
+        <span><kbd class="k" data-key="w">W</kbd> background</span>
+        <span><kbd class="k" data-key="clean">⇧C</kbd> clean</span>
+        <span><kbd class="k" data-key="style">⌥C</kbd> style</span>
+      </div>
+
+      <svg class="watermark" viewBox="0 0 120 90" aria-hidden="true">
+        <path d="M14 6h92a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H52L30 86V70H14A10 10 0 0 1 4 60V16A10 10 0 0 1 14 6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M50 30c-2-3-5-4-8-4-5 0-8 2.5-8 6 0 8 16 4 16 12 0 3.5-3 6-8 6-3.5 0-6.5-1.2-8.5-4M84 30a12 12 0 1 0 0 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i class="limit"></i>
+    </div>
+    <div class="height-note" data-height-note></div>
+  </section>
+
+  <!-- ============================== A2 · COMFORT, LIVE CARDS ============================== -->
+  <section class="proposal">
+    <header><b>A2 · Dark</b></header>
+    <div class="popup v-comfort a2 force-dark">
+      <div class="title">
+        <h2>Stable Captions</h2>
+        <span class="live"><i></i>On YouTube</span>
+      </div>
+
+      <div>
+        <div class="eyebrow">Style</div>
+        <div class="cards">
+          <button class="style-card" data-style="frosted">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="frosted"></div>
+            <span class="sc-name"><b>Frosted</b><small>calm</small><i class="check">✓</i></span>
+          </button>
+          <button class="style-card" data-style="tiktok">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="tiktok"></div>
+            <span class="sc-name"><b>Short</b><small>fun</small><i class="check">✓</i></span>
+          </button>
+        </div>
+        <div class="meta"><span data-text="meta"></span><span data-text="cleanShort"></span></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Text size</div>
+        <div class="stepper">
+          <button class="pill step" data-size-step="-1" aria-label="Smaller">−</button>
+          <span class="dots" data-size-dots></span>
+          <button class="pill step" data-size-step="1" aria-label="Larger">+</button>
+          <output data-text="sizeLabel"></output>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow" data-text="windowTitle"></div>
+        <div class="row" data-window-list data-window-class="pill small"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="eyebrow" style="margin:0">Clean verbatim</div>
+          <small>Hide um, uh and “I I I” stumbles</small>
+        </div>
+        <button class="pill" data-clean-toggle><span data-text="cleanLabel"></span></button>
+      </div>
+
+      <div class="keys">
+        <span><kbd class="k" data-key="c">C</kbd> captions</span>
+        <span><kbd class="k" data-key="size">+ −</kbd> size</span>
+        <span><kbd class="k" data-key="w">W</kbd> background</span>
+        <span><kbd class="k" data-key="clean">⇧C</kbd> clean</span>
+        <span><kbd class="k" data-key="style">⌥C</kbd> style</span>
+      </div>
+
+      <svg class="watermark" viewBox="0 0 120 90" aria-hidden="true">
+        <path d="M14 6h92a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H52L30 86V70H14A10 10 0 0 1 4 60V16A10 10 0 0 1 14 6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M50 30c-2-3-5-4-8-4-5 0-8 2.5-8 6 0 8 16 4 16 12 0 3.5-3 6-8 6-3.5 0-6.5-1.2-8.5-4M84 30a12 12 0 1 0 0 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i class="limit"></i>
+    </div>
+    <div class="height-note" data-height-note></div>
+  </section>
+
+
+</main>
+
+<div class="earlier"><h3>Earlier proposals</h3></div>
+<main class="stage dim">
+  <!-- ============================== A · COMFORT ============================== -->
+  <section class="proposal">
+    <header><b>A · Comfort</b><p>The original pick: soft surfaces, serif accent title, drifting wash, style as pills.</p></header>
+    <div class="popup v-comfort">
+      <div class="title">
+        <h2>Stable Captions</h2>
+        <span class="live"><i></i>On YouTube</span>
+      </div>
+
+      <div class="hero">
+        <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+          <path fill="currentColor" opacity=".09" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+          <path fill="currentColor" opacity=".06" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+          <path fill="none" stroke="currentColor" stroke-width=".7" opacity=".2" d="M22 110c68 14 74-10 144 8s114 12 208-18"/>
+          <g fill="currentColor" opacity=".25"><circle cx="33" cy="30" r="2"/><circle cx="364" cy="26" r="1.5"/><circle cx="386" cy="116" r="2"/></g>
+        </svg>
+        <div class="pv" data-preview></div>
+        <div class="meta"><span data-text="meta"></span><span data-text="cleanShort"></span></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Style</div>
+        <div class="row">
+          <button class="pill" data-style="frosted">Frosted</button>
+          <button class="pill" data-style="tiktok">Short</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Text size</div>
+        <div class="stepper">
+          <button class="pill step" data-size-step="-1" aria-label="Smaller">−</button>
+          <span class="dots" data-size-dots></span>
+          <button class="pill step" data-size-step="1" aria-label="Larger">+</button>
+          <output data-text="sizeLabel"></output>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow" data-text="windowTitle"></div>
+        <div class="row" data-window-list data-window-class="pill small"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="eyebrow" style="margin:0">Clean verbatim</div>
+          <small>Hide um, uh and “I I I” stumbles</small>
+        </div>
+        <button class="pill" data-clean-toggle><span data-text="cleanLabel"></span></button>
+      </div>
+
+      <div class="keys">
+        <span><kbd class="k" data-key="c">C</kbd> captions</span>
+        <span><kbd class="k" data-key="size">+ −</kbd> size</span>
+        <span><kbd class="k" data-key="w">W</kbd> background</span>
+        <span><kbd class="k" data-key="clean">⇧C</kbd> clean</span>
+        <span><kbd class="k" data-key="style">⌥C</kbd> style</span>
+      </div>
+
+      <svg class="watermark" viewBox="0 0 120 90" aria-hidden="true">
+        <path d="M14 6h92a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H52L30 86V70H14A10 10 0 0 1 4 60V16A10 10 0 0 1 14 6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M50 30c-2-3-5-4-8-4-5 0-8 2.5-8 6 0 8 16 4 16 12 0 3.5-3 6-8 6-3.5 0-6.5-1.2-8.5-4M84 30a12 12 0 1 0 0 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i class="limit"></i>
+    </div>
+    <div class="height-note" data-height-note></div>
+  </section>
+
+  <!-- ============================== A3 · COMFORT, HERO + MINI CARDS ============================== -->
+  <section class="proposal">
+    <header><b>A3 · Comfort, hero + live mini cards</b><p>Keeps A's big preview of the current style; the style pills become two small live cards.</p></header>
+    <div class="popup v-comfort a3">
+      <div class="title">
+        <h2>Stable Captions</h2>
+        <span class="live"><i></i>On YouTube</span>
+      </div>
+
+      <div class="hero">
+        <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+        <div class="pv" data-preview></div>
+        <div class="meta"><span data-text="meta"></span><span data-text="cleanShort"></span></div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Style</div>
+        <div class="cards">
+          <button class="style-card" data-style="frosted">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="frosted"></div>
+            <span class="sc-name"><b>Frosted</b><small>calm</small><i class="check">✓</i></span>
+          </button>
+          <button class="style-card" data-style="tiktok">
+            <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+              <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+              <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+              <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+            </svg>
+            <div class="pv" data-preview data-preview-style="tiktok"></div>
+            <span class="sc-name"><b>Short</b><small>fun</small><i class="check">✓</i></span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow">Text size</div>
+        <div class="stepper">
+          <button class="pill step" data-size-step="-1" aria-label="Smaller">−</button>
+          <span class="dots" data-size-dots></span>
+          <button class="pill step" data-size-step="1" aria-label="Larger">+</button>
+          <output data-text="sizeLabel"></output>
+        </div>
+      </div>
+
+      <div>
+        <div class="eyebrow" data-text="windowTitle"></div>
+        <div class="row" data-window-list data-window-class="pill small"></div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="eyebrow" style="margin:0">Clean verbatim</div>
+          <small>Hide um, uh and “I I I” stumbles</small>
+        </div>
+        <button class="pill" data-clean-toggle><span data-text="cleanLabel"></span></button>
+      </div>
+
+      <div class="keys">
+        <span><kbd class="k" data-key="c">C</kbd> captions</span>
+        <span><kbd class="k" data-key="size">+ −</kbd> size</span>
+        <span><kbd class="k" data-key="w">W</kbd> background</span>
+        <span><kbd class="k" data-key="clean">⇧C</kbd> clean</span>
+        <span><kbd class="k" data-key="style">⌥C</kbd> style</span>
+      </div>
+
+      <svg class="watermark" viewBox="0 0 120 90" aria-hidden="true">
+        <path d="M14 6h92a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H52L30 86V70H14A10 10 0 0 1 4 60V16A10 10 0 0 1 14 6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+        <path d="M50 30c-2-3-5-4-8-4-5 0-8 2.5-8 6 0 8 16 4 16 12 0 3.5-3 6-8 6-3.5 0-6.5-1.2-8.5-4M84 30a12 12 0 1 0 0 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <i class="limit"></i>
+    </div>
+    <div class="height-note" data-height-note></div>
+  </section>
+  <!-- ============================== B · PAPER ============================== -->
+  <section class="proposal">
+    <header><b>B · Paper</b><p>Editorial and a bit wonky: soft Fraunces serif, squiggles that draw in, a sentence that shows what “clean” does.</p></header>
+    <div class="popup v-paper">
+      <div>
+        <h2>Stable <em>captions</em></h2>
+        <p class="sub">for calmer watching</p>
+      </div>
+
+      <div>
+        <div class="label">Style <output data-text="styleLabel"></output></div>
+        <div class="cards">
+          <button class="card" data-style="frosted">
+            <div class="pv" data-preview data-preview-style="frosted"></div>
+            <span class="name">Frosted<svg class="squiggle" viewBox="0 0 100 8" preserveAspectRatio="none"><path d="M1 5c8-5 14 3 22-1s14-4 22 0 14 4 22 0 14-4 22 0 8 2 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+          </button>
+          <button class="card" data-style="tiktok">
+            <div class="pv" data-preview data-preview-style="tiktok"></div>
+            <span class="name">Short<svg class="squiggle" viewBox="0 0 100 8" preserveAspectRatio="none"><path d="M1 5c8-5 14 3 22-1s14-4 22 0 14 4 22 0 14-4 22 0 8 2 10 0" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
+          </button>
+        </div>
+      </div>
+
+      <div>
+        <div class="label">Text size <output data-text="sizeLabel"></output></div>
+        <div class="sizes" data-size-list></div>
+      </div>
+
+      <div>
+        <div class="label"><span data-text="windowTitlePlain"></span> <output data-text="windowLabel"></output></div>
+        <div class="bgbar" data-window-list data-window-kind="swatch"></div>
+      </div>
+
+      <div class="clean">
+        <div><b style="font-weight:600">Clean verbatim</b></div>
+        <button class="switch" data-clean-toggle aria-label="Clean verbatim"></button>
+        <div class="demo" data-clean-demo>So, um, I I I think it's, uh, better.</div>
+      </div>
+
+      <div class="keys">
+        press <kbd class="k" data-key="size">+</kbd> <kbd class="k" data-key="size">−</kbd> to resize,
+        <kbd class="k" data-key="w">W</kbd> for background,
+        <kbd class="k" data-key="clean">⇧C</kbd> to tidy up
+        &amp; <kbd class="k" data-key="style">⌥C</kbd> to switch style
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================== C · STUDIO ============================== -->
+  <section class="proposal">
+    <header><b>C · Studio</b><p>Dark and cinematic, visionOS glass: big screen, springy segmented thumbs, a detented size slider.</p></header>
+    <div class="popup v-studio">
+      <div class="top">
+        <h2>Stable <em>captions</em></h2>
+        <small data-text="meta"></small>
+      </div>
+
+      <div class="screen"><div class="pv" data-preview></div></div>
+
+      <div class="group">
+        <div class="line"><span>Style</span>
+          <div class="seg" data-seg="style">
+            <i class="thumb"></i>
+            <button data-style="frosted">Frosted</button>
+            <button data-style="tiktok">Short</button>
+          </div>
+        </div>
+        <div class="line"><span>Size</span>
+          <div class="slider" data-size-slider>
+            <i class="track"></i><i class="fill"></i>
+            
+            <span data-ticks></span>
+            <i class="knob">A</i>
+          </div>
+        </div>
+        <div class="line"><span data-text="windowTitlePlain"></span>
+          <div class="bgdots" data-window-list data-window-kind="glass"></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="switch-row">
+          <div>Clean verbatim<small>No um, uh or repeated words</small></div>
+          <button class="switch" data-clean-toggle aria-label="Clean verbatim"></button>
+        </div>
+      </div>
+
+      <div class="keys">
+        <span><kbd class="k" data-key="c">C</kbd>captions</span>
+        <span><kbd class="k" data-key="size">±</kbd>size</span>
+        <span><kbd class="k" data-key="w">W</kbd>backdrop</span>
+        <span><kbd class="k" data-key="clean">⇧C</kbd>clean</span>
+        <span><kbd class="k" data-key="style">⌥C</kbd>style</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script src="../src/core/text-utils.js"></script>
+<script src="../src/core/cue-lookup.js"></script>
+<script src="../src/core/chunker.js"></script>
+<script src="../src/core/disfluency.js"></script>
+<script>
+(() => {
+  'use strict';
+  const { CaptionChunker, Disfluency, cueAtTime } = globalThis.YTSC;
+
+  // ---------- Settings model (same keys and levels as the extension) ----------
+
+  const SIZES = ['tiny', 'xsmall', 'small', 'medium', 'large', 'xlarge', 'xxlarge'];
+  const SIZE_LABELS = { tiny: 'Tiny', xsmall: 'Extra small', small: 'Small', medium: 'Medium', large: 'Large', xlarge: 'Extra large', xxlarge: 'XXL' };
+  const SIZE_VALUES = { tiny: 0.03, xsmall: 0.036, small: 0.042, medium: 0.048, large: 0.055, xlarge: 0.064, xxlarge: 0.075 };
+  const WINDOWS = {
+    frosted: { key: 'frostedWindow', levels: ['clear', 'light', 'medium', 'dark', 'solid'], title: 'Frosted panel' },
+    tiktok: { key: 'tiktokWindow', levels: ['off', '25', '50', '75', '100'], title: 'Background' },
+  };
+  const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
+  const FROSTED_LEVELS = { clear: [0.12, 10], light: [0.25, 14], medium: [0.38, 16], dark: [0.55, 18], solid: [0.78, 20] };
+  const TIKTOK_ALPHA = { off: 0, 25: 0.25, 50: 0.5, 75: 0.75, 100: 1 };
+
+  const state = { style: 'frosted', size: 'medium', clean: true, frostedWindow: 'medium', tiktokWindow: 'off' };
+
+  // ---------- Preview content: real chunker + cleaner ----------
+
+  const SAMPLE = '[Music] So, um, I I think captions should feel, uh, calm and easy. Every word lands where you expect it.';
+  const timed = (() => {
+    let t = 400;
+    return SAMPLE.split(' ').map((text) => {
+      const w = { text, startMs: t, endMs: t + 260 };
+      t += text === '[Music]' ? 1400 : 170 + 32 * text.length + (/[.,]$/.test(text) ? 240 : 0);
+      w.endMs = t - 40;
+      return w;
+    });
+  })();
+  const LOOP_MS = timed[timed.length - 1].endMs + 1400;
+  let chunks = [];
+  const rebuildChunks = () => {
+    const words = state.clean ? new Disfluency().clean(timed) : timed;
+    chunks = new CaptionChunker().build(words);
+  };
+
+  class Preview {
+    constructor(el) {
+      this.el = el;
+      this.fixedStyle = el.dataset.previewStyle || null;
+      this.cap = document.createElement('div');
+      this.cap.className = 'pv-cap';
+      el.appendChild(this.cap);
+    }
+    style() { return this.fixedStyle || state.style; }
+    apply() {
+      const style = this.style();
+      this.cap.classList.toggle('frosted', style === 'frosted');
+      this.cap.classList.toggle('tiktok', style === 'tiktok');
+      this.el.style.setProperty('--pv-size', SIZE_VALUES[state.size]);
+      const [alpha, blur] = FROSTED_LEVELS[state.frostedWindow];
+      this.el.style.setProperty('--pv-alpha', alpha);
+      this.el.style.setProperty('--pv-blur', `${blur}px`);
+      const tt = TIKTOK_ALPHA[state.tiktokWindow];
+      this.el.style.setProperty('--pv-tt-alpha', tt);
+      this.el.style.setProperty('--pv-tt-pad', tt ? '.12em .45em' : '0');
+      this.current = undefined; // repaint with new words
+    }
+    render(t) {
+      const chunk = cueAtTime(chunks, t);
+      if (chunk !== this.current) {
+        this.current = chunk;
+        this.cap.textContent = '';
+        this.cap.classList.remove('fresh');
+        if (!chunk) { this.cap.classList.remove('on'); return; }
+        this.spans = chunk.words.map((w, i) => {
+          if (i) this.cap.append(' ');
+          const s = document.createElement('span');
+          s.className = 'w';
+          s.textContent = w.text;
+          this.cap.append(s);
+          return s;
+        });
+        this.cap.classList.add('on');
+        void this.cap.offsetWidth;
+        this.cap.classList.add('fresh');
+      }
+      if (!chunk) return; // still between chunks
+      let active = -1;
+      chunk.words.forEach((w, i) => { if (w.startMs <= t) active = i; });
+      this.spans.forEach((s, i) => s.classList.toggle('cur', i === active));
+    }
+  }
+  const previews = [...document.querySelectorAll('[data-preview]')].map((el) => new Preview(el));
+
+  // ---------- Paper: clean-verbatim demo sentence ----------
+
+  for (const demo of document.querySelectorAll('[data-clean-demo]')) {
+    const words = demo.textContent.trim().split(' ').map((text) => ({ text, startMs: 0, endMs: 0 }));
+    const kinds = new Disfluency().detect(words);
+    demo.textContent = '';
+    words.forEach((w, i) => {
+      const s = document.createElement('span');
+      s.className = `dw${kinds[i] ? ' drop' : ''}`;
+      s.textContent = w.text;
+      demo.append(s);
+    });
+  }
+
+  // ---------- Rendering all three proposals from one state ----------
+
+  function fillWindowLists() {
+    const w = WINDOWS[state.style];
+    for (const list of document.querySelectorAll('[data-window-list]')) {
+      const kind = list.dataset.windowKind;
+      list.textContent = '';
+      for (const level of w.levels) {
+        const b = document.createElement('button');
+        b.dataset.window = level;
+        b.title = WINDOW_LABELS[level] || `${level}%`;
+        if (kind === 'swatch') {
+          b.style.setProperty('--a', state.style === 'frosted' ? FROSTED_LEVELS[level][0] : TIKTOK_ALPHA[level]);
+        } else if (kind === 'glass') {
+          const a = state.style === 'frosted' ? FROSTED_LEVELS[level][0] : TIKTOK_ALPHA[level];
+          b.style.setProperty('--a', a);
+          b.style.setProperty('--b', state.style === 'frosted' ? `${FROSTED_LEVELS[level][1] / 3}px` : '0px');
+        } else {
+          b.className = list.dataset.windowClass || '';
+          b.textContent = WINDOW_LABELS[level] || `${level}%`;
+        }
+        list.appendChild(b);
+      }
+    }
+  }
+
+  function fillSizeLists() {
+    for (const list of document.querySelectorAll('[data-size-list]')) {
+      list.textContent = '';
+      SIZES.forEach((size, i) => {
+        const b = document.createElement('button');
+        b.dataset.size = size;
+        b.title = SIZE_LABELS[size];
+        b.style.fontSize = `${12 + i * 3}px`;
+        b.innerHTML = 'Aa<svg class="squiggle" viewBox="0 0 100 8" preserveAspectRatio="none"><path d="M1 5c8-5 14 3 22-1s14-4 22 0 14 4 22 0 14-4 22 0 8 2 10 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>';
+        list.appendChild(b);
+      });
+    }
+    for (const ticks of document.querySelectorAll('[data-ticks]')) {
+      ticks.innerHTML = SIZES.map((_, i) => `<i class="tick" style="left:calc(8px + (100% - 16px) * ${i / (SIZES.length - 1)})"></i>`).join('');
+    }
+    for (const dots of document.querySelectorAll('[data-size-dots]')) {
+      dots.textContent = '';
+      SIZES.forEach(() => dots.appendChild(document.createElement('span')));
+    }
+  }
+
+  let lastStyle = null;
+  function render() {
+    if (state.style !== lastStyle) { fillWindowLists(); lastStyle = state.style; }
+    const w = WINDOWS[state.style];
+    const winLevel = state[w.key];
+    const sizeIndex = SIZES.indexOf(state.size);
+    const texts = {
+      meta: `${state.style === 'frosted' ? 'Frosted' : 'Short'} · ${SIZE_LABELS[state.size]}`,
+      styleLabel: state.style === 'frosted' ? 'calm' : 'fun',
+      sizeLabel: SIZE_LABELS[state.size],
+      windowTitle: w.title,
+      windowTitlePlain: state.style === 'frosted' ? 'Panel' : 'Backdrop',
+      windowLabel: WINDOW_LABELS[winLevel] || `${winLevel}%`,
+      cleanLabel: state.clean ? 'On' : 'Off',
+      cleanShort: state.clean ? 'Clean ✓' : 'Verbatim',
+    };
+    for (const el of document.querySelectorAll('[data-text]')) el.textContent = texts[el.dataset.text] ?? '';
+    for (const el of document.querySelectorAll('[data-style]')) el.classList.toggle('sel', el.dataset.style === state.style);
+    for (const el of document.querySelectorAll('[data-size]')) el.classList.toggle('sel', el.dataset.size === state.size);
+    for (const el of document.querySelectorAll('[data-window]')) el.classList.toggle('sel', el.dataset.window === winLevel);
+    for (const el of document.querySelectorAll('[data-clean-toggle]')) {
+      el.setAttribute('aria-pressed', String(state.clean));
+      el.classList.toggle('sel', state.clean);
+    }
+    for (const dots of document.querySelectorAll('[data-size-dots]')) {
+      [...dots.children].forEach((d, i) => {
+        d.classList.toggle('lit', i <= sizeIndex);
+        d.classList.toggle('here', i === sizeIndex);
+      });
+    }
+    for (const seg of document.querySelectorAll('[data-seg="style"]')) {
+      seg.style.setProperty('--i', state.style === 'frosted' ? 0 : 1);
+    }
+    for (const s of document.querySelectorAll('[data-size-slider]')) s.style.setProperty('--p', sizeIndex / (SIZES.length - 1));
+    document.querySelector('.v-paper')?.classList.toggle('clean-on', state.clean);
+    previews.forEach((p) => p.apply());
+  }
+
+  function set(patch) {
+    const cleanChanged = 'clean' in patch && patch.clean !== state.clean;
+    Object.assign(state, patch);
+    if (cleanChanged) rebuildChunks();
+    render();
+    save();
+  }
+
+  const stepSize = (d) => set({ size: SIZES[Math.min(SIZES.length - 1, Math.max(0, SIZES.indexOf(state.size) + d))] });
+  const cycleWindow = () => {
+    const w = WINDOWS[state.style];
+    set({ [w.key]: w.levels[(w.levels.indexOf(state[w.key]) + 1) % w.levels.length] });
+  };
+
+  // ---------- Interaction ----------
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('button, [data-size-slider]');
+    if (!t) return;
+    if (t.dataset.style) set({ style: t.dataset.style });
+    else if (t.dataset.size) set({ size: t.dataset.size });
+    else if (t.dataset.sizeStep) stepSize(Number(t.dataset.sizeStep));
+    else if (t.dataset.window) set({ [WINDOWS[state.style].key]: t.dataset.window });
+    else if ('cleanToggle' in t.dataset) set({ clean: !state.clean });
+    else if ('sizeSlider' in t.dataset) {
+      const r = t.getBoundingClientRect();
+      const p = Math.min(1, Math.max(0, (e.clientX - r.left - 8) / (r.width - 16)));
+      set({ size: SIZES[Math.round(p * (SIZES.length - 1))] });
+    }
+  });
+
+  const press = (key) => {
+    for (const k of document.querySelectorAll(`kbd.k[data-key="${key}"]`)) {
+      k.classList.remove('pressed');
+      void k.offsetWidth;
+      k.classList.add('pressed');
+      setTimeout(() => k.classList.remove('pressed'), 160);
+    }
+  };
+
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.repeat) return;
+    if (e.altKey && e.code === 'KeyC') { e.preventDefault(); press('style'); set({ style: state.style === 'frosted' ? 'tiktok' : 'frosted' }); return; }
+    if (e.altKey) return;
+    if (e.key === '=' || e.key === '+') { press('size'); stepSize(1); }
+    else if (e.key === '-') { press('size'); stepSize(-1); }
+    else if (e.key === 'w') { press('w'); cycleWindow(); }
+    else if (e.key === 'C' && e.shiftKey) { press('clean'); set({ clean: !state.clean }); }
+    else if (e.key === 'c') { press('c'); }
+  });
+
+  // ---------- Page chrome: accent + mode ----------
+
+  const ACCENTS = [
+    ['Tokyo Night', '#7aa2f7'], ['Catppuccin', '#cba6f7'], ['Rosé Pine', '#eb6f92'],
+    ['Gruvbox', '#d79921'], ['Everforest', '#83a35e'], ['Kanagawa', '#7e9cd8'], ['Nord', '#88c0d0'],
+  ];
+  const swatches = document.getElementById('swatches');
+  for (const [name, color] of ACCENTS) {
+    const b = document.createElement('button');
+    b.title = name;
+    b.style.background = color;
+    b.addEventListener('click', () => { setAccent(color); save(); });
+    swatches.appendChild(b);
+  }
+  function setAccent(color) {
+    document.documentElement.style.setProperty('--accent', color);
+    for (const b of swatches.children) b.setAttribute('aria-pressed', String(b.style.background === hexToRgb(color)));
+    page.accent = color;
+  }
+  const hexToRgb = (h) => `rgb(${parseInt(h.slice(1, 3), 16)}, ${parseInt(h.slice(3, 5), 16)}, ${parseInt(h.slice(5, 7), 16)})`;
+  function setMode(mode) {
+    document.documentElement.dataset.mode = mode;
+    for (const b of document.querySelectorAll('#mode button')) b.setAttribute('aria-pressed', String(b.dataset.mode === mode));
+    page.mode = mode;
+  }
+  document.getElementById('mode').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (b) { setMode(b.dataset.mode); save(); }
+  });
+
+  // ---------- Persistence (per-viewer convenience only) ----------
+
+  const page = { accent: '#7e9cd8', /* Kanagawa */ mode: matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light' };
+  function save() {
+    try { localStorage.setItem('ytsc-popup-playground-v3', JSON.stringify({ state, page })); } catch { /* ignore */ }
+  }
+  try {
+    const saved = JSON.parse(localStorage.getItem('ytsc-popup-playground-v3') || 'null');
+    if (saved?.state) Object.assign(state, saved.state);
+    if (saved?.page) Object.assign(page, saved.page);
+  } catch { /* private mode */ }
+  const params = new URLSearchParams(location.search);
+  for (const key of Object.keys(state)) {
+    if (!params.has(key)) continue;
+    state[key] = key === 'clean' ? params.get(key) === '1' : params.get(key);
+  }
+  if (params.has('mode')) page.mode = params.get('mode');
+  if (params.has('accent')) page.accent = `#${params.get('accent')}`;
+
+  setAccent(page.accent);
+  setMode(page.mode);
+  fillSizeLists();
+  rebuildChunks();
+  render();
+
+  // ---------- Height check against the 600px popup limit ----------
+  const noteHeights = () => {
+    for (const note of document.querySelectorAll('[data-height-note]')) {
+      const popup = note.previousElementSibling;
+      const h = Math.round(popup.getBoundingClientRect().height);
+      const over = h > 600;
+      popup.querySelector('.limit').style.display = over ? '' : 'none';
+      note.textContent = over ? `${h}px tall: would scroll ${h - 600}px in a real popup` : `${h}px tall: fits the 600px popup limit`;
+      note.style.color = over ? '#e5484d' : '';
+    }
+  };
+  new ResizeObserver(noteHeights).observe(document.body);
+  document.fonts.ready.then(noteHeights);
+
+  // ---------- One clock for every preview ----------
+  const t0 = performance.now() - (Number(params.get('t')) || 0);
+  const frame = (now) => {
+    const t = (now - t0) % LOOP_MS;
+    previews.forEach((p) => p.render(t));
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

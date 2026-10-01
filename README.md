@@ -2,8 +2,8 @@
 
 Replaces YouTube's flowing auto-captions with short, stable caption chunks
 (≤6 words, shown whole) on a frosted, visionOS-inspired panel, with a
-subtle emphasis on the word being spoken. A bold TikTok style is available
-from the toolbar popup, for fun.
+subtle emphasis on the word being spoken. A bold, playful **Short** style is
+available from the toolbar popup.
 
 ## What the MVP does
 
@@ -38,7 +38,8 @@ remove the flowing-text distraction.
 - `src/content/overlay.js` — DOM rendering only
 - `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>`, font registration (isolated world)
 - `src/content/page-loader.js` — injects page-world scripts when `world: MAIN` is unsupported (Safari)
-- `src/popup/` — toolbar popup: caption style (Frosted / TikTok), text size
+- `src/core/settings.js` — settings vocabulary (keys, defaults, sizes, levels, labels) shared by popup and bridge
+- `src/popup/` — toolbar popup: both styles previewed live, size, background, clean verbatim
 - `src/content/main.js` — composition root (`StableCaptionsController`)
 
 Core files attach to `globalThis.YTSC` and also export via CommonJS, so the
@@ -63,7 +64,7 @@ npm test
 
 To disable: `chrome://extensions` → toggle off.
 
-## Clean verbatim (optional, off by default)
+## Clean verbatim (on by default)
 
 Popup toggle or `Shift+C`. Drops hesitation fillers (*um, uh, er* · *äh, ähm* · *ờ, ừm*) and
 stumbles (*I I I think*, *It's, um, it's*), keeping the last copy of a repeat; moves sentence
@@ -72,6 +73,14 @@ split on fake pauses. YouTube's `[Music]` tags (`[Musik]`, `[âm nhạc]`, …) 
 ♪ chunk, merged when consecutive; other tags like `[Applause]` stay. In live mode it works per
 chunk, so repeats spanning two chunks remain.
 Known rough edges: a leftover comma (*Und, am Anfang*) and legitimate doubles (*that that*).
+
+## Popup
+
+Both styles play side by side as live previews (the extension's own chunker and cleaner), so
+choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
+style's background level, and clean verbatim. The status dot says whether the active tab is a
+YouTube video (readable via the youtube.com host permission; no `tabs` permission). The same
+shortcuts work inside the popup. Kanagawa blue accent; follows the system light/dark mode.
 
 ## Keyboard shortcuts
 
@@ -82,8 +91,8 @@ Same keys as YouTube's own captions:
 | `c` | Captions on/off — YouTube's own toggle; the overlay follows the player's CC state |
 | `=` / `+` | Larger caption text (while stable captions are showing) |
 | `-` | Smaller caption text |
-| `w` | Cycle background: frosted panel Clear → Light → Medium → Dark → Solid; TikTok box Off → 25–100% |
-| `Alt+C` / `⌥C` | Switch style: Frosted ↔ TikTok |
+| `w` | Cycle background: frosted panel Clear → Light → Medium → Dark → Solid; Short box Off → 25–100% |
+| `Alt+C` / `⌥C` | Switch style: Frosted ↔ Short |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach
@@ -116,9 +125,11 @@ Open directly in Chromium (no build step); both run the real `src/core` code:
 
 - `playground/caption-styles.html` — compare caption styles, chunk sizes, highlight modes
 - `playground/speaker-marks.html` — ways to handle YouTube's `>>` speaker-change marks
+- `playground/popup-ui.html` — popup designs; A2 is what shipped
 - `playground/disfluency.html` — verbatim vs dimmed vs cleaned fillers/repeats, both styles
 
-Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICENSE.txt`).
+Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICENSE.txt`); the popup title uses
+Instrument Serif, latin subset (SIL OFL 1.1, see `fonts/InstrumentSerif-LICENSE.txt`).
 
 ## Next iterations
 

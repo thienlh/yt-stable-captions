@@ -3,134 +3,82 @@
 <head>
 <meta charset="utf-8">
 <title>YT Stable Captions</title>
-<style>
-  @font-face {
-    font-family: "YTSC Inter";
-    src: url("../../fonts/InterVariable.woff2") format("woff2");
-    font-weight: 100 900;
-  }
-  :root {
-    --bg: #ffffff;
-    --ink: #1c1c1e;
-    --muted: #6b6b70;
-    --line: #dcdcd8;
-    --accent: #0a66d8;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #1b1b1f; --ink: #ececef; --muted: #9a9aa2; --line: #34343a; --accent: #5aa2ff; }
-  }
-  body {
-    margin: 0;
-    width: 300px;
-    padding: 14px;
-    background: var(--bg);
-    color: var(--ink);
-    font: 13px/1.4 "YTSC Inter", system-ui, sans-serif;
-  }
-  h1 { font-size: 14px; margin: 0 0 2px; }
-  p { margin: 0 0 12px; color: var(--muted); }
-  fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 10px; }
-  legend { font-weight: 600; margin-bottom: 8px; }
-  label {
-    display: grid;
-    gap: 8px;
-    padding: 8px;
-    border: 1px solid var(--line);
-    border-radius: 10px;
-    cursor: pointer;
-  }
-  label:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
-  .name { display: flex; align-items: center; gap: 8px; font-weight: 600; }
-  .name small { font-weight: 400; color: var(--muted); margin-left: auto; }
-  input { accent-color: var(--accent); margin: 0; }
-
-  .preview {
-    height: 64px;
-    border-radius: 6px;
-    display: grid;
-    place-items: center;
-    background:
-      radial-gradient(ellipse at 30% 35%, #4b5d6b 0%, transparent 60%),
-      radial-gradient(ellipse at 75% 60%, #6b4f3f 0%, transparent 55%),
-      linear-gradient(160deg, #26313a, #15181c);
-    font-size: 15px;
-  }
-  /* Miniatures of src/content/styles.css */
-  .frosted span {
-    font-family: "YTSC Inter", system-ui, sans-serif;
-    font-weight: 600;
-    color: #fff;
-    padding: 0.35em 0.7em;
-    border-radius: 0.6em;
-    background: rgba(28, 28, 32, 0.38);
-    backdrop-filter: blur(16px) saturate(1.4);
-    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
-  }
-  .frosted i { font-style: normal; opacity: 0.68; }
-  .frosted b { font-weight: inherit; text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.45); }
-  .tiktok span {
-    font-family: "YTSC Inter", sans-serif;
-    font-weight: 800;
-    font-size: 16px;
-    color: #fff;
-    text-shadow: -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 1px 1px 0 #000, 0 2px 4px rgba(0, 0, 0, 0.6);
-  }
-  .tiktok b { color: #ffe135; font-weight: inherit; }
-  .note { margin: 12px 0 0; font-size: 12px; }
-  .keys { margin-top: 6px; color: var(--muted); }
-  .toggle { margin-top: 14px; grid-template-columns: auto 1fr; align-items: start; gap: 10px; }
-  .toggle input { margin-top: 2px; }
-  .toggle span { display: grid; gap: 2px; }
-  .toggle small { color: var(--muted); font-size: 12px; }
-  kbd {
-    font: 600 11px/1 "YTSC Inter", system-ui, sans-serif;
-    padding: 2px 5px;
-    border: 1px solid var(--line);
-    border-bottom-width: 2px;
-    border-radius: 4px;
-    color: var(--ink);
-  }
-
-  /* Size: segmented control */
-  .sizes { margin-top: 14px; }
-  .segmented { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .segmented label { border: 0; border-radius: 0; padding: 6px 0; gap: 0; place-items: center; text-align: center; }
-  .segmented label + label { border-left: 1px solid var(--line); }
-  .segmented label:has(input:checked) { box-shadow: none; background: var(--accent); color: #fff; }
-  .segmented input { position: absolute; opacity: 0; pointer-events: none; }
-  .segmented span { font-weight: 600; line-height: 1; }
-</style>
+<link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <h1>YT Stable Captions</h1>
-  <p>Stable caption chunks instead of YouTube's rolling text.</p>
-  <fieldset>
-    <legend>Caption style</legend>
-    <label>
-      <span class="name"><input type="radio" name="style" value="frosted"> Frosted <small>calm, default</small></span>
-      <span class="preview frosted"><span><i>Every autumn,</i> <b>millions</b> <i>of</i></span></span>
-    </label>
-    <label>
-      <span class="name"><input type="radio" name="style" value="tiktok"> TikTok <small>bold, for fun</small></span>
-      <span class="preview tiktok"><span>Every autumn, <b>millions</b> of</span></span>
-    </label>
-  </fieldset>
-  <fieldset class="sizes">
-    <legend>Text size</legend>
-    <div class="segmented">
-      <label title="Extra small"><input type="radio" name="size" value="xsmall"><span style="font-size: 9px">A</span></label>
-      <label title="Small"><input type="radio" name="size" value="small"><span style="font-size: 11px">A</span></label>
-      <label title="Medium (default)"><input type="radio" name="size" value="medium"><span style="font-size: 13px">A</span></label>
-      <label title="Large"><input type="radio" name="size" value="large"><span style="font-size: 15px">A</span></label>
-      <label title="Extra large"><input type="radio" name="size" value="xlarge"><span style="font-size: 18px">A</span></label>
-    </div>
-  </fieldset>
-  <label class="toggle">
-    <input type="checkbox" name="clean">
-    <span><b>Clean verbatim</b><small>Hide um, uh and stumbles like “I I I think”</small></span>
-  </label>
-  <p class="note">Changes apply instantly to open YouTube tabs.</p>
-  <p class="note keys"><kbd>C</kbd> captions · <kbd>+</kbd> / <kbd>−</kbd> size · <kbd>W</kbd> background · <kbd>⇧C</kbd> clean verbatim · <kbd>Alt/⌥C</kbd> style</p>
+  <main class="popup">
+    <header class="title">
+      <h1>Stable Captions</h1>
+      <span class="status" id="status"><i></i><span id="status-text">Not on YouTube</span></span>
+    </header>
+
+    <section>
+      <div class="eyebrow">Style</div>
+      <div class="cards">
+        <button class="style-card" data-style="frosted" aria-pressed="false">
+          <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+            <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+            <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+            <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+          </svg>
+          <div class="pv" data-preview="frosted"></div>
+          <span class="sc-name"><b>Frosted</b><small>calm</small><i class="check">✓</i></span>
+        </button>
+        <button class="style-card" data-style="tiktok" aria-pressed="false">
+          <svg class="wash" viewBox="0 0 400 150" preserveAspectRatio="none" aria-hidden="true">
+            <path fill="currentColor" opacity=".12" d="M6 74C0 26 54 4 98 22s58-16 104 4 62-20 112 6 84 24 72 68-68 28-114 36-86-14-134 2-96-8-132-28Z"/>
+            <path fill="currentColor" opacity=".08" d="M24 60C42 10 98 36 130 30s62 14 96-2 80-2 122 20 24 62-16 68-78 20-120 0-60 20-104 2S10 100 24 60Z"/>
+            <g fill="currentColor" opacity=".3"><circle cx="33" cy="30" r="3"/><circle cx="364" cy="26" r="2.5"/></g>
+          </svg>
+          <div class="pv" data-preview="tiktok"></div>
+          <span class="sc-name"><b>Short</b><small>fun</small><i class="check">✓</i></span>
+        </button>
+      </div>
+      <div class="meta"><span id="meta"></span><span id="meta-clean"></span></div>
+    </section>
+
+    <section>
+      <div class="eyebrow">Text size</div>
+      <div class="stepper">
+        <button class="pill step" data-size-step="-1" aria-label="Smaller text">−</button>
+        <span class="dots" id="size-dots"></span>
+        <button class="pill step" data-size-step="1" aria-label="Larger text">+</button>
+        <output id="size-label"></output>
+      </div>
+    </section>
+
+    <section>
+      <div class="eyebrow" id="window-title"></div>
+      <div class="row" id="window-list"></div>
+    </section>
+
+    <section class="toggle-row">
+      <div>
+        <div class="eyebrow flush">Clean verbatim</div>
+        <small>Hide um, uh and “I I I” stumbles</small>
+      </div>
+      <button class="pill" id="clean" aria-pressed="false"></button>
+    </section>
+
+    <footer class="keys" aria-label="Keyboard shortcuts on the video">
+      <span><kbd>C</kbd> captions</span>
+      <span><kbd>+ −</kbd> size</span>
+      <span><kbd>W</kbd> background</span>
+      <span><kbd>⇧C</kbd> clean</span>
+      <span><kbd>⌥C</kbd> style</span>
+    </footer>
+
+    <svg class="watermark" viewBox="0 0 120 90" aria-hidden="true">
+      <path d="M14 6h92a10 10 0 0 1 10 10v44a10 10 0 0 1-10 10H52L30 86V70H14A10 10 0 0 1 4 60V16A10 10 0 0 1 14 6Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+      <path d="M50 30c-2-3-5-4-8-4-5 0-8 2.5-8 6 0 8 16 4 16 12 0 3.5-3 6-8 6-3.5 0-6.5-1.2-8.5-4M84 30a12 12 0 1 0 0 16" fill="none" stroke="currentColor" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </main>
+
+  <script src="../core/settings.js"></script>
+  <script src="../core/text-utils.js"></script>
+  <script src="../core/cue-lookup.js"></script>
+  <script src="../core/chunker.js"></script>
+  <script src="../core/disfluency.js"></script>
   <script src="popup.js"></script>
 </body>
 </html>

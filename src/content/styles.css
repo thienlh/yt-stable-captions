@@ -43,10 +43,12 @@
 }
 
 /* Size setting (popup → html[data-ytsc-size]); medium is the default above. */
+html[data-ytsc-size="tiny"] #ytsc-overlay { --ytsc-size: 0.03; }
 html[data-ytsc-size="xsmall"] #ytsc-overlay { --ytsc-size: 0.036; }
 html[data-ytsc-size="small"] #ytsc-overlay { --ytsc-size: 0.042; }
 html[data-ytsc-size="large"] #ytsc-overlay { --ytsc-size: 0.055; }
 html[data-ytsc-size="xlarge"] #ytsc-overlay { --ytsc-size: 0.064; }
+html[data-ytsc-size="xxlarge"] #ytsc-overlay { --ytsc-size: 0.075; }
 
 /* Window setting. Set on <html> as variables so every overlay rule (incl. the
    controls-visible one) picks them up without specificity fights. */
@@ -109,7 +111,7 @@ html[data-ytsc-tiktok-window]:not([data-ytsc-tiktok-window="off"]) { --ytsc-tt-p
   opacity: 1;
 }
 
-/* ---------- Optional "TikTok" style (popup setting → html[data-ytsc-style]) ---------- */
+/* ---------- Optional "Short" style, internal key "tiktok" (popup setting → html[data-ytsc-style]) ---------- */
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay,
 html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
