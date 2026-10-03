@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Simplified Stable Captions mark for 16-32 px: horizon, sun, a two-word caption. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232c4d"/>
+      <stop offset="0.5" stop-color="#7e9cd8"/>
+    </linearGradient>
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4c639f"/>
+      <stop offset="1" stop-color="#1a2038"/>
+    </linearGradient>
+    <clipPath id="above"><rect width="1024" height="500"/></clipPath>
+    <clipPath id="body"><rect width="1024" height="1024" rx="228"/></clipPath>
+  </defs>
+  <g clip-path="url(#body)">
+    <rect width="1024" height="1024" fill="url(#sky)"/>
+    <circle cx="512" cy="430" r="190" fill="#f3ead0" clip-path="url(#above)"/>
+    <rect y="500" width="1024" height="524" fill="url(#sea)"/>
+    <rect x="80" y="610" width="864" height="300" rx="110" fill="#12141d" opacity="0.72"/>
+    <rect x="190" y="710" width="380" height="100" rx="50" fill="#ffffff"/>
+    <rect x="620" y="710" width="214" height="100" rx="50" fill="#c9d4f0" opacity="0.55"/>
+  </g>
+</svg>
