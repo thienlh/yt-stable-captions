@@ -163,3 +163,14 @@ Instrument Serif, latin subset (SIL OFL 1.1, see `fonts/InstrumentSerif-LICENSE.
 1. Punctuation/AI pass (local Ollama helper, cached by videoId+lang)
 2. More popup settings: chunk size, hold time
 3. Side transcript panel (Omarchy app candidate — reader, not overlay)
+
+## License
+
+Copyright (C) 2026 Thien Hung Le
+
+Stable Captions is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License, version 3, as published by the Free Software
+Foundation. It is distributed WITHOUT ANY WARRANTY. See [LICENSE](LICENSE) for the full text.
+
+The bundled fonts keep their own licenses: Inter and Instrument Serif are under the
+SIL Open Font License 1.1 (see `fonts/*-LICENSE.txt`).

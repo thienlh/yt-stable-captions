@@ -2,6 +2,7 @@
   "name": "yt-stable-captions",
   "version": "1.0.0",
   "private": true,
+  "license": "GPL-3.0-only",
   "type": "commonjs",
   "scripts": {
     "test": "node --test test/",
