@@ -6,8 +6,9 @@
   "type": "commonjs",
   "scripts": {
     "test": "node --test test/",
-    "firefox": "npx --yes web-ext run --source-dir . --ignore-files test playground design docs package.json README.md --start-url https://www.youtube.com",
-    "firefox:lint": "npx --yes web-ext lint --source-dir . --ignore-files test playground design docs package.json README.md",
-    "firefox:build": "npx --yes web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files test playground design docs package.json README.md"
+    "firefox": "npx --yes web-ext run --source-dir . --ignore-files test playground design docs scripts package.json README.md --start-url https://www.youtube.com",
+    "firefox:lint": "npx --yes web-ext lint --source-dir . --ignore-files test playground design docs scripts package.json README.md",
+    "firefox:build": "npx --yes web-ext build --source-dir . --artifacts-dir dist --overwrite-dest --ignore-files test playground design docs scripts package.json README.md",
+    "safari:build": "node scripts/build-safari.js"
   }
 }

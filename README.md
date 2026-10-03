@@ -130,8 +130,15 @@ Firefox notes:
 Needs Xcode. From a clone of this repo:
 
 ```bash
-xcrun safari-web-extension-converter . --app-name "Stable Captions" --macos-only --copy-resources
+npm run safari:build   # stages dist/safari/ and dist/stable-captions-safari-<version>.zip
+xcrun safari-web-extension-converter dist/safari --app-name "Stable Captions" \
+  --bundle-identifier fun.thien.stablecaptions --macos-only --copy-resources
 ```
+
+The Safari build differs only in its toolbar icon: a monochrome glyph
+(`icons/toolbar-*.png`, source in `design/icons/toolbar.svg`) that Safari renders as a
+template image — grey normally, accent-tinted when the extension can run on the tab.
+Chrome and Firefox keep the colour icon. The zip is for App Store Connect's packager.
 
 1. Xcode opens the generated project → **Run** (⌘R); a small host app launches
 2. Safari → Settings → Advanced → **Show features for web developers**
