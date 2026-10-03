@@ -1,11 +1,11 @@
-# YT Stable Captions — MVP
+# Stable Captions
 
 Replaces YouTube's flowing auto-captions with short, stable caption chunks
 (≤6 words, shown whole) on a frosted, visionOS-inspired panel, with a
 subtle emphasis on the word being spoken. A bold, playful **Short** style is
 available from the toolbar popup.
 
-## What the MVP does
+## What it does
 
 - Captions source, in order:
   1. **Tap**: the player's own signed timedtext download, captured at
@@ -110,7 +110,7 @@ Or by hand: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on�
 
 Then make sure the extension may run on YouTube: Firefox treats MV3 host permissions as
 opt-in, and without them no content script runs. If the popup shows **Allow on YouTube**,
-click it (or Extensions button → YT Stable Captions → *Always allow on www.youtube.com*),
+click it (or Extensions button → Stable Captions → *Always allow on www.youtube.com*),
 then reload the YouTube tab.
 
 ```bash
@@ -130,14 +130,14 @@ Firefox notes:
 Needs Xcode. From a clone of this repo:
 
 ```bash
-xcrun safari-web-extension-converter . --app-name "YT Stable Captions" --macos-only --copy-resources
+xcrun safari-web-extension-converter . --app-name "Stable Captions" --macos-only --copy-resources
 ```
 
 1. Xcode opens the generated project → **Run** (⌘R); a small host app launches
 2. Safari → Settings → Advanced → **Show features for web developers**
 3. **Develop → Allow Unsigned Extensions** (resets on every Safari quit unless signed
    with a paid Apple Developer team)
-4. Safari → Settings → Extensions → enable **YT Stable Captions**, allow on youtube.com
+4. Safari → Settings → Extensions → enable **Stable Captions**, allow on youtube.com
 
 Safari notes:
 - If Safari ignores `"world": "MAIN"`, `src/content/page-loader.js` injects the same

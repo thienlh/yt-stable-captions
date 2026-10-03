@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "YT Stable Captions (MVP)",
+  "name": "Stable Captions",
   "version": "0.1.0",
   "description": "Replace flowing YouTube auto-captions with calm, stable caption chunks.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "yt-stable-captions@makeit.sg",
+      "id": "stable-captions@thien.fun",
       "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": ["none"]
@@ -19,7 +19,7 @@
     "https://www.youtube.com/*"
   ],
   "action": {
-    "default_title": "YT Stable Captions",
+    "default_title": "Stable Captions",
     "default_popup": "src/popup/popup.html"
   },
   "content_scripts": [

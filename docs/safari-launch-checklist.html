@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>body{margin:0}[hidden]{display:none!important}</style>
+</head>
+<body>
+<title>Safari Launch Checklist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">
+<style id="app-css">
+/* Layout: one calm reading column; a header with the overall tally, then five phases in the order they must happen. Borrows the extension popup's Kanagawa blue + serif title. */
+:root {
+  --bg: #fbfaf8;
+  --surface: #ffffff;
+  --ink: #1c1c20;
+  --dim: #6e6f78;
+  --faint: #a9aab2;
+  --line: #e7e6e2;
+  --accent: #7e9cd8;
+  --accent-ink: #4f6fb4;
+  --accent-wash: #eef2fb;
+  --code-bg: #f1f0ec;
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181d; --surface: #1e1f25; --ink: #e8e8ee; --dim: #9293a0; --faint: #5c5d68;
+    --line: #2b2c34; --accent: #7e9cd8; --accent-ink: #9fb7e6; --accent-wash: #232a3a; --code-bg: #24252c;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181d; --surface: #1e1f25; --ink: #e8e8ee; --dim: #9293a0; --faint: #5c5d68;
+  --line: #2b2c34; --accent: #7e9cd8; --accent-ink: #9fb7e6; --accent-wash: #232a3a; --code-bg: #24252c;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; }
+#app { max-width: 760px; margin: 0 auto; padding-inline: 20px; padding-block: 56px 96px; }
+a { color: var(--accent-ink); text-underline-offset: 3px; text-decoration-thickness: 1px; }
+
+/* ---------- Header ---------- */
+.eyebrow { font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--dim); font-weight: 500; }
+header { display: grid; gap: 22px; padding-bottom: 36px; border-bottom: 1px solid var(--line); }
+h1 { margin: 6px 0 0; font: 400 clamp(44px, 9vw, 68px)/0.95 var(--serif); letter-spacing: -0.01em; text-wrap: balance; }
+h1 em { color: var(--accent-ink); }
+.lede { margin: 0; color: var(--dim); max-width: 58ch; }
+.tally { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.count { font: 400 40px/1 var(--serif); font-variant-numeric: tabular-nums; }
+.count small { font-size: 22px; color: var(--faint); }
+.meta { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 12.5px; color: var(--dim); }
+.bar { height: 3px; background: var(--line); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; transition: width .5s cubic-bezier(.2,.7,.2,1); }
+.status { display: inline-flex; align-items: center; gap: 7px; }
+.status::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--faint); }
+.status[data-tone="ok"]::before { background: var(--accent); }
+.status[data-tone="busy"]::before { background: var(--accent); animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+.switch input { appearance: none; width: 28px; height: 16px; border-radius: 16px; background: var(--line); position: relative; margin: 0; cursor: pointer; transition: background .2s; }
+.switch input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: transform .2s; }
+.switch input:checked { background: var(--accent); }
+.switch input:checked::after { transform: translateX(12px); }
+
+/* ---------- Phases ---------- */
+section { padding-top: 44px; }
+.phase-head { display: grid; grid-template-columns: auto 1fr auto; gap: 4px 16px; align-items: baseline; margin-bottom: 10px; }
+.num { font: italic 400 30px/1 var(--serif); color: var(--accent-ink); width: 1.1em; }
+h2 { margin: 0; font: 400 30px/1.1 var(--serif); text-wrap: balance; }
+.phase-count { font-size: 12.5px; color: var(--dim); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.phase-where { grid-column: 2 / -1; font-size: 13px; color: var(--dim); }
+.phase-done .num::after { content: "✓"; font-style: normal; font-family: var(--sans); font-size: 14px; margin-left: 4px; vertical-align: 6px; }
+
+ul { list-style: none; margin: 0; padding: 0; }
+li { border-top: 1px solid var(--line); }
+li:last-child { border-bottom: 1px solid var(--line); }
+li[hidden] { display: none; }
+label.item { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 14px; padding: 15px 4px 15px 0; cursor: pointer; }
+.item input { appearance: none; margin: 2px 0 0; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--faint); background: var(--surface); cursor: pointer; display: grid; place-items: center; transition: background .15s, border-color .15s; }
+.item input::after { content: ""; width: 5px; height: 9px; border: solid var(--bg); border-width: 0 2px 2px 0; transform: translateY(-1px) rotate(45deg) scale(0); transition: transform .15s; }
+.item input:checked { background: var(--accent); border-color: var(--accent); }
+.item input:checked::after { transform: translateY(-1px) rotate(45deg) scale(1); }
+.item input:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.item:hover input:not(:checked) { border-color: var(--accent); }
+.body { min-width: 0; display: grid; gap: 4px; }
+.title { font-weight: 500; }
+.detail { color: var(--dim); font-size: 13.5px; max-width: 62ch; }
+.is-done .title { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--faint); }
+.is-done .detail, .is-done .extras { opacity: .55; }
+.next .title::after { content: "Up next"; margin-left: 10px; padding: 2px 8px; border-radius: 20px; background: var(--accent-wash); color: var(--accent-ink); font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; vertical-align: 2px; white-space: nowrap; }
+.extras { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; align-items: center; }
+.code { display: flex; align-items: stretch; max-width: 100%; min-width: 0; background: var(--code-bg); border-radius: 6px; font: 12.5px/1.5 var(--mono); }
+.code code { padding: 6px 10px; overflow-x: auto; white-space: nowrap; min-width: 0; }
+.code button { border: 0; border-left: 1px solid var(--line); background: none; color: var(--dim); font: 500 11px var(--sans); padding: 0 10px; cursor: pointer; }
+.code button:hover { color: var(--accent-ink); }
+.link { font-size: 13px; }
+.read-only .item { cursor: default; }
+
+footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
+@media (max-width: 480px) {
+  #app { padding-block: 36px 72px; }
+  .phase-head { grid-template-columns: auto 1fr; }
+  .phase-count { grid-column: 2; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+<main id="app"></main>
+<script type="application/json" id="state">{"done":{},"updated":null}</script>
+<script id="app-js">
+(function () {
+  var TITLE = "Safari Launch Checklist";
+  var PHASES = [
+    { id: "ext", title: "Prepare the extension", where: "In the yt-stable-captions repo", items: [
+      { id: "icons", t: "Add extension icons", d: "PNG at 16, 32, 48, 96 and 128 px (256 and 512 help on Retina). Declare them under \"icons\" and \"action.default_icon\" in manifest.json." },
+      { id: "appicon", t: "Make a 1024 × 1024 app icon", d: "The Mac App Store listing and the host app both use it. The shape and padding follow macOS icon conventions." },
+      { id: "name", t: "Choose the store name", d: "Names with \"YouTube\" or \"YT\" often get rejected under guideline 5.2. \"Stable Captions for YouTube™\" is safer, or use a name without the trademark.", href: "https://developer.apple.com/app-store/review/guidelines/#intellectual-property", hrefText: "Guideline 5.2" },
+      { id: "version", t: "Set version to 1.0.0", d: "Update manifest.json and package.json. The converter copies the manifest version into the app's version." },
+      { id: "mainworld", t: "Check MAIN-world scripts in Safari", d: "timedtext-tap.js and the caption pipeline run with \"world\": \"MAIN\". Confirm they work, and note which Safari and macOS versions you need." },
+      { id: "grant", t: "Test the site-access prompt in Safari", d: "Safari asks for per-site permission. Make sure the popup's grant button and its status work before access is granted and after." },
+      { id: "zip", t: "Add a safari:build script", d: "Zip the extension without test, playground, package.json and README, the same way firefox:build does." },
+      { id: "tests", t: "Run the test suite", code: "npm test" }
+    ]},
+    { id: "pkg", title: "Package the Mac app", where: "On a Mac with Xcode, or with App Store Connect's packager", items: [
+      { id: "route", t: "Choose how to package it", d: "Use Xcode's converter on a Mac (local, cloud or Xcode Cloud). Or upload a ZIP to the Safari Web Extension Packager in App Store Connect, if it's available to your account.", href: "https://developer.apple.com/documentation/safariservices/packaging-a-web-extension-for-safari", hrefText: "Apple: packaging for Safari" },
+      { id: "bundle", t: "Register the bundle IDs", d: "One for the app and one for the extension, e.g. fun.thien.stablecaptions and fun.thien.stablecaptions.Extension.", href: "https://developer.apple.com/account/resources/identifiers/list", hrefText: "Identifiers" },
+      { id: "convert", t: "Generate the Xcode project", code: "xcrun safari-web-extension-converter . --macos-only --bundle-identifier fun.thien.stablecaptions --app-name \"Stable Captions\"" },
+      { id: "signing", t: "Set signing, deployment target and category", d: "Pick your team for both targets. Set the minimum macOS version from the Safari check. Set LSApplicationCategoryType (e.g. public.app-category.utilities)." },
+      { id: "hostapp", t: "Keep the host app screen", d: "The template's \"enable in Safari Settings\" window is enough. Apple rejects host apps that do nothing." },
+      { id: "local", t: "Test locally in Safari", d: "Safari › Settings › Advanced › Show features for web developers. Then Develop › Allow Unsigned Extensions. Run it on a few real videos with auto-captions." },
+      { id: "upload", t: "Archive and upload the build", d: "Product › Archive › Distribute App › App Store Connect. Or submit through the packager." }
+    ]},
+    { id: "web", title: "Publish the public pages", where: "Any static host, e.g. thien.fun", items: [
+      { id: "privacy", t: "Privacy policy page", d: "Required for every app. Say that nothing is collected or sent anywhere, and that settings stay in local extension storage." },
+      { id: "support", t: "Support page", d: "A contact email or an issues link, plus a short guide to turning the extension on." },
+      { id: "marketing", t: "Marketing page (optional)", d: "A short landing page with a before/after clip of the captions." }
+    ]},
+    { id: "asc", title: "Fill in the App Store listing", where: "App Store Connect", items: [
+      { id: "record", t: "Create the app record", d: "Platform macOS, name, primary language, bundle ID, SKU.", href: "https://appstoreconnect.apple.com/apps", hrefText: "App Store Connect" },
+      { id: "copy", t: "Write the subtitle, description, keywords and promotional text", d: "Subtitle up to 30 characters. Keywords up to 100 characters, separated by commas." },
+      { id: "category", t: "Pick a category", d: "Primary category Utilities or Productivity. A secondary category is optional." },
+      { id: "shots", t: "Add screenshots", d: "16:10 at 1280×800, 1440×900, 2560×1600 or 2880×1800. Between 1 and 10. Show the captions on a real video and the popup.", href: "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications", hrefText: "Screenshot specs" },
+      { id: "privacylabel", t: "Fill in App Privacy: Data Not Collected", d: "Add the privacy policy URL from phase 3." },
+      { id: "age", t: "Answer the age rating questions" },
+      { id: "price", t: "Set price and availability", d: "Free or paid, and the countries to sell in." },
+      { id: "export", t: "Answer export compliance", d: "No non-exempt encryption. You can set ITSAppUsesNonExemptEncryption = NO in Info.plist so it isn't asked on every build." },
+      { id: "copyright", t: "Add the copyright line", d: "e.g. 2026 MakeIt" }
+    ]},
+    { id: "ship", title: "Beta test and submit", where: "TestFlight, then App Review", items: [
+      { id: "testflight", t: "Test the build in TestFlight on a clean Mac", d: "Install it, turn the extension on, grant youtube.com and check both caption styles." },
+      { id: "notes", t: "Write review notes", d: "Explain how to turn it on (Safari › Settings › Extensions), allow it on youtube.com, and include a link to a video that has auto-captions." },
+      { id: "submit", t: "Submit for review" },
+      { id: "release", t: "Release", d: "Release by hand or automatically after approval. Then add the App Store link to the README." }
+    ]}
+  ];
+
+  var SKELETON = '<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px/1.5 system-ui,-apple-system,sans-serif;background:#fafaf9}img{max-width:100%}[hidden]{display:none!important}</style></head><body>';
+  var FONTS = '<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400&display=swap">';
+
+  var state = { done: {}, updated: null };
+  try { state = JSON.parse(document.getElementById("state").textContent) || state; } catch (e) {}
+  state.done = state.done || {};
+
+  var mode = "pending"; // pending | live | local | readonly
+  var api = null, timer = null, dirty = false, saving = false, retried = false;
+  var status = { text: "Connecting…", tone: "busy" };
+  var hideDone = false;
+  try { hideDone = localStorage.getItem("hideDone") === "1"; } catch (e) {}
+
+  var app = document.getElementById("app");
+
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function allItems() { var a = []; PHASES.forEach(function (p) { a = a.concat(p.items); }); return a; }
+  function fmtDate(iso) {
+    if (!iso) return "Not saved yet";
+    var d = new Date(iso);
+    return "Last saved " + d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" }) + ", " + d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+
+  function render() {
+    var items = allItems();
+    var total = items.length, done = items.filter(function (i) { return state.done[i.id]; }).length;
+    var next = items.find(function (i) { return !state.done[i.id]; });
+    var pct = total ? Math.round(done / total * 100) : 0;
+    var h = "";
+    h += '<header><div><div class="eyebrow">Stable Captions · Mac App Store</div>';
+    h += '<h1>Safari <em>launch</em> checklist</h1></div>';
+    h += '<p class="lede">Everything between a working extension and a live App Store listing, in order. Your ticks are saved to this page.</p>';
+    h += '<div class="tally"><div class="count">' + done + ' <small>/ ' + total + '</small></div>';
+    h += '<div class="meta"><span class="status" data-tone="' + status.tone + '">' + esc(status.text) + '</span>';
+    h += '<label class="switch"><input type="checkbox" id="hide-done"' + (hideDone ? " checked" : "") + '> Hide done</label></div></div>';
+    h += '<div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '" aria-label="Overall progress"><i style="width:' + pct + '%"></i></div>';
+    h += '</header>';
+
+    PHASES.forEach(function (p, pi) {
+      var pd = p.items.filter(function (i) { return state.done[i.id]; }).length;
+      var complete = pd === p.items.length;
+      h += '<section id="' + p.id + '" class="' + (complete ? "phase-done" : "") + '"><div class="phase-head">';
+      h += '<span class="num">' + (pi + 1) + '</span><h2>' + esc(p.title) + '</h2>';
+      h += '<span class="phase-count">' + pd + ' of ' + p.items.length + '</span>';
+      h += '<span class="phase-where">' + esc(p.where) + '</span></div><ul>';
+      p.items.forEach(function (it) {
+        var isDone = !!state.done[it.id];
+        var cls = (isDone ? "is-done" : "") + (next && next.id === it.id ? " next" : "");
+        h += '<li class="' + cls + '"' + (hideDone && isDone ? " hidden" : "") + '><label class="item">';
+        h += '<input type="checkbox" id="c-' + it.id + '" data-id="' + it.id + '"' + (isDone ? " checked" : "") + (mode === "readonly" || saving ? " disabled" : "") + '>';
+        h += '<span class="body"><span class="title">' + esc(it.t) + '</span>';
+        if (it.d) h += '<span class="detail">' + esc(it.d) + '</span>';
+        if (it.code || it.href) {
+          h += '<span class="extras">';
+          if (it.code) h += '<span class="code"><code>' + esc(it.code) + '</code><button type="button" data-copy="' + esc(it.code) + '">Copy</button></span>';
+          if (it.href) h += '<a class="link" href="' + it.href + '" target="_blank" rel="noopener">' + esc(it.hrefText || "Open") + ' ↗</a>';
+          h += '</span>';
+        }
+        h += '</span></label></li>';
+      });
+      h += '</ul></section>';
+    });
+    h += '<footer>' + esc(fmtDate(state.updated)) + '</footer>';
+    app.className = mode === "readonly" ? "read-only" : "";
+    app.innerHTML = h;
+  }
+
+  function setStatus(text, tone) { status = { text: text, tone: tone || "" }; var el = app.querySelector(".status"); if (el) { el.textContent = text; el.dataset.tone = tone || ""; } }
+
+  function buildDoc() {
+    var css = document.getElementById("app-css").textContent;
+    var js = document.getElementById("app-js").textContent;
+    var json = JSON.stringify(state).replace(/</g, "\\u003c");
+    return SKELETON + "<title>" + TITLE + "</title>\n" + FONTS + '\n<style id="app-css">' + css + '</style>\n<main id="app"></main>\n<script type="application/json" id="state">' + json + '<\/script>\n<script id="app-js">' + js + "<\/script>\n</body></html>";
+  }
+
+  function schedule() { clearTimeout(timer); timer = setTimeout(save, 1200); }
+
+  function save() {
+    if (!dirty) return;
+    if (mode === "pending") { setStatus("Waiting to save…", "busy"); return; }
+    if (mode === "local") {
+      try { localStorage.setItem("state", JSON.stringify(state)); setStatus("Saved in this browser only", "ok"); }
+      catch (e) { setStatus("Can't save here. Ticks last until you close the page.", ""); }
+      dirty = false; return;
+    }
+    if (mode === "readonly") return;
+    saving = true; render(); setStatus("Saving…", "busy");
+    api.publish(buildDoc()).then(function () {
+      dirty = false; setStatus("Saved", "ok"); // the viewer reloads to the new version
+    }).catch(function (e) {
+      saving = false;
+      var code = e && e.code;
+      if (code === "conflict") { setStatus("Someone else saved first. Reloading…", "busy"); return; }
+      if (code === "rate_limited") { setStatus("Saving too often. Trying again shortly.", "busy"); render(); setTimeout(save, 8000); return; }
+      if (["not_writer", "not_granted", "not_declared", "consent_required", "capability_disabled", "capability_removed"].indexOf(code) >= 0) {
+        mode = "readonly"; render(); setStatus("Read-only. Ticks here aren't saved.", ""); return;
+      }
+      render();
+      if (!retried) { retried = true; setStatus("Couldn't save. Trying again…", "busy"); setTimeout(save, 1500 + Math.random() * 1500); }
+      else setStatus("Couldn't save. Your next tick will try again.", "");
+    });
+  }
+
+  app.addEventListener("change", function (e) {
+    var t = e.target;
+    if (t.id === "hide-done") {
+      hideDone = t.checked;
+      try { localStorage.setItem("hideDone", hideDone ? "1" : "0"); } catch (err) {}
+      render(); return;
+    }
+    if (!t.dataset.id || mode === "readonly") return;
+    if (t.checked) state.done[t.dataset.id] = true; else delete state.done[t.dataset.id];
+    state.updated = new Date().toISOString();
+    dirty = true; retried = false;
+    render();
+    var again = document.getElementById(t.id); if (again) again.focus();
+    setStatus("Unsaved changes", "busy");
+    schedule();
+  });
+
+  app.addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-copy]");
+    if (!b) return;
+    e.preventDefault();
+    var text = b.dataset.copy;
+    var done = function () { b.textContent = "Copied"; setTimeout(function () { b.textContent = "Copy"; }, 1400); };
+    try {
+      navigator.clipboard.writeText(text).then(done, function () { selectCode(b); });
+    } catch (err) { selectCode(b); }
+  });
+  function selectCode(b) { var c = b.parentNode.querySelector("code"); var r = document.createRange(); r.selectNodeContents(c); var s = getSelection(); s.removeAllRanges(); s.addRange(r); b.textContent = "Press ⌘C"; }
+
+  function useLocal() {
+    mode = "local";
+    try { var saved = JSON.parse(localStorage.getItem("state") || "null"); if (!dirty && saved && saved.done) state = saved; } catch (e) {}
+    render(); setStatus(dirty ? "Unsaved changes" : "Saving in this browser only", dirty ? "busy" : "");
+    if (dirty) schedule();
+  }
+
+  render();
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("artifact").then(function (a) {
+      if (!a) { useLocal(); return; }
+      api = a; mode = "live";
+      setStatus(state.updated ? "Saved" : "Ready. Tick items to save.", state.updated ? "ok" : "");
+      if (dirty) schedule();
+    }, useLocal);
+  } else {
+    useLocal();
+  }
+})();
+</script>
+</body>
+</html>
