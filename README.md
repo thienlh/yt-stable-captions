@@ -130,10 +130,14 @@ Firefox notes:
 Needs Xcode. From a clone of this repo:
 
 ```bash
-npm run safari:build   # stages dist/safari/ and dist/stable-captions-safari-<version>.zip
-xcrun safari-web-extension-converter dist/safari --app-name "Stable Captions" \
-  --bundle-identifier fun.thien.stablecaptions --macos-only --copy-resources
+npm run safari:xcode   # safari:build, then generates safari/Stable Captions/*.xcodeproj
 ```
+
+The project references the files in `dist/safari/` (no copies), so after changing the
+extension run `npm run safari:build` again before building in Xcode. Run the converter
+on `dist/safari`, never on the repo root: it would copy the repo (and the project
+itself) into the extension's resources. Regenerate only if files are added or removed
+(the project lists each file); delete `safari/` first.
 
 The Safari build differs only in its toolbar icon: a monochrome glyph
 (`icons/toolbar-*.png`, source in `design/icons/toolbar.svg`) that Safari renders as a

@@ -8,7 +8,7 @@ const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'dist', 'safari');
-const SKIP = new Set(['.git', '.gitignore', 'dist', 'node_modules', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md']);
+const SKIP = new Set(['.git', 'safari', '.gitignore', 'dist', 'node_modules', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md']);
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
