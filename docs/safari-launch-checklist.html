@@ -108,7 +108,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 <main id="app"></main>
-<script type="application/json" id="state">{"done":{},"updated":null}</script>
+<script type="application/json" id="state">{"done":{"icons":true,"appicon":true,"name":true,"version":true,"zip":true,"tests":true},"updated":"2026-10-03T16:38:45.000Z"}</script>
 <script id="app-js">
 (function () {
   var TITLE = "Safari Launch Checklist";
@@ -144,7 +144,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
       { id: "shots", t: "Add screenshots", d: "16:10 at 1280×800, 1440×900, 2560×1600 or 2880×1800. Between 1 and 10. Show the captions on a real video and the popup.", href: "https://developer.apple.com/help/app-store-connect/reference/screenshot-specifications", hrefText: "Screenshot specs" },
       { id: "privacylabel", t: "Fill in App Privacy: Data Not Collected", d: "Add the privacy policy URL from phase 3." },
       { id: "age", t: "Answer the age rating questions" },
-      { id: "price", t: "Set price and availability", d: "Free or paid, and the countries to sell in." },
+      { id: "price", t: "Set price and availability", d: "Paid upfront, around US$2.99–4.99, since the Chrome and Firefox versions are free. Then choose the countries to sell in." },
       { id: "export", t: "Answer export compliance", d: "No non-exempt encryption. You can set ITSAppUsesNonExemptEncryption = NO in Info.plist so it isn't asked on every build." },
       { id: "copyright", t: "Add the copyright line", d: "e.g. 2026 MakeIt" }
     ]},
@@ -153,6 +153,15 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
       { id: "notes", t: "Write review notes", d: "Explain how to turn it on (Safari › Settings › Extensions), allow it on youtube.com, and include a link to a video that has auto-captions." },
       { id: "submit", t: "Submit for review" },
       { id: "release", t: "Release", d: "Release by hand or automatically after approval. Then add the App Store link to the README." }
+    ]},
+    { id: "oss", title: "Open source and tips", where: "GitHub, a tip page, and the Chrome and Firefox builds", items: [
+      { id: "public", t: "Make the GitHub repo public", d: "It's private right now, so the GPL license and a Sponsor button do nothing until it's public. Check the history for anything you don't want published first.", href: "https://github.com/thienlh/yt-stable-captions/settings", hrefText: "Repo settings" },
+      { id: "tippage", t: "Create a tip page", d: "Ko-fi takes no cut of one-off tips. Buy Me a Coffee takes about 5%. Both accept cards and Apple Pay with no account needed." },
+      { id: "sponsors", t: "Turn on GitHub Sponsors", d: "This is for developers who find the repo. GitHub takes no cut on personal sponsorships. Payouts go through Stripe.", href: "https://github.com/sponsors", hrefText: "GitHub Sponsors" },
+      { id: "funding", t: "Add .github/FUNDING.yml", d: "List both platforms so the repo shows a Sponsor button.", code: "github: thienlh" },
+      { id: "popuptip", t: "Add a tip link to the popup in the Chrome and Firefox builds", d: "Keep it small and quiet. Have safari:build remove it, so the paid Safari version never asks for more money." },
+      { id: "storetip", t: "Add the tip link to the Chrome Web Store and Firefox Add-ons listings" },
+      { id: "safarinotip", t: "Keep tip links out of the Safari app and its App Store listing", d: "Safari users already paid, and asking for more money annoys App Review." }
     ]}
   ];
 
@@ -187,7 +196,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
     var h = "";
     h += '<header><div><div class="eyebrow">Stable Captions · Mac App Store</div>';
     h += '<h1>Safari <em>launch</em> checklist</h1></div>';
-    h += '<p class="lede">Everything between a working extension and a live App Store listing, in order. Your ticks are saved to this page.</p>';
+    h += '<p class="lede">Everything between a working extension and a live App Store listing, in order, plus tip links for the free Chrome and Firefox versions. Your ticks are saved to this page.</p>';
     h += '<div class="tally"><div class="count">' + done + ' <small>/ ' + total + '</small></div>';
     h += '<div class="meta"><span class="status" data-tone="' + status.tone + '">' + esc(status.text) + '</span>';
     h += '<label class="switch"><input type="checkbox" id="hide-done"' + (hideDone ? " checked" : "") + '> Hide done</label></div></div>';
@@ -291,7 +300,17 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
 
   function useLocal() {
     mode = "local";
-    try { var saved = JSON.parse(localStorage.getItem("state") || "null"); if (!dirty && saved && saved.done) state = saved; } catch (e) {}
+    try {
+      // The newer of the two wins. When the file is newer (ticks written into it), it is
+      // added to what this browser saved, so ticks made here are never lost.
+      var saved = JSON.parse(localStorage.getItem("state") || "null");
+      if (!dirty && saved && saved.done) {
+        if (state.updated && (!saved.updated || state.updated > saved.updated)) {
+          state.done = Object.assign({}, saved.done, state.done);
+          localStorage.setItem("state", JSON.stringify(state));
+        } else state = saved;
+      }
+    } catch (e) {}
     render(); setStatus(dirty ? "Unsaved changes" : "Saving in this browser only", dirty ? "busy" : "");
     if (dirty) schedule();
   }
