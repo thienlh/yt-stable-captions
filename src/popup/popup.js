@@ -3,7 +3,8 @@
 
   /**
    * Popup: shows both caption styles playing live, edits the settings, and
-   * says whether the active tab is a YouTube video. Settings are written to
+   * says whether the active tab is a YouTube video (or asks for youtube.com
+   * access when it is missing). Settings are written to
    * storage; settings-bridge.js applies them to open YouTube tabs.
    */
   const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
@@ -187,7 +188,35 @@
   // ---------- "On YouTube" status ----------
   // Host permission for youtube.com is enough to see a YouTube tab's URL; no `tabs` permission needed.
 
+  // Firefox lets the user withhold or revoke host access (MV3 host permissions
+  // are opt-in there); without it no content script runs, so offer to grant it.
+  const YOUTUBE = { origins: ['https://www.youtube.com/*'] };
+
+  async function hasAccess() {
+    try {
+      return await api.permissions.contains(YOUTUBE);
+    } catch {
+      return true; // no permissions API: assume the install granted it
+    }
+  }
+
+  $('grant').addEventListener('click', async () => {
+    let granted = false;
+    try {
+      granted = await api.permissions.request(YOUTUBE); // needs this click as the user gesture
+    } catch { /* request refused */ }
+    if (!granted) return;
+    $('grant').hidden = true;
+    $('status').hidden = false;
+    $('status-text').textContent = 'Reload YouTube';
+  });
+
   async function showStatus() {
+    if (!(await hasAccess())) {
+      $('status').hidden = true;
+      $('grant').hidden = false;
+      return;
+    }
     let url = '';
     try {
       const [tab] = await api.tabs.query({ active: true, currentWindow: true });

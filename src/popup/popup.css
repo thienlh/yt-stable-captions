@@ -68,6 +68,8 @@ button { font: inherit; color: inherit; }
   background: var(--accent);
   animation: breathe 2.8s ease-in-out infinite;
 }
+.grant { color: var(--accent-ink); }
+.grant[hidden], .status[hidden] { display: none; }
 @keyframes breathe {
   0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
   60%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }

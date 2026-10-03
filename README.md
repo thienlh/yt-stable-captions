@@ -79,7 +79,8 @@ Known rough edges: a leftover comma (*Und, am Anfang*) and legitimate doubles (*
 Both styles play side by side as live previews (the extension's own chunker and cleaner), so
 choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
 style's background level, and clean verbatim. The status dot says whether the active tab is a
-YouTube video (readable via the youtube.com host permission; no `tabs` permission). The same
+YouTube video (readable via the youtube.com host permission; no `tabs` permission); when that
+permission is missing (Firefox can withhold it), an **Allow on YouTube** button requests it. The same
 shortcuts work inside the popup. Kanagawa blue accent; follows the system light/dark mode.
 
 ## Keyboard shortcuts
@@ -97,6 +98,32 @@ Same keys as YouTube's own captions:
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach
 YouTube as usual), are ignored while typing or with Ctrl/⌘ (Alt only for `Alt+C`), and save to the popup setting.
+
+## Try in Firefox (128+)
+
+```bash
+npm run firefox         # launches a fresh Firefox profile with the extension, opens YouTube
+```
+
+Or by hand: `about:debugging#/runtime/this-firefox` → **Load Temporary Add-on…** → pick
+`manifest.json` (removed again when Firefox quits).
+
+Then make sure the extension may run on YouTube: Firefox treats MV3 host permissions as
+opt-in, and without them no content script runs. If the popup shows **Allow on YouTube**,
+click it (or Extensions button → YT Stable Captions → *Always allow on www.youtube.com*),
+then reload the YouTube tab.
+
+```bash
+npm run firefox:lint    # addons-linter (web-ext lint)
+npm run firefox:build   # dist/*.zip for AMO
+```
+
+Firefox notes:
+- `browser_specific_settings.gecko` gives a fixed add-on ID (needed for `storage.sync` and
+  AMO signing) and declares no data collection. Chrome warns about the unknown key; harmless
+- Minimum 128 because that is the first Firefox with `"world": "MAIN"` content scripts;
+  the `page-loader.js` fallback would likely be blocked by YouTube's CSP there
+- Permanent installs need the zip signed by AMO (listed or unlisted)
 
 ## Try in Safari (macOS)
 
