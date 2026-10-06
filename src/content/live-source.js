@@ -67,6 +67,7 @@
       this.onChunk = onChunk;
       this.pauseMs = pauseMs;
       this.observer = null;
+      this.target = null;
       this.lastSeen = '';
       this.frame = 0;
       this.idle = 0;
@@ -85,13 +86,21 @@
     }
 
     start() {
-      const target = document.querySelector('.html5-video-player') || document.body;
       // Coalesce bursts of mutations into one read per frame to avoid half-rendered snapshots.
       this.observer = new MutationObserver(() => {
         if (!this.frame) this.frame = requestAnimationFrame(() => this._read());
       });
-      this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+      this.observe();
       this._read();
+    }
+
+    /** (Re)attaches to the current player; YouTube can swap it out (e.g. after a long sleep). */
+    observe() {
+      const target = document.querySelector('.html5-video-player') || document.body;
+      if (!this.observer || target === this.target) return;
+      this.observer.disconnect();
+      this.observer.observe(target, { childList: true, subtree: true, characterData: true });
+      this.target = target;
     }
 
     _read() {
@@ -112,6 +121,7 @@
     stop() {
       this.observer?.disconnect();
       this.observer = null;
+      this.target = null;
       cancelAnimationFrame(this.frame);
       this.frame = 0;
       clearTimeout(this.idle);

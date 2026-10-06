@@ -29,7 +29,6 @@
       this.videoId = null;
       this.raf = 0;
       this.video = null;
-      this._onVideoBound = false;
     }
 
     start() {
@@ -37,12 +36,31 @@
       // The player's own (signed) caption download, captured by timedtext-tap.js.
       // Also fires when the user switches CC language, so we follow their choice.
       window.addEventListener('ytsc:timedtext', (e) => this.onTap(e.detail));
+      // Media events don't bubble, but a capturing listener on document still sees
+      // them, including from a <video> YouTube swapped in (e.g. after a long sleep).
+      for (const type of ['play', 'pause', 'seeked', 'loadeddata']) {
+        document.addEventListener(type, (e) => this.onMediaEvent(e), true);
+      }
       // "Clean verbatim" is a popup setting mirrored onto <html> by settings-bridge.js.
-      new MutationObserver(() => this.rechunk()).observe(document.documentElement, {
+      // aria-pressed on the CC button repaints while paused (no frame loop then).
+      new MutationObserver((records) => {
+        if (records.some((r) => r.attributeName === 'data-ytsc-clean')) this.rechunk();
+        if (records.some((r) => r.target.matches?.('.ytp-subtitles-button'))) this.renderNow();
+      }).observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['data-ytsc-clean'],
+        subtree: true,
+        attributeFilter: ['data-ytsc-clean', 'aria-pressed'],
       });
       this.reload();
+    }
+
+    onMediaEvent(e) {
+      if (!e.target.matches?.('video.html5-main-video')) return;
+      if (!this.cues.length && !this.live) return;
+      this.video = e.target;
+      this.overlay.mount(); // re-homes the overlay if YouTube rebuilt the player
+      this.live?.observe();
+      this.renderNow();
     }
 
     cleanEnabled() {
@@ -54,7 +72,9 @@
     }
 
     rechunk() {
-      if (this.words.length) this.cues = this.buildChunks(this.words);
+      if (!this.words.length) return;
+      this.cues = this.buildChunks(this.words);
+      this.renderNow();
     }
 
     tapFor(videoId) {
@@ -177,23 +197,27 @@
 
     attachVideo() {
       this.video = document.querySelector('video.html5-main-video');
-      if (!this.video) return;
-      if (!this._onVideoBound) {
-        this._onVideoBound = true;
-      }
+      this.renderNow();
+    }
+
+    /**
+     * Paints the cue at the current time, then keeps a frame loop going only while
+     * the video plays. A paused video is repainted by onMediaEvent (seek, play) or a
+     * CC toggle, so paused tabs do no per-frame work.
+     */
+    renderNow() {
       cancelAnimationFrame(this.raf);
+      this.raf = 0;
+      if (!this.cues.length) return; // live mode paints from its own source
       const tick = () => {
-        if (!document.body.contains(this.video)) {
-          this.video = document.querySelector('video.html5-main-video');
-          if (!this.video) {
-            this.raf = requestAnimationFrame(tick);
-            return;
-          }
-        }
+        this.raf = 0;
+        if (!this.video?.isConnected) this.video = document.querySelector('video.html5-main-video');
+        // No video yet: its 'loadeddata'/'play' event calls back in.
+        if (!this.video) return;
         const timeMs = this.video.currentTime * 1000;
         const cue = this.captionsEnabled() ? this.lookup.atTime(this.cues, timeMs) : null;
         this.overlay.render(cue, timeMs);
-        this.raf = requestAnimationFrame(tick);
+        if (!this.video.paused) this.raf = requestAnimationFrame(tick);
       };
       tick();
     }

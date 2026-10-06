@@ -16,7 +16,7 @@ available from the toolbar popup.
 - De-dupes rolling ASR windows (`Was` → `Was bedeutet` → `Was bedeutet das?`)
 - Cuts words into chunks at max words/chars, sentence ends, commas and pauses
 - Hides `.ytp-caption-window-container`, renders its own frosted overlay (bundled Inter font)
-- Syncs via `requestAnimationFrame` against `video.currentTime`
+- Syncs via `requestAnimationFrame` against `video.currentTime` while playing (idle when paused)
 
 Live mode can't see the future, so it shows each chunk once it is complete
 (~1–2 s behind speech). Turning CC on lets the tap switch to exact timing.

@@ -27,12 +27,17 @@
         this.el = document.createElement('div');
         this.el.id = 'ytsc-overlay';
         this.el.setAttribute('aria-live', 'off');
-        player.appendChild(this.el);
         // Scale text with the player (theater, fullscreen, mini player); styles.css
         // turns this into a font size using the size setting.
-        this.resizeObserver = new ResizeObserver(() => {
-          this.el.style.setProperty('--ytsc-player-h', `${player.clientHeight}px`);
+        this.resizeObserver = new ResizeObserver(([entry]) => {
+          this.el.style.setProperty('--ytsc-player-h', `${entry.target.clientHeight}px`);
         });
+      }
+      // First mount, or YouTube rebuilt the player (e.g. after a long sleep) and
+      // left the overlay detached.
+      if (this.el.parentNode !== player) {
+        player.appendChild(this.el);
+        this.resizeObserver.disconnect();
         this.resizeObserver.observe(player);
       }
       return this.el;
@@ -43,7 +48,7 @@
      * @param timeMs playback time, used to highlight the active word (optional)
      */
     render(chunk, timeMs = null) {
-      if (!this.el) this.mount();
+      if (!this.el?.isConnected) this.mount();
       if (!chunk) {
         if (this.chunk) this.clear();
         return;
@@ -107,12 +112,13 @@
     }
 
     _hideNative() {
-      if (this.hideStyle) return;
-      this.hideStyle = document.createElement('style');
-      this.hideStyle.id = 'ytsc-hide-native';
-      this.hideStyle.textContent =
-        '.ytp-caption-window-container{display:none!important}';
-      document.documentElement.appendChild(this.hideStyle);
+      if (!this.hideStyle) {
+        this.hideStyle = document.createElement('style');
+        this.hideStyle.id = 'ytsc-hide-native';
+        this.hideStyle.textContent =
+          '.ytp-caption-window-container{display:none!important}';
+      }
+      if (!this.hideStyle.isConnected) document.documentElement.appendChild(this.hideStyle);
     }
   }
 
