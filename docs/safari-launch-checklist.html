@@ -108,7 +108,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 <main id="app"></main>
-<script type="application/json" id="state">{"done":{"icons":true,"appicon":true,"name":true,"version":true,"zip":true,"tests":true},"updated":"2026-10-03T16:38:45.000Z"}</script>
+<script type="application/json" id="state">{"done":{"icons":true,"appicon":true,"name":true,"version":true,"zip":true,"tests":true,"mainworld":true,"route":true,"bundle":true,"convert":true,"signing":true,"hostapp":true,"local":true,"export":true},"updated":"2026-10-06T14:00:46.000Z"}</script>
 <script id="app-js">
 (function () {
   var TITLE = "Safari Launch Checklist";
@@ -126,8 +126,8 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
     { id: "pkg", title: "Package the Mac app", where: "On a Mac with Xcode, or with App Store Connect's packager", items: [
       { id: "route", t: "Choose how to package it", d: "Use Xcode's converter on a Mac (local, cloud or Xcode Cloud). Or upload a ZIP to the Safari Web Extension Packager in App Store Connect, if it's available to your account.", href: "https://developer.apple.com/documentation/safariservices/packaging-a-web-extension-for-safari", hrefText: "Apple: packaging for Safari" },
       { id: "bundle", t: "Register the bundle IDs", d: "One for the app and one for the extension, e.g. fun.thien.stablecaptions and fun.thien.stablecaptions.Extension.", href: "https://developer.apple.com/account/resources/identifiers/list", hrefText: "Identifiers" },
-      { id: "convert", t: "Generate the Xcode project", code: "xcrun safari-web-extension-converter . --macos-only --bundle-identifier fun.thien.stablecaptions --app-name \"Stable Captions\"" },
-      { id: "signing", t: "Set signing, deployment target and category", d: "Pick your team for both targets. Set the minimum macOS version from the Safari check. Set LSApplicationCategoryType (e.g. public.app-category.utilities)." },
+      { id: "convert", t: "Generate the Xcode project", d: "Builds dist/safari, converts it into safari/, then sets macOS 14+, the version, the Utilities category, the copyright and the export-compliance key. Delete safari/ before regenerating.", code: "DEVELOPMENT_TEAM=XXXXXXXXXX npm run safari:xcode" },
+      { id: "signing", t: "Set signing on both targets", d: "Same team and certificate on the app and the extension, or Xcode says the embedded binary isn't signed with the same certificate. Passing DEVELOPMENT_TEAM to safari:xcode does this for you. The deployment target and category are set by the script." },
       { id: "hostapp", t: "Keep the host app screen", d: "The template's \"enable in Safari Settings\" window is enough. Apple rejects host apps that do nothing." },
       { id: "local", t: "Test locally in Safari", d: "Safari › Settings › Advanced › Show features for web developers. Then Develop › Allow Unsigned Extensions. Run it on a few real videos with auto-captions." },
       { id: "upload", t: "Archive and upload the build", d: "Product › Archive › Distribute App › App Store Connect. Or submit through the packager." }
@@ -145,7 +145,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
       { id: "privacylabel", t: "Fill in App Privacy: Data Not Collected", d: "Add the privacy policy URL from phase 3." },
       { id: "age", t: "Answer the age rating questions" },
       { id: "price", t: "Set price and availability", d: "Paid upfront, around US$2.99–4.99, since the Chrome and Firefox versions are free. Then choose the countries to sell in." },
-      { id: "export", t: "Answer export compliance", d: "No non-exempt encryption. You can set ITSAppUsesNonExemptEncryption = NO in Info.plist so it isn't asked on every build." },
+      { id: "export", t: "Answer export compliance", d: "No non-exempt encryption. safari:xcode puts ITSAppUsesNonExemptEncryption = NO in Info.plist, so App Store Connect doesn't ask on every build." },
       { id: "copyright", t: "Add the copyright line", d: "e.g. 2026 MakeIt" }
     ]},
     { id: "ship", title: "Beta test and submit", where: "TestFlight, then App Review", items: [
