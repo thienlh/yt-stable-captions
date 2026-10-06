@@ -244,11 +244,10 @@
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, { StableCaptionsController });
 
   // Auto-start in the page (not under node:test). In an isolated content-script
-  // world the player API is invisible, so leave it to page-loader.js (Safari).
+  // world the player API is invisible, so don't start there.
   const isolatedWorld = Boolean((globalThis.browser ?? globalThis.chrome)?.runtime?.id);
   if (typeof window !== 'undefined' && window.document && !isolatedWorld && !globalThis.YTSC_STARTED) {
     globalThis.YTSC_STARTED = true;
-    document.documentElement.dataset.ytscMain = '1';
     const start = () => new StableCaptionsController({ log: console.debug.bind(console) }).start();
     if (document.readyState === 'loading') {
       document.addEventListener('DOMContentLoaded', start, { once: true });

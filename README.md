@@ -37,7 +37,6 @@ remove the flowing-text distraction.
 - `src/content/track-provider.js` — track discovery + `fmt=json3` fetch
 - `src/content/overlay.js` — DOM rendering only
 - `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>`, font registration (isolated world)
-- `src/content/page-loader.js` — injects page-world scripts when `world: MAIN` is unsupported (Safari)
 - `src/core/settings.js` — settings vocabulary (keys, defaults, sizes, levels, labels) shared by popup and bridge
 - `src/popup/` — toolbar popup: both styles previewed live, size, background, clean verbatim
 - `src/content/main.js` — composition root (`StableCaptionsController`)
@@ -121,8 +120,9 @@ npm run firefox:build   # dist/*.zip for AMO
 Firefox notes:
 - `browser_specific_settings.gecko` gives a fixed add-on ID (needed for `storage.sync` and
   AMO signing) and declares no data collection. Chrome warns about the unknown key; harmless
-- Minimum 128 because that is the first Firefox with `"world": "MAIN"` content scripts;
-  the `page-loader.js` fallback would likely be blocked by YouTube's CSP there
+- Minimum 128 because that is the first Firefox with `"world": "MAIN"` content scripts
+  (Chrome: 111, set as `minimum_chrome_version`). There is no fallback: injecting
+  `<script src>` from an isolated content script is blocked by YouTube's CSP
 - Permanent installs need the zip signed by AMO (listed or unlisted)
 
 ## Try in Safari (macOS)
@@ -156,8 +156,8 @@ Chrome and Firefox keep the colour icon. The zip is for App Store Connect's pack
 4. Safari → Settings → Extensions → enable **Stable Captions**, allow on youtube.com
 
 Safari notes:
-- If Safari ignores `"world": "MAIN"`, `src/content/page-loader.js` injects the same
-  page-world scripts via `<script src>` (web-accessible resources) instead
+- The page-world scripts rely on `"world": "MAIN"`; YouTube's CSP blocks injecting
+  extension scripts with `<script src>` in Safari, so there is no fallback
 - `styles.css` is also linked from `settings-bridge.js`: Safari can stop applying
   manifest CSS until restarted, which left the overlay unstyled behind the video
 - The font is registered at runtime with the browser's own extension URL; on Safari the
