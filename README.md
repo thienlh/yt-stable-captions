@@ -131,7 +131,12 @@ Needs Xcode. From a clone of this repo:
 
 ```bash
 npm run safari:xcode   # safari:build, then generates safari/Stable Captions/*.xcodeproj
+DEVELOPMENT_TEAM=XXXXXXXXXX npm run safari:xcode   # same, with your signing team on both targets
 ```
+
+`scripts/xcode-setup.js` then sets what the converter leaves out: macOS 14+, the version
+from `manifest.json`, the Utilities category, the copyright line and
+`ITSAppUsesNonExemptEncryption = NO`. `safari/` is generated, so it isn't committed.
 
 The project references the files in `dist/safari/` (no copies), so after changing the
 extension run `npm run safari:build` again before building in Xcode. Run the converter
