@@ -24,6 +24,15 @@
   }`;
   document.documentElement.appendChild(font);
 
+  // styles.css is also listed in the manifest, but Safari sometimes stops applying
+  // manifest CSS (until a full restart) while the scripts keep running: the overlay
+  // then renders unstyled, behind the video. A page stylesheet doesn't depend on that.
+  const styles = document.createElement('link');
+  styles.id = 'ytsc-styles';
+  styles.rel = 'stylesheet';
+  styles.href = api.runtime.getURL('src/content/styles.css');
+  document.documentElement.appendChild(styles);
+
   const { DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel } = globalThis.YTSC.Settings;
   const ATTRS = {
     style: 'ytscStyle',

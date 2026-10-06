@@ -104,7 +104,8 @@
       "resources": [
         "fonts/*",
         "src/core/*.js",
-        "src/content/*.js"
+        "src/content/*.js",
+        "src/content/styles.css"
       ],
       "matches": [
         "https://www.youtube.com/*"

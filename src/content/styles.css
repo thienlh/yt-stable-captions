@@ -1,5 +1,7 @@
 /* "YTSC Inter" (bundled) is registered by settings-bridge.js with the extension's
-   real URL, which differs per browser (chrome-extension:// vs safari-web-extension://). */
+   real URL, which differs per browser (chrome-extension:// vs safari-web-extension://).
+   This file is injected twice: by the manifest and as a <link> from settings-bridge.js
+   (Safari can drop manifest CSS), so keep it free of order-dependent side effects. */
 
 /* Frosted block (visionOS-inspired): one translucent blurred panel per chunk. */
 #ytsc-overlay {
