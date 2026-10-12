@@ -8,7 +8,7 @@
    * storage; settings-bridge.js applies them to open YouTube tabs.
    */
   const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
-  const { DEFAULTS, STYLE_LABELS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel } = Settings;
+  const { DEFAULTS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel } = Settings;
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
 
@@ -88,7 +88,11 @@
   // ---------- Rendering ----------
 
   const dots = $('size-dots');
-  SIZES.forEach(() => dots.appendChild(document.createElement('span')));
+  SIZES.forEach((_, i) => {
+    const bar = document.createElement('span');
+    bar.style.height = `${4 + i * 2}px`; // a rising scale: one bar per size
+    dots.appendChild(bar);
+  });
 
   let windowListFor = null;
   function renderWindowList() {
@@ -100,7 +104,6 @@
     list.textContent = '';
     for (const level of w.levels) {
       const b = document.createElement('button');
-      b.className = 'pill small';
       b.dataset.window = level;
       b.textContent = windowLabel(level);
       list.appendChild(b);
@@ -117,20 +120,19 @@
       card.classList.toggle('sel', sel);
       card.setAttribute('aria-pressed', String(sel));
     }
-    $('meta').textContent = `${STYLE_LABELS[state.style]} · ${SIZE_LABELS[state.size]}`;
-    $('meta-clean').textContent = state.clean ? 'Clean ✓' : 'Verbatim';
-
     [...dots.children].forEach((d, i) => {
       d.classList.toggle('lit', i <= sizeIndex);
       d.classList.toggle('here', i === sizeIndex);
     });
     $('size-label').textContent = SIZE_LABELS[state.size];
 
-    for (const b of document.querySelectorAll('[data-window]')) b.classList.toggle('sel', b.dataset.window === level);
+    for (const b of document.querySelectorAll('[data-window]')) {
+      const sel = b.dataset.window === level;
+      b.classList.toggle('sel', sel);
+      b.setAttribute('aria-pressed', String(sel));
+    }
 
-    const clean = $('clean');
-    clean.textContent = state.clean ? 'On' : 'Off';
-    clean.setAttribute('aria-pressed', String(state.clean));
+    $('clean').setAttribute('aria-checked', String(state.clean));
 
     previews.forEach((p) => p.apply());
   }

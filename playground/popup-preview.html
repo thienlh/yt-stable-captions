@@ -1,0 +1,27 @@
+<!doctype html>
+<!-- Renders the real popup outside the extension, with a stubbed storage/tabs API. -->
+<html><head><meta charset="utf-8"></head>
+<body>
+<script>
+  const mem = {};
+  globalThis.chrome = {
+    storage: {
+      local: { get: async (d) => ({ ...d, ...mem }), set: async (p) => Object.assign(mem, p) },
+      onChanged: { addListener() {} },
+    },
+    permissions: { contains: async () => true, request: async () => true },
+    tabs: { query: async () => [{ url: 'https://www.youtube.com/watch?v=x' }] },
+  };
+</script>
+<div id="mount"></div>
+<script>
+  const bust = `?t=${Date.now()}`; // always the files on disk
+  document.head.insertAdjacentHTML('beforeend', `<link rel="stylesheet" href="../src/popup/popup.css${bust}">`);
+  fetch('../src/popup/popup.html', { cache: 'no-store' }).then(r => r.text()).then(html => {
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    document.getElementById('mount').replaceWith(...[...doc.body.children].filter((el) => el.tagName !== 'SCRIPT'));
+    const srcs = [...doc.querySelectorAll('script[src]')].map(s => '../src/popup/' + s.getAttribute('src') + bust);
+    (function next() { const s = srcs.shift(); if (!s) return; const el = document.createElement('script'); el.src = s; el.onload = next; document.body.appendChild(el); })();
+  });
+</script>
+</body></html>
