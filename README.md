@@ -174,7 +174,8 @@ Open directly in Chromium (no build step); both run the real `src/core` code:
 - `playground/disfluency.html` — verbatim vs dimmed vs cleaned fillers/repeats, both styles
 
 Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICENSE.txt`); the popup title uses
-Instrument Serif, latin subset (SIL OFL 1.1, see `fonts/InstrumentSerif-LICENSE.txt`).
+Instrument Serif, latin subset (SIL OFL 1.1, see `fonts/InstrumentSerif-LICENSE.txt`), and the popup's interface
+text uses Paper Mono, latin subset (SIL OFL 1.1, see `fonts/PaperMono-LICENSE.txt`).
 
 ## Next iterations
 
@@ -190,5 +191,5 @@ Stable Captions is free software: you can redistribute it and/or modify it under
 terms of the GNU General Public License, version 3, as published by the Free Software
 Foundation. It is distributed WITHOUT ANY WARRANTY. See [LICENSE](LICENSE) for the full text.
 
-The bundled fonts keep their own licenses: Inter and Instrument Serif are under the
+The bundled fonts keep their own licenses: Inter, Instrument Serif and Paper Mono are under the
 SIL Open Font License 1.1 (see `fonts/*-LICENSE.txt`).
