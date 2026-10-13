@@ -28,6 +28,17 @@
   src: url("../../fonts/InstrumentSerif-Regular-latin.woff2") format("woff2");
   font-weight: 400;
 }
+@font-face {
+  font-family: "YTSC Serif";
+  src: url("../../fonts/InstrumentSerif-Italic-latin.woff2") format("woff2");
+  font-weight: 400;
+  font-style: italic;
+}
+@font-face { /* subset to the sticker's letters only: "picked!" */
+  font-family: "YTSC Hand";
+  src: url("../../fonts/Caveat-Bold-picked.woff2") format("woff2");
+  font-weight: 700;
+}
 
 :root {
   --accent: #7e9cd8; /* Kanagawa */
@@ -80,28 +91,55 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   color: var(--accent-ink);
   letter-spacing: -0.01em;
 }
-.status, .grant {
-  display: inline-flex; align-items: center; gap: 6px;
-  height: 24px; padding: 0 10px;
-  border-radius: 12px;
+/* Status: a little TV ("on the tube"). Lit with a caption on a video, a warm
+   blank screen on other YouTube pages, dark elsewhere. */
+.status { display: inline-flex; align-items: flex-end; gap: 7px; color: var(--dim); }
+.status[hidden], .grant[hidden] { display: none; }
+#status-text {
+  padding-bottom: 3px;
+  font: italic 400 17px/20px "YTSC Serif", "Iowan Old Style", Georgia, serif;
+  transition: color 200ms;
+}
+.tv { position: relative; width: 42px; height: 38px; }
+.tv::before { /* the screen's glow on the wall behind it */
+  content: ""; position: absolute; left: -6px; top: 4px; width: 44px; height: 38px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 45%, transparent), transparent 68%);
+  opacity: 0; transition: opacity 300ms;
+}
+.tv svg { position: relative; display: block; width: 100%; height: 100%; overflow: visible; color: var(--dim); transition: color 200ms; }
+.tv .ln { fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.tv .thin { stroke-width: 1.3; }
+.tv .ink { fill: currentColor; }
+.tv .body { fill: var(--raised); stroke: currentColor; stroke-width: 1.6; }
+.tv .glass { fill: #3a3b42; transition: fill 200ms; }
+.tv .shine { fill: none; stroke: #fff; stroke-opacity: 0.35; stroke-width: 1.2; stroke-linecap: round; }
+.tv .word { fill: #fff; opacity: 0; }
+.tv .screen { transform-box: fill-box; transform-origin: center; }
+
+.status[data-state="standby"] .glass { fill: #485c85; }
+.status[data-state="on"] { color: var(--accent-ink); }
+.status[data-state="on"] .tv svg { color: var(--ink); }
+.status[data-state="on"] .tv::before { opacity: 1; }
+.status[data-state="on"] .glass { fill: #485c85; }
+.status[data-state="on"] .word { opacity: 1; animation: say 1.8s steps(1) infinite; }
+.status[data-state="on"] .w2 { animation-delay: -0.9s; }
+.status[data-state="on"] .screen { animation: crt-on 420ms ease-out; }
+/* The yellow word hops along the caption, as in the Short style. */
+@keyframes say { 0% { fill: #ffe135; } 50% { fill: #fff; } }
+/* An old set warming up: a bright line that opens into the picture. */
+@keyframes crt-on {
+  0% { transform: scale(1, 0.04); filter: brightness(3); }
+  45% { transform: scale(1, 0.04); filter: brightness(3); }
+  100% { transform: none; filter: none; }
+}
+
+.grant {
+  display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 12px;
   font-size: 11.5px; font-weight: 500;
-  color: var(--dim);
-  background: rgba(var(--ink-rgb), 0.05);
+  color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 14%, transparent);
 }
-.status { padding-left: 8px; }
-.status i { width: 7px; height: 7px; border-radius: 50%; background: rgba(var(--ink-rgb), 0.25); }
-.status.live { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 12%, transparent); }
-.status.live i {
-  background: var(--accent);
-  animation: breathe 2.8s ease-in-out infinite;
-}
-.grant { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 14%, transparent); }
 .grant:hover { background: color-mix(in srgb, var(--accent) 22%, transparent); }
-.grant[hidden], .status[hidden] { display: none; }
-@keyframes breathe {
-  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); }
-  60%, 100% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 0%, transparent); }
-}
 
 /* ---------- Style cards with live previews ---------- */
 .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -112,6 +150,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   box-shadow: inset 0 0 0 1px rgba(var(--ink-rgb), 0.05);
 }
 .style-card {
+  position: relative;
   text-align: left;
   padding: 4px 4px 9px; border-radius: 14px; display: grid; gap: 8px;
   transition: background-color 120ms, box-shadow 120ms, transform 260ms var(--spring);
@@ -128,19 +167,19 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .sc-name { display: flex; align-items: baseline; gap: 6px; padding: 0 6px; }
 .sc-name b { font-weight: 600; font-size: 13px; }
 .sc-name small { color: var(--dim); font-size: 11.5px; }
-.check {
-  align-self: center;
-  margin-left: auto; width: 16px; height: 16px; border-radius: 50%;
-  box-shadow: inset 0 0 0 1.5px rgba(var(--ink-rgb), 0.18);
-  transition: background-color 160ms, box-shadow 160ms;
-}
 .style-card.sel .sc-name b { color: var(--accent-ink); }
-.style-card.sel .check {
-  box-shadow: none;
-  background: var(--accent) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5.2 4.1 7.3 8 3' fill='none' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center / 9px no-repeat;
-  animation: pop-in 260ms var(--spring);
+/* The chosen style wears a slapped-on "picked!" sticker. */
+.sticker {
+  position: absolute; right: -7px; top: -9px;
+  padding: 1px 8px 2px; border-radius: 7px;
+  font: normal 700 16px/18px "YTSC Hand", "Caveat", cursive;
+  color: #fff; background: #5f7fc2;
+  box-shadow: 0 1.5px 0 rgba(0, 0, 0, 0.18);
+  transform: rotate(7deg) scale(0);
+  transition: transform 300ms var(--spring);
+  pointer-events: none;
 }
-@keyframes pop-in { from { transform: scale(0.4); } }
+.style-card.sel .sticker { transform: rotate(7deg) scale(1); }
 
 /* ---------- Mini caption previews (mirror src/content/styles.css, scaled up) ---------- */
 .pv {

@@ -210,7 +210,8 @@
     if (!granted) return;
     $('grant').hidden = true;
     $('status').hidden = false;
-    $('status-text').textContent = 'Reload YouTube';
+    $('status').dataset.state = 'standby';
+    $('status-text').textContent = 'reload YouTube';
   });
 
   async function showStatus() {
@@ -226,8 +227,11 @@
     } catch { /* no tab info: treat as not on YouTube */ }
     const onVideo = /^https:\/\/www\.youtube\.com\/watch\b/.test(url);
     const onYouTube = /^https:\/\/www\.youtube\.com\//.test(url);
-    $('status').classList.toggle('live', onVideo);
-    $('status-text').textContent = onVideo ? 'On YouTube' : onYouTube ? 'Open a video' : 'Not on YouTube';
+    // The little TV in the header: lit with a caption on a video, warm on other
+    // YouTube pages, dark elsewhere.
+    const state = onVideo ? 'on' : onYouTube ? 'standby' : 'off';
+    $('status').dataset.state = state;
+    $('status-text').textContent = { on: 'on the tube', standby: 'pick a video', off: "tube's off" }[state];
   }
 
   // ---------- Start ----------

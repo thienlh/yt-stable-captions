@@ -10,18 +10,37 @@
   <main class="popup">
     <header class="title">
       <h1>Stable Captions</h1>
-      <span class="status" id="status"><i></i><span id="status-text">Not on YouTube</span></span>
+      <span class="status" id="status" role="status" data-state="off">
+        <span id="status-text">tube's off</span>
+        <span class="tv" aria-hidden="true">
+          <svg viewBox="0 0 42 38">
+            <path class="ln" d="M21 10 13.5 2.5M21 10l7-6.5M10 34.2 8.5 37M32 34.2l1.5 2.8"/>
+            <circle class="ink" cx="13" cy="2.2" r="1.6"/><circle class="ink" cx="28.4" cy="3.2" r="1.6"/>
+            <rect class="body" x="2" y="10" width="38" height="24" rx="6"/>
+            <g class="screen">
+              <rect class="glass" x="6" y="13.5" width="24" height="17" rx="4"/>
+              <rect class="word w1" x="9" y="24.2" width="10" height="2.6" rx="1.3"/>
+              <rect class="word w2" x="20.2" y="24.2" width="6.5" height="2.6" rx="1.3"/>
+            </g>
+            <path class="shine" d="M8.5 16.5c1.5-.9 3.2-1.2 5-1"/>
+            <circle class="ln" cx="35" cy="18" r="2"/>
+            <path class="ln thin" d="M33.2 24.5h3.6M33.2 27.5h3.6"/>
+          </svg>
+        </span>
+      </span>
       <button class="grant" id="grant" hidden>Allow on YouTube</button>
     </header>
 
     <section class="cards" aria-label="Caption style">
       <button class="style-card" data-style="frosted" aria-pressed="false">
         <div class="pv" data-preview="frosted"></div>
-        <span class="sc-name"><b>Frosted</b><small>calm</small><i class="check" aria-hidden="true"></i></span>
+        <span class="sc-name"><b>Frosted</b><small>calm</small></span>
+        <i class="sticker" aria-hidden="true">picked!</i>
       </button>
       <button class="style-card" data-style="tiktok" aria-pressed="false">
         <div class="pv" data-preview="tiktok"></div>
-        <span class="sc-name"><b>Short</b><small>fun</small><i class="check" aria-hidden="true"></i></span>
+        <span class="sc-name"><b>Short</b><small>fun</small></span>
+        <i class="sticker" aria-hidden="true">picked!</i>
       </button>
     </section>
 
