@@ -4,8 +4,8 @@
   /**
    * Mirrors the popup settings onto <html data-ytsc-style="…" data-ytsc-size="…">,
    * registers the bundled font with this browser's extension URL, and handles
-   * the shortcuts that change settings (=/+ and - size, w window, Shift+C clean
-   * verbatim, Alt/Option+C style).
+   * the shortcuts that change settings (=/+ and - size, w window, h word
+   * highlight, Shift+C clean verbatim, Alt/Option+C style).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
@@ -38,6 +38,7 @@
     style: 'ytscStyle',
     size: 'ytscSize',
     clean: 'ytscClean',
+    highlight: 'ytscHighlight',
     frostedWindow: 'ytscFrostedWindow',
     tiktokWindow: 'ytscTiktokWindow',
   };
@@ -113,7 +114,8 @@
       const delta = !e.altKey && SIZE_KEYS[e.key];
       const cleanKey = !e.altKey && e.key === 'C' && e.shiftKey;
       const windowKey = !e.altKey && e.key === 'w' && !e.shiftKey;
-      if (!delta && !cleanKey && !windowKey && !styleKey) return;
+      const highlightKey = !e.altKey && e.key === 'h' && !e.shiftKey;
+      if (!delta && !cleanKey && !windowKey && !highlightKey && !styleKey) return;
       if (isTyping(e.target) || !captionsShowing()) return;
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -125,6 +127,11 @@
       if (cleanKey) {
         const on = !current.clean;
         setting('clean', on, on ? 'Clean captions: on (no um, uh, repeats)' : 'Clean captions: off');
+        return;
+      }
+      if (highlightKey) {
+        const on = !current.highlight;
+        setting('highlight', on, on ? 'Word highlight: on' : 'Word highlight: off');
         return;
       }
       if (windowKey) { // cycles like YouTube's own window-opacity key (wraps around)

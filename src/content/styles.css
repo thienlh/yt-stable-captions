@@ -154,6 +154,16 @@ html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active {
   text-shadow: inherit;
 }
 
+/* Word highlight off (popup / h): every word as is, in both styles. After the
+   style rules above, at the same specificity, so it wins. */
+html[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word,
+html[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word.ytsc-active {
+  opacity: 1;
+  color: inherit;
+  transform: none;
+  text-shadow: inherit;
+}
+
 @keyframes ytsc-pop {
   from {
     opacity: 0;

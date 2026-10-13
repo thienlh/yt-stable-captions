@@ -46,7 +46,8 @@
   const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
   const windowLabel = (level) => WINDOW_LABELS[level] || `${level}%`;
 
-  const DEFAULTS = { style: 'frosted', size: 'medium', clean: true, frostedWindow: 'medium', tiktokWindow: 'off' };
+  // highlight: mark the word being spoken; off shows each caption plainly.
+  const DEFAULTS = { style: 'frosted', size: 'medium', clean: true, highlight: true, frostedWindow: 'medium', tiktokWindow: 'off' };
 
   const Settings = {
     STYLES, STYLE_LABELS, STYLE_TAGS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, WINDOW_LABELS, DEFAULTS, windowLabel,

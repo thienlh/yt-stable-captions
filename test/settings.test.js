@@ -33,6 +33,7 @@ test('defaults are valid values, with clean verbatim on', () => {
   assert.ok(Settings.WINDOWS.frosted.levels.includes(d.frostedWindow));
   assert.ok(Settings.WINDOWS.tiktok.levels.includes(d.tiktokWindow));
   assert.equal(d.clean, true);
+  assert.equal(d.highlight, true);
   assert.equal(Settings.STYLE_LABELS.tiktok, 'Short');
 });
 
@@ -52,4 +53,10 @@ test('size migration runs once, and leaves an unsaved size on the new default', 
   assert.equal(sizeMigration({ size: 'tiny', sizeLadder: 2 }), null, 'already moved');
   assert.deepEqual(sizeMigration({}), { sizeLadder: 2 }, 'nothing saved');
   assert.deepEqual(sizeMigration(), { sizeLadder: 2 });
+});
+
+test('word highlight off has a styles.css rule that beats both styles', () => {
+  assert.match(css, /html\[data-ytsc-highlight="false"\] #ytsc-overlay \.ytsc-word\.ytsc-active/);
+  const off = css.indexOf('data-ytsc-highlight="false"');
+  assert.ok(off > css.lastIndexOf('html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active'), 'comes after the Short rule');
 });

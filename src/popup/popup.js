@@ -52,6 +52,7 @@
       const shortAlpha = SHORT_ALPHA[state.tiktokWindow] ?? 0;
       this.el.style.setProperty('--pv-tt-alpha', shortAlpha);
       this.el.style.setProperty('--pv-tt-pad', shortAlpha ? '.12em .45em' : '0');
+      this.el.classList.toggle('plain', !state.highlight);
       this.current = undefined; // repaint: the words may have changed
     }
 
@@ -132,6 +133,8 @@
       b.setAttribute('aria-pressed', String(sel));
     }
 
+    $('highlight').setAttribute('aria-checked', String(state.highlight));
+    $('highlight-hint').textContent = state.highlight ? 'Mark the word being spoken' : 'Show each caption plainly';
     $('clean').setAttribute('aria-checked', String(state.clean));
 
     previews.forEach((p) => p.apply());
@@ -162,6 +165,7 @@
     if (t.dataset.style) update({ style: t.dataset.style });
     else if (t.dataset.sizeStep) stepSize(Number(t.dataset.sizeStep));
     else if (t.dataset.window) update({ [WINDOWS[state.style].key]: t.dataset.window });
+    else if (t.id === 'highlight') update({ highlight: !state.highlight });
     else if (t.id === 'clean') update({ clean: !state.clean });
   });
 
@@ -176,6 +180,7 @@
     } else if (e.key === '=' || e.key === '+') stepSize(1);
     else if (e.key === '-') stepSize(-1);
     else if (e.key === 'w') cycleWindow();
+    else if (e.key === 'h') update({ highlight: !state.highlight });
     else if (e.key === 'C' && e.shiftKey) update({ clean: !state.clean });
   });
 

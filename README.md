@@ -77,8 +77,8 @@ Known rough edges: a leftover comma (*Und, am Anfang*) and legitimate doubles (*
 
 Both styles play side by side as live previews (the extension's own chunker and cleaner), so
 choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
-style's background level, and clean verbatim. The status dot says whether the active tab is a
-YouTube video (readable via the youtube.com host permission; no `tabs` permission); when that
+style's background level, word highlight, and clean verbatim. The little TV says whether the active
+tab is a YouTube video (readable via the youtube.com host permission; no `tabs` permission); when that
 permission is missing (Firefox can withhold it), an **Allow on YouTube** button requests it. The same
 shortcuts work inside the popup. Kanagawa blue accent; follows the system light/dark mode.
 
@@ -92,6 +92,7 @@ Same keys as YouTube's own captions:
 | `=` / `+` | Larger caption text (while stable captions are showing) |
 | `-` | Smaller caption text |
 | `w` | Cycle background: frosted panel Clear → Light → Medium → Dark → Solid; Short box Off → 25–100% |
+| `h` | Word highlight on/off — off shows each caption plainly, without marking the spoken word |
 | `Alt+C` / `⌥C` | Switch style: Frosted ↔ Short |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 
