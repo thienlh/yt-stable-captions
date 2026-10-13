@@ -71,7 +71,7 @@ punctuation and capitals onto neighbouring words and absorbs the dropped time so
 split on fake pauses. YouTube's `[Music]` tags (`[Musik]`, `[âm nhạc]`, …) become a standalone
 ♪ chunk, merged when consecutive; other tags like `[Applause]` stay. In live mode it works per
 chunk, so repeats spanning two chunks remain.
-Known rough edges: a leftover comma (*Und, am Anfang*) and legitimate doubles (*that that*).
+Known rough edge: legitimate doubles (*that that*).
 
 ## Popup
 

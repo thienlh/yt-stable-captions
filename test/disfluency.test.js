@@ -13,9 +13,20 @@ const cleanText = (sentence, opts) =>
   new Disfluency(opts).clean(timed(sentence)).map((w) => w.text).join(' ');
 
 test('drops fillers in English, German and Vietnamese', () => {
-  assert.equal(cleanText('So, um, we started. Uh, it worked.'), 'So, we started. It worked.');
+  assert.equal(cleanText('So, um, we started. Uh, it worked.'), 'So we started. It worked.');
   assert.equal(cleanText('Also, äh, ich glaube, ähm, dass'), 'Also, ich glaube, dass');
   assert.equal(cleanText('Thì, ờ, mình nghĩ là, ừm, tụi mình'), 'Thì, mình nghĩ là, tụi mình');
+});
+
+test('strips a leftover comma after a conjunction that only set off a filler', () => {
+  assert.equal(cleanText('Und, äh, am Anfang'), 'Und am Anfang');
+  assert.equal(cleanText('And, uh, then we left'), 'And then we left');
+  assert.equal(cleanText('But, um, wait.'), 'But wait.');
+  assert.equal(cleanText('và, ờ, rồi đi'), 'và rồi đi');
+});
+
+test('keeps a clause comma that is not just wrapping a filler', () => {
+  assert.equal(cleanText('ich glaube, ähm, dass'), 'ich glaube, dass');
 });
 
 test('keeps words that only look like fillers', () => {
@@ -49,24 +60,24 @@ test('absorbs dropped time into the previous word', () => {
   ];
   const out = new Disfluency().clean(words);
   assert.deepEqual(out, [
-    { text: 'So,', startMs: 0, endMs: 900 },
+    { text: 'So', startMs: 0, endMs: 900 },
     { text: 'we', startMs: 900, endMs: 1100 },
   ]);
   assert.equal(words[0].endMs, 200, 'input is not mutated');
   // Without absorbing, the 700ms "gap" would be a pause and split the chunk.
-  assert.deepEqual(new CaptionChunker().build(out).map((c) => c.text), ['So, we']);
+  assert.deepEqual(new CaptionChunker().build(out).map((c) => c.text), ['So we']);
 });
 
 test('aggressive mode also drops discourse markers', () => {
   assert.equal(
     cleanText('And, like, when we started, I mean, it was, you know, hard', { aggressive: true }),
-    'And, when we started, it was, hard'
+    'And when we started, it was, hard'
   );
 });
 
 test('drop option removes only the chosen kinds', () => {
   assert.equal(cleanText('So, um, I I think', { drop: ['repeat'] }), 'So, um, I think');
-  assert.equal(cleanText('So, um, I I think', { drop: ['filler'] }), 'So, I I think');
+  assert.equal(cleanText('So, um, I I think', { drop: ['filler'] }), 'So I I think');
 });
 
 test('turns [Music] tags into a standalone ♪', () => {

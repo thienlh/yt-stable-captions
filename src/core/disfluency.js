@@ -19,6 +19,13 @@
 
   // Discourse markers that are often, but not always, filler (opt-in).
   const AGGRESSIVE_PHRASES = [['you', 'know'], ['i', 'mean'], ['weißt', 'du'], ['kiểu', 'như']];
+  // Coordinators do not keep a comma that only set off a dropped filler
+  // ("Und, äh, am" → "Und am"). Clause commas ("glaube, dass") stay.
+  const BARE_CONJ = new Set([
+    'and', 'but', 'or', 'nor', 'yet', 'so',
+    'und', 'oder', 'aber', 'sondern', 'doch',
+    'và', 'hoặc', 'nhưng',
+  ]);
 
   /**
    * "Clean verbatim" captions: drops fillers (um, uh, äh, ờ…) and stumbles
@@ -126,7 +133,13 @@
         if (startsSentence && /^\p{Lu}/u.test(word.text)) capitalizeNext = true;
         if (!prev || prev.standalone) return; // the ♪ cue takes no punctuation or extra time
         const terminal = word.text.match(/[.!?…]+$/u)?.[0];
-        if (terminal && !/[.!?…,;:]$/u.test(prev.text)) prev.text += terminal;
+        if (terminal) {
+          // "And, um." → "And." (replace the filler's comma, don't drop the stop).
+          if (/,(["'»”’)]*)$/u.test(prev.text)) prev.text = prev.text.replace(/,(["'»”’)]*)$/u, `${terminal}$1`);
+          else if (!/[.!?…,;:]$/u.test(prev.text)) prev.text += terminal;
+        } else if (kinds[i] === 'filler' && BARE_CONJ.has(this.text.comparableWord(prev.text))) {
+          prev.text = prev.text.replace(/,(["'»”’)]*)$/u, '$1');
+        }
         prev.endMs = Math.max(prev.endMs, word.endMs);
       });
       return out;
