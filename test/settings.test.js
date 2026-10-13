@@ -35,3 +35,21 @@ test('defaults are valid values, with clean verbatim on', () => {
   assert.equal(d.clean, true);
   assert.equal(Settings.STYLE_LABELS.tiktok, 'Short');
 });
+
+test('sizes saved on the old ladder keep how they look', () => {
+  const { sizeMigration, SIZE_VALUES } = Settings;
+  const OLD = { tiny: 0.03, xsmall: 0.036, small: 0.042, medium: 0.048 };
+  for (const [size, value] of Object.entries(OLD)) {
+    const patch = sizeMigration({ size });
+    assert.equal(SIZE_VALUES[patch.size], value, `old ${size}`);
+    assert.equal(patch.sizeLadder, 2);
+  }
+  assert.equal(sizeMigration({ size: 'xxlarge' }).size, 'xxlarge', 'old XXL gets the largest step');
+});
+
+test('size migration runs once, and leaves an unsaved size on the new default', () => {
+  const { sizeMigration } = Settings;
+  assert.equal(sizeMigration({ size: 'tiny', sizeLadder: 2 }), null, 'already moved');
+  assert.deepEqual(sizeMigration({}), { sizeLadder: 2 }, 'nothing saved');
+  assert.deepEqual(sizeMigration(), { sizeLadder: 2 });
+});

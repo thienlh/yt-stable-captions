@@ -201,7 +201,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 }
 @keyframes drift { from { transform: translate(-6%, -4%); } to { transform: translate(10%, 6%); } }
 .cap {
-  --fs: calc(var(--pv-size, 0.048) * 2.3 * 100cqh);
+  --fs: calc(var(--pv-size, 0.03) * 3.7 * 100cqh); /* Medium reads like the video at popup scale */
   position: absolute; z-index: 1;
   left: 50%; bottom: 9%;
   transform: translateX(-50%);

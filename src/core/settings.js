@@ -16,8 +16,26 @@
     large: 'Large', xlarge: 'Extra large', xxlarge: 'XXL',
   };
   // Fraction of the player height; mirrored by html[data-ytsc-size] rules in styles.css.
+  // Size ladder 2: three steps below ladder 1 (Medium is the old Tiny), which ran
+  // too big on large screens.
   const SIZE_VALUES = {
-    tiny: 0.03, xsmall: 0.036, small: 0.042, medium: 0.048, large: 0.055, xlarge: 0.064, xxlarge: 0.075,
+    tiny: 0.02, xsmall: 0.023, small: 0.026, medium: 0.03, large: 0.036, xlarge: 0.042, xxlarge: 0.048,
+  };
+  const SIZE_LADDER = 2;
+  // A size saved on ladder 1 → the ladder 2 step that looks the same (the old Large
+  // and up have no match; they get the largest step).
+  const LADDER_1_SIZES = {
+    tiny: 'medium', xsmall: 'large', small: 'xlarge', medium: 'xxlarge', large: 'xxlarge', xlarge: 'xxlarge', xxlarge: 'xxlarge',
+  };
+  /**
+   * The storage patch that moves a saved size onto the current ladder, or null when
+   * it is already there. Takes the raw stored values (not merged with DEFAULTS).
+   */
+  const sizeMigration = ({ size, sizeLadder } = {}) => {
+    if (sizeLadder === SIZE_LADDER) return null;
+    const patch = { sizeLadder: SIZE_LADDER };
+    if (Object.hasOwn(LADDER_1_SIZES, size)) patch.size = LADDER_1_SIZES[size];
+    return patch;
   };
 
   // Window (background) levels are per style: the frosted panel vs. a box behind Short text.
@@ -32,6 +50,7 @@
 
   const Settings = {
     STYLES, STYLE_LABELS, STYLE_TAGS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, WINDOW_LABELS, DEFAULTS, windowLabel,
+    sizeMigration,
   };
 
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, { Settings });

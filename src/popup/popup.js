@@ -8,7 +8,7 @@
    * storage; settings-bridge.js applies them to open YouTube tabs.
    */
   const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
-  const { DEFAULTS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel } = Settings;
+  const { DEFAULTS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel, sizeMigration } = Settings;
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
 
@@ -238,7 +238,12 @@
 
   rebuildChunks();
   render();
-  store.get(DEFAULTS).then((saved) => update(saved, { persist: false }), () => {});
+  // A size saved on the old ladder is moved first (see Settings.sizeMigration).
+  store.get(['size', 'sizeLadder'])
+    .then((raw) => { const patch = sizeMigration(raw); return patch && store.set(patch); })
+    .catch(() => {})
+    .then(() => store.get(DEFAULTS))
+    .then((saved) => update(saved, { persist: false }), () => {});
   showStatus();
 
   // Read the clock here rather than trusting the rAF timestamp: that one can

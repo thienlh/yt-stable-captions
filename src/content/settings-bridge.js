@@ -33,7 +33,7 @@
   styles.href = api.runtime.getURL('src/content/styles.css');
   document.documentElement.appendChild(styles);
 
-  const { DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel } = globalThis.YTSC.Settings;
+  const { DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel, sizeMigration } = globalThis.YTSC.Settings;
   const ATTRS = {
     style: 'ytscStyle',
     size: 'ytscSize',
@@ -51,8 +51,13 @@
   };
 
   apply(DEFAULTS);
-  // Promise form works in both Chrome (MV3) and Safari.
-  store.get(DEFAULTS).then(apply, () => {});
+  // Promise form works in both Chrome (MV3) and Safari. A size saved on the old
+  // ladder is moved first, so it keeps looking the same.
+  store.get(['size', 'sizeLadder'])
+    .then((raw) => { const patch = sizeMigration(raw); return patch && store.set(patch); })
+    .catch(() => {})
+    .then(() => store.get(DEFAULTS))
+    .then(apply, () => {});
   api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync' && area !== 'local') return;
     const changed = {};
