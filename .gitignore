@@ -2,6 +2,7 @@ node_modules/
 .DS_Store
 *.zip
 dist/
+_site/
 xcuserdata/
 *.xcuserstate
 safari/
