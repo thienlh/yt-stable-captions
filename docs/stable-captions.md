@@ -32,6 +32,6 @@ Stable Captions collects nothing. There are no analytics, no accounts and no ser
 
 ## Support
 
-Found a bug or have an idea? [Open an issue on GitHub](https://github.com/thienlh/yt-stable-captions/issues) or email me at [your email].
+Found a bug or have an idea? [Open an issue on GitHub](https://github.com/thienlh/yt-stable-captions/issues) or email me at [hey@thien.fun](mailto:hey@thien.fun).
 
 Stable Captions is open source under the GPL-3.0 license. [Source code on GitHub](https://github.com/thienlh/yt-stable-captions).
