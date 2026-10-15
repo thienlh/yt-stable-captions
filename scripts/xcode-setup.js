@@ -43,10 +43,13 @@ fs.writeFileSync(pbxPath, pbx);
 const appName = xcodeproj.replace(/\.xcodeproj$/, '');
 const plistPath = path.join(projectDir, appName, 'Info.plist');
 let plist = fs.readFileSync(plistPath, 'utf8');
-if (!plist.includes('ITSAppUsesNonExemptEncryption')) {
-  plist = plist.replace(/<dict>\n/, '<dict>\n\t<key>ITSAppUsesNonExemptEncryption</key>\n\t<false/>\n');
-  fs.writeFileSync(plistPath, plist);
-}
+const ensure = (key, value) => {
+  if (plist.includes(`<key>${key}</key>`)) return;
+  plist = plist.replace(/<dict>\n/, `<dict>\n\t<key>${key}</key>\n\t${value}\n`);
+};
+ensure('LSApplicationCategoryType', `<string>${CATEGORY}</string>`);
+ensure('ITSAppUsesNonExemptEncryption', '<false/>');
+fs.writeFileSync(plistPath, plist);
 
 console.log(`${xcodeproj}: macOS ${MIN_MACOS}+, version ${version}, category Utilities, ` +
   `no non-exempt encryption${team ? `, team ${team}` : ' (no DEVELOPMENT_TEAM given)'}`);
