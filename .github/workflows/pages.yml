@@ -4,7 +4,12 @@ on:
   push:
     branches: [main]
     paths:
-      - docs/stable-captions.md
+      - site/**
+      - src/vendor/paper-shaders.js
+      - src/vendor/paper-shaders.LICENSE
+      - src/vendor/paper-shaders.NOTICE
+      - fonts/**
+      - icons/icon-256.png
       - scripts/build-site.js
       - .github/workflows/pages.yml
   workflow_dispatch:
@@ -26,10 +31,6 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-      - run: npm install --no-save --ignore-scripts marked@15
       - run: node scripts/build-site.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
