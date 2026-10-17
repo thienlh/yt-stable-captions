@@ -134,17 +134,22 @@
 
   .hero {
     display: flex;
-    flex-direction: column;
-    align-items: stretch;
+    align-items: flex-end;
+    justify-content: space-between;
     gap: 48px;
-    padding-top: 72px;
+    padding-top: 88px;
   }
   .copy {
-    width: min(640px, 100%);
+    width: min(560px, 100%);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
     gap: 28px;
+    padding-bottom: 12px;
+  }
+  .watch {
+    flex: 0 0 520px;
+    width: 520px;
   }
   h1 {
     margin: 0;
@@ -302,7 +307,13 @@
 
   @media (max-width: 980px) {
     .page { padding: 24px 24px 56px; }
-    .hero { padding-top: 48px; gap: 36px; }
+    .hero {
+      flex-direction: column;
+      align-items: stretch;
+      padding-top: 48px;
+      gap: 36px;
+    }
+    .watch { flex-basis: auto; width: 100%; }
     h1 { font-size: 64px; }
     .facts { grid-template-columns: 1fr; gap: 28px; }
   }
