@@ -5,6 +5,9 @@ Replaces YouTube's flowing auto-captions with short, stable caption chunks
 subtle emphasis on the word being spoken. A bold, playful **Short** style is
 available from the toolbar popup.
 
+Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd).
+If it is useful, [tip on Ko-fi](https://ko-fi.com/stablecaptions).
+
 ## What it does
 
 - Captions source, in order:

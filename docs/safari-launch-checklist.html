@@ -108,7 +108,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 <main id="app"></main>
-<script type="application/json" id="state">{"done":{"icons":true,"appicon":true,"name":true,"version":true,"zip":true,"tests":true,"mainworld":true,"route":true,"bundle":true,"convert":true,"signing":true,"hostapp":true,"local":true,"export":true},"updated":"2026-10-06T14:00:46.000Z"}</script>
+<script type="application/json" id="state">{"done":{"icons":true,"appicon":true,"name":true,"version":true,"zip":true,"tests":true,"mainworld":true,"route":true,"bundle":true,"convert":true,"signing":true,"hostapp":true,"local":true,"export":true,"tippage":true},"updated":"2026-10-17T16:38:00.000Z"}</script>
 <script id="app-js">
 (function () {
   var TITLE = "Safari Launch Checklist";
@@ -157,7 +157,7 @@ footer { margin-top: 48px; font-size: 12.5px; color: var(--dim); }
     ]},
     { id: "oss", title: "Open source and tips", where: "GitHub, a tip page, and the Chrome and Firefox builds", items: [
       { id: "public", t: "Make the GitHub repo public", d: "It's private right now, so the GPL license and a Sponsor button do nothing until it's public. Check the history for anything you don't want published first.", href: "https://github.com/thienlh/yt-stable-captions/settings", hrefText: "Repo settings" },
-      { id: "tippage", t: "Create a tip page", d: "Ko-fi takes no cut of one-off tips. Buy Me a Coffee takes about 5%. Both accept cards and Apple Pay with no account needed." },
+      { id: "tippage", t: "Create a tip page", d: "Ko-fi takes no cut of one-off tips. Buy Me a Coffee takes about 5%. Both accept cards and Apple Pay with no account needed.", href: "https://ko-fi.com/stablecaptions", hrefText: "Ko-fi" },
       { id: "sponsors", t: "Turn on GitHub Sponsors", d: "This is for developers who find the repo. GitHub takes no cut on personal sponsorships. Payouts go through Stripe.", href: "https://github.com/sponsors", hrefText: "GitHub Sponsors" },
       { id: "funding", t: "Add .github/FUNDING.yml", d: "List both platforms so the repo shows a Sponsor button.", code: "github: thienlh" },
       { id: "popuptip", t: "Add a tip link to the popup in the Chrome and Firefox builds", d: "Keep it small and quiet. Have safari:build remove it, so the paid Safari version never asks for more money." },
