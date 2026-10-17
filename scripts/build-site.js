@@ -14,17 +14,16 @@ const fonts = [
   'PaperMono-Regular-latin.woff2',
   'PaperMono-Medium-latin.woff2',
   'InterVariable.woff2',
-  'Caveat-Bold-picked.woff2',
   'InstrumentSerif-LICENSE.txt',
   'PaperMono-LICENSE.txt',
   'Inter-LICENSE.txt',
-  'Caveat-LICENSE.txt',
 ];
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(path.join(out, 'fonts'), { recursive: true });
 fs.copyFileSync(path.join(root, 'site/index.html'), path.join(out, 'index.html'));
 fs.copyFileSync(path.join(root, 'site/backdrop.js'), path.join(out, 'backdrop.js'));
+fs.copyFileSync(path.join(root, 'site/demo.js'), path.join(out, 'demo.js'));
 fs.copyFileSync(path.join(root, 'icons/icon-256.png'), path.join(out, 'icon.png'));
 for (const file of ['paper-shaders.js', 'paper-shaders.LICENSE', 'paper-shaders.NOTICE']) {
   fs.copyFileSync(path.join(root, 'src/vendor', file), path.join(out, file));
