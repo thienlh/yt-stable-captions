@@ -21,7 +21,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 ## Get it
 
 - **Safari** (Mac): [Mac App Store](#)
-- **Chrome**: [Chrome Web Store](#), free
+- **Chrome**: [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd), free
 - **Firefox**: [Firefox Add-ons](#), free
 
 After installing, turn it on and allow it on youtube.com. Then play any video with captions.
