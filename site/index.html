@@ -118,6 +118,19 @@
     line-height: 18px;
   }
   .install:hover { background: #fff; }
+  .tip-btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 9px 16px;
+    border-radius: 999px;
+    border: 1px solid rgba(251, 250, 248, 0.55);
+    color: var(--paper);
+    text-decoration: none;
+    font-weight: 500;
+    font-size: 14px;
+    line-height: 18px;
+  }
+  .tip-btn:hover { border-color: #fff; color: #fff; }
 
   .hero {
     display: flex;
@@ -283,9 +296,9 @@
   }
   footer a { color: var(--blue-soft); text-decoration: none; }
   footer a:hover { color: #fff; text-decoration: underline; }
-  .stores { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 22px; }
+  .stores { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
   .stores span { color: rgba(251, 250, 248, 0.5); }
-  .stores .tip { margin-left: auto; color: var(--paper); }
+  .stores .tip-btn { margin-left: 8px; }
 
   @media (max-width: 980px) {
     .page { padding: 24px 24px 56px; }
@@ -297,7 +310,7 @@
     .for { display: none; }
     .lockup { font-size: 24px; }
     h1 { font-size: 52px; }
-    .nav-end { gap: 0; }
+    .nav-end { gap: 10px; }
   }
 </style>
 </head>
@@ -311,6 +324,7 @@
       </a>
       <div class="nav-end">
         <span class="for">for YouTube</span>
+        <a class="tip-btn" href="https://ko-fi.com/stablecaptions">Tip</a>
         <a class="install" href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Add to Chrome</a>
       </div>
     </header>
@@ -356,7 +370,7 @@
         <a href="#">Safari</a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
         <a href="#">Firefox</a>
-        <a class="tip" href="https://ko-fi.com/stablecaptions">Tip</a>
+        <a class="tip-btn" href="https://ko-fi.com/stablecaptions">Tip</a>
       </div>
       <p>Stable Captions collects nothing. It runs only on youtube.com, and your settings stay in the browser. After installing, turn it on and allow it on youtube.com.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
