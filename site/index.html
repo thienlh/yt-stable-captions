@@ -380,13 +380,20 @@
         <span>Get it</span>
         <a href="#">Safari</a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
-        <a href="#">Firefox</a>
+        <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
         <a class="tip-btn" href="https://ko-fi.com/stablecaptions">Tip</a>
       </div>
       <p>Stable Captions collects nothing. It runs only on youtube.com, and your settings stay in the browser. After installing, turn it on and allow it on youtube.com.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
     </footer>
   </div>
+  <script>
+    if (/Firefox\//.test(navigator.userAgent)) {
+      const install = document.querySelector('header .install');
+      install.href = 'https://addons.mozilla.org/firefox/addon/stable-captions/';
+      install.textContent = 'Add to Firefox';
+    }
+  </script>
   <script src="paper-shaders.js"></script>
   <script src="backdrop.js"></script>
   <script src="demo.js"></script>
