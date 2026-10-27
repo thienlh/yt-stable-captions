@@ -5,8 +5,9 @@ require('../src/core/rolling-merger.js');
 require('../src/core/json3-parser.js');
 require('../src/core/cue-lookup.js');
 require('../src/core/chunker.js');
+require('../src/core/disfluency.js');
 
-const { Json3Parser, CaptionChunker, cueAtTime } = globalThis.YTSC;
+const { Json3Parser, CaptionChunker, Disfluency, cueAtTime } = globalThis.YTSC;
 
 const w = (text, startMs, endMs = startMs + 300) => ({ text, startMs, endMs });
 
@@ -105,6 +106,34 @@ test('manual lyric lines stay whole, wrap, and do not swallow a repeated line', 
   assert.equal(chunks[4].words.find((w) => w.lineBreak)?.text, 'bao');
   assert.equal(chunks[0].endMs, 18953);
   assert.ok(chunks[0].words.every((w) => w.estimated));
+});
+
+test('a one-word lyric cue stays on its own line and is not cleaned away', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 1000, segs: [{ utf8: 'come back' }] },
+      { tStartMs: 1000, dDurationMs: 800, segs: [{ utf8: 'stay' }] },
+      { tStartMs: 1800, dDurationMs: 800, segs: [{ utf8: 'Ah' }] },
+      { tStartMs: 2600, dDurationMs: 800, segs: [{ utf8: 'Stay' }] },
+      { tStartMs: 3400, dDurationMs: 800, segs: [{ utf8: 'Stay' }] },
+    ],
+  });
+  assert.ok(words.filter((w) => w.text === 'stay' || w.text === 'Ah' || w.text === 'Stay').every((w) => w.estimated && w.cueStart));
+  const chunks = new CaptionChunker().build(new Disfluency().clean(words));
+  assert.deepEqual(chunks.map((c) => c.text), ['come back', 'stay', 'Ah', 'Stay', 'Stay']);
+  assert.equal(chunks[0].endMs, 1000);
+});
+
+test('untimed one-word auto-captions are still grouped into chunks', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 400, segs: [{ utf8: 'Wir' }] },
+      { tStartMs: 400, dDurationMs: 400, segs: [{ utf8: 'sprechen' }] },
+      { tStartMs: 800, dDurationMs: 500, segs: [{ utf8: 'Deutsch.' }] },
+    ],
+  });
+  assert.equal(words.some((w) => w.estimated || w.cueStart), false);
+  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), ['Wir sprechen Deutsch.']);
 });
 
 test('formatted captions with their own line breaks stay short single lines and keep highlight timing', () => {

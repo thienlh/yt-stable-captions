@@ -131,9 +131,11 @@
      * ASR tracks carry per-word seg offsets. Plain lyric lines (no offsets, and
      * the track does not already break lines itself) are `estimated`: timing is
      * only the line's span spread by length, the first word is `cueStart`, and
-     * the chunker keeps the line together. The overlay still highlights from
-     * those times; `h` turns that off. Formatted captions that already contain
-     * newlines stay on the old path: short chunks and the same highlight.
+     * the chunker keeps the line together. A one-word lyric cue gets the same
+     * flags, so it is not glued to the previous line or dropped as a filler.
+     * The overlay still highlights from those times; `h` turns that off.
+     * Formatted captions that already contain newlines stay on the old path:
+     * short chunks and the same highlight.
      */
     parseWords(payload) {
       if (!Array.isArray(payload?.events)) return [];
@@ -142,6 +144,9 @@
       );
       // Most cues already have a newline: a formatted subtitle, not a lyric line.
       const formatted = this._formattedTrack(events);
+      // One real multi-word line means the untimed cues are lyrics, including
+      // a one-word cue like "stay". A stream of single words is still ASR.
+      const lyric = !formatted && this._lyricTrack(events);
 
       let words = [];
       let prevTexts = [];
@@ -174,10 +179,10 @@
             ? overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length))
             : windowGrew;
         if (rolling && startMs <= prevEndMs + 1000) eventWords = eventWords.slice(overlap);
-        // Lyric lines have no per-word times and no authored wrap. Keep the line
-        // together. Highlight still follows the spread times. Formatted captions
-        // are chunked as before.
-        if (!formatted && !hasOffsets && !rolling && eventWords.length >= 2) {
+        // Lyric lines have no per-word times and no authored wrap. Keep each
+        // cue together, including a one-word cue. Highlight still follows the
+        // spread times. Formatted captions are chunked as before.
+        if (lyric && !hasOffsets && !rolling) {
           for (const word of eventWords) word.estimated = true;
           eventWords[0].cueStart = true;
         }
@@ -201,6 +206,27 @@
         if (formatted) delete word.lineBreak;
       });
       return words;
+    }
+
+    /**
+     * True when this untimed track has a real lyric line: two or more words that
+     * are not just a rolling window growing ("Was" → "Was bedeutet").
+     */
+    _lyricTrack(events) {
+      if (events.some((event) => this._hasWordOffsets(event))) return false;
+      let lyricLines = 0;
+      let prevTexts = [];
+      for (const event of events) {
+        if (this.text.isRollupBreak(event)) continue;
+        const texts = this.text.splitWords(this.text.rawEventText(event));
+        if (!texts.length) continue;
+        const overlap = prevTexts.length ? this.merger.overlapSize(prevTexts, texts) : 0;
+        const grew =
+          prevTexts.length > 0 && overlap === prevTexts.length && texts.length > prevTexts.length;
+        prevTexts = texts;
+        if (!grew && texts.length >= 2) lyricLines++;
+      }
+      return lyricLines > 0;
     }
 
     /** True when cues already wrap themselves (more with a newline than without). */
