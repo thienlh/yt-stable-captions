@@ -48,7 +48,11 @@
     /** Index-aligned kinds: 'filler' | 'repeat' | undefined. */
     detect(words) {
       const key = (i) => this.text.comparableWord(words[i]?.text);
-      const kinds = words.map((_, i) => (FILLERS.has(key(i)) ? 'filler' : undefined));
+      // Manual captions are already edited. A repeated phrase there is a lyric
+      // ("về nhà về nhà"), not a stumble, and a filler-shaped word was typed on purpose.
+      const kinds = words.map((word, i) =>
+        word?.estimated || !FILLERS.has(key(i)) ? undefined : 'filler'
+      );
 
       if (this.aggressive) {
         for (let i = 0; i < words.length; i++) {
@@ -63,7 +67,7 @@
 
       // Repeats, looking through fillers. The last occurrence flows into the
       // sentence, so earlier copies are the stumble.
-      const content = words.map((_, i) => i).filter((i) => !kinds[i]);
+      const content = words.map((_, i) => i).filter((i) => !kinds[i] && !words[i].estimated);
       for (let n = 0; n < content.length; n++) {
         const [a, b, c, d] = content.slice(n, n + 4);
         if (!key(a)) continue;

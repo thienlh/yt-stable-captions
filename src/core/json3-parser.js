@@ -128,14 +128,25 @@
 
     /**
      * JSON3 -> flat list of timed words { text, startMs, endMs }.
-     * ASR tracks carry per-word seg offsets; manual tracks get their event
-     * duration spread across words by character length.
+     * ASR tracks carry per-word seg offsets. Plain lyric lines (no offsets, and
+     * the track does not already break lines itself) are `estimated`: timing is
+     * only the line's span spread by length, the first word is `cueStart`, and
+     * the chunker keeps the line together. A one-word lyric cue gets the same
+     * flags, so it is not glued to the previous line or dropped as a filler.
+     * The overlay still highlights from those times; `h` turns that off.
+     * Formatted captions that already contain newlines stay on the old path:
+     * short chunks and the same highlight.
      */
     parseWords(payload) {
       if (!Array.isArray(payload?.events)) return [];
       const events = [...payload.events].sort(
         (a, b) => Number(a?.tStartMs || 0) - Number(b?.tStartMs || 0)
       );
+      // Most cues already have a newline: a formatted subtitle, not a lyric line.
+      const formatted = this._formattedTrack(events);
+      // One real multi-word line means the untimed cues are lyrics, including
+      // a one-word cue like "stay". A stream of single words is still ASR.
+      const lyric = !formatted && this._lyricTrack(events);
 
       let words = [];
       let prevTexts = [];
@@ -153,11 +164,28 @@
         if (!eventWords.length) return;
 
         // Rolling windows repeat the previous window's words; keep only new ones.
+        // Untimed captions only count as a window when the new line extends the
+        // previous one ("Was" → "Was bedeutet"). Sharing a word or two, or
+        // repeating the line, is a lyric, not a window.
         const texts = eventWords.map((w) => w.text);
         const overlap = this.merger.overlapSize(prevTexts, texts);
+        const hasOffsets = this._hasWordOffsets(event);
+        const windowGrew =
+          prevTexts.length > 0 &&
+          overlap === prevTexts.length &&
+          texts.length > prevTexts.length;
         const rolling =
-          overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length));
+          formatted || hasOffsets
+            ? overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length))
+            : windowGrew;
         if (rolling && startMs <= prevEndMs + 1000) eventWords = eventWords.slice(overlap);
+        // Lyric lines have no per-word times and no authored wrap. Keep each
+        // cue together, including a one-word cue. Highlight still follows the
+        // spread times. Formatted captions are chunked as before.
+        if (lyric && !hasOffsets && !rolling) {
+          for (const word of eventWords) word.estimated = true;
+          eventWords[0].cueStart = true;
+        }
         prevTexts = texts;
         prevEndMs = endMs;
         words.push(...eventWords);
@@ -173,35 +201,93 @@
         word.endMs = Math.min(word.endMs, word.startMs + (word.timed ? 1200 : 2000));
         if (word.endMs <= word.startMs) word.endMs = word.startMs + 300;
         delete word.timed;
+        // The newline in a formatted cue is how YouTube fits the window, not a
+        // second line we should show. Short chunks replace it.
+        if (formatted) delete word.lineBreak;
       });
       return words;
     }
 
+    /**
+     * True when this untimed track has a real lyric line: two or more words that
+     * are not just a rolling window growing ("Was" → "Was bedeutet").
+     */
+    _lyricTrack(events) {
+      if (events.some((event) => this._hasWordOffsets(event))) return false;
+      let lyricLines = 0;
+      let prevTexts = [];
+      for (const event of events) {
+        if (this.text.isRollupBreak(event)) continue;
+        const texts = this.text.splitWords(this.text.rawEventText(event));
+        if (!texts.length) continue;
+        const overlap = prevTexts.length ? this.merger.overlapSize(prevTexts, texts) : 0;
+        const grew =
+          prevTexts.length > 0 && overlap === prevTexts.length && texts.length > prevTexts.length;
+        prevTexts = texts;
+        if (!grew && texts.length >= 2) lyricLines++;
+      }
+      return lyricLines > 0;
+    }
+
+    /** True when cues already wrap themselves (more with a newline than without). */
+    _formattedTrack(events) {
+      let broken = 0;
+      let plain = 0;
+      for (const event of events) {
+        const raw = this.text.rawEventText(event);
+        if (!raw.replace(/\s+/g, '')) continue;
+        if (raw.includes('\n')) broken++;
+        else plain++;
+      }
+      return broken > plain;
+    }
+
+    _hasWordOffsets(event) {
+      const segs = Array.isArray(event?.segs) ? event.segs : [];
+      return segs.length > 1 && segs.slice(1).every((s) => s.tOffsetMs != null);
+    }
+
     _eventWords(event, startMs, endMs) {
       let segs = Array.isArray(event?.segs) ? event.segs : [];
-      const hasOffsets = segs.length > 1 && segs.slice(1).every((s) => s.tOffsetMs != null);
-      if (!hasOffsets) segs = [{ utf8: this.text.rawEventText(event), tOffsetMs: 0 }];
+      const hasOffsets = this._hasWordOffsets(event);
+      if (!hasOffsets) {
+        // Authored captions put a line break in the text, not in a separate event.
+        const groups = this.text
+          .rawEventText(event)
+          .split(/\r?\n+/)
+          .map((line) => this.text.splitWords(line))
+          .filter((line) => line.length);
+        const texts = [];
+        const lineBreakAt = new Set();
+        for (const line of groups) {
+          if (texts.length) lineBreakAt.add(texts.length);
+          texts.push(...line);
+        }
+        segs = [{ utf8: '', tOffsetMs: 0, texts, lineBreakAt }];
+      }
 
       const out = [];
       segs.forEach((seg, i) => {
-        const texts = this.text.splitWords(seg.utf8);
+        const texts = seg.texts || this.text.splitWords(seg.utf8);
         if (!texts.length) return;
         const segStart = startMs + Number(seg.tOffsetMs || 0);
         const next = segs[i + 1];
         const segEnd = Math.max(segStart, next ? startMs + Number(next.tOffsetMs) : endMs);
         const totalChars = texts.reduce((n, t) => n + t.length, 0);
         let offset = 0;
-        for (const text of texts) {
+        texts.forEach((text, wordIndex) => {
           const wStart = segStart + ((segEnd - segStart) * offset) / totalChars;
           offset += text.length;
           const wEnd = segStart + ((segEnd - segStart) * offset) / totalChars;
-          out.push({
+          const word = {
             text,
             startMs: Math.round(wStart),
             endMs: Math.round(wEnd),
             timed: hasOffsets && texts.length === 1,
-          });
-        }
+          };
+          if (seg.lineBreakAt?.has(wordIndex)) word.lineBreak = true;
+          out.push(word);
+        });
       });
       // Punctuation can arrive as its own seg (", " or " !"). Fold it across the whole
       // event, so a repeated window tokenizes the same however its segs are cut.
