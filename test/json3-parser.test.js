@@ -110,3 +110,24 @@ test('rollup rows become stable two-line cues instead of one giant cue', () => {
   assert.equal(cueAtTime(cues, 20000)?.index, 3);
   assert.equal(cueAtTime(cues, 26000)?.index, 4);
 });
+
+test('parseWords folds punctuation segs into the neighbouring word', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      {
+        tStartMs: 0,
+        dDurationMs: 2000,
+        segs: [
+          { utf8: 'hello' },
+          { utf8: ' ,', tOffsetMs: 300 },
+          { utf8: ' world', tOffsetMs: 400 },
+          { utf8: ' !', tOffsetMs: 800 },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(
+    words.map((w) => [w.text, w.startMs, w.endMs]),
+    [['hello,', 0, 300], ['world!', 400, 800]]
+  );
+});

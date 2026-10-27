@@ -137,7 +137,7 @@
         (a, b) => Number(a?.tStartMs || 0) - Number(b?.tStartMs || 0)
       );
 
-      const words = [];
+      let words = [];
       let prevTexts = [];
       let prevEndMs = -Infinity;
       events.forEach((event, i) => {
@@ -164,6 +164,9 @@
       });
 
       words.sort((a, b) => a.startMs - b.startMs);
+      // Punctuation can arrive as its own seg (", " or " !"); fold it into the
+      // word it belongs to. It keeps that word's timing: a lingering mark is not speech.
+      words = this.text.attachPunctuation(words, (w) => w.text, (w, text) => ({ ...w, text }));
       words.forEach((word, i) => {
         const nextStart = words[i + 1]?.startMs;
         if (nextStart > word.startMs) word.endMs = Math.min(word.endMs, nextStart);
