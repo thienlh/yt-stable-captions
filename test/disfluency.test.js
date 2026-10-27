@@ -35,6 +35,11 @@ test('keeps words that only look like fillers', () => {
   assert.equal(cleanText('I like it, you know'), 'I like it, you know');
 });
 
+test('keeps a repeated phrase in a manual caption', () => {
+  const words = timed('là nhà là nhà của nhau').map((word) => ({ ...word, estimated: true }));
+  assert.equal(new Disfluency().clean(words).map((w) => w.text).join(' '), 'là nhà là nhà của nhau');
+});
+
 test('collapses repeats, keeping the last copy', () => {
   assert.equal(cleanText('I I I think the the main thing'), 'I think the main thing');
   assert.equal(cleanText('nobody, nobody believed it'), 'nobody believed it');

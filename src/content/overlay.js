@@ -84,7 +84,8 @@
       this.el.textContent = '';
       const words = chunk.words?.length ? chunk.words : [{ text: chunk.text }];
       this.spans = words.map((word, i) => {
-        if (i) this.el.appendChild(document.createTextNode(' '));
+        if (word.lineBreak) this.el.appendChild(document.createElement('br'));
+        else if (i) this.el.appendChild(document.createTextNode(' '));
         const span = document.createElement('span');
         span.className = 'ytsc-word';
         span.textContent = word.text;

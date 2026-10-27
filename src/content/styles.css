@@ -14,6 +14,7 @@
   transform: translateX(-50%);
   width: max-content;
   max-width: min(88%, 42ch);
+  white-space: normal;
   display: none;
   z-index: 30;
   pointer-events: none;
