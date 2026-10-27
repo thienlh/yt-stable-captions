@@ -137,7 +137,7 @@
         (a, b) => Number(a?.tStartMs || 0) - Number(b?.tStartMs || 0)
       );
 
-      const words = [];
+      let words = [];
       let prevTexts = [];
       let prevEndMs = -Infinity;
       events.forEach((event, i) => {
@@ -164,6 +164,8 @@
       });
 
       words.sort((a, b) => a.startMs - b.startMs);
+      // An event can also open with a mark that belongs to the previous event's last word.
+      words = this._attachPunctuation(words);
       words.forEach((word, i) => {
         const nextStart = words[i + 1]?.startMs;
         if (nextStart > word.startMs) word.endMs = Math.min(word.endMs, nextStart);
@@ -201,7 +203,14 @@
           });
         }
       });
-      return out;
+      // Punctuation can arrive as its own seg (", " or " !"). Fold it across the whole
+      // event, so a repeated window tokenizes the same however its segs are cut.
+      return this._attachPunctuation(out);
+    }
+
+    /** A folded mark keeps its word's timing: a lingering mark is not speech. */
+    _attachPunctuation(words) {
+      return this.text.attachPunctuation(words, (w) => w.text, (w, text) => ({ ...w, text }));
     }
 
     _eventEndMs(event, startMs) {

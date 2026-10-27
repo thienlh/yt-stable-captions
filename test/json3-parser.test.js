@@ -110,3 +110,44 @@ test('rollup rows become stable two-line cues instead of one giant cue', () => {
   assert.equal(cueAtTime(cues, 20000)?.index, 3);
   assert.equal(cueAtTime(cues, 26000)?.index, 4);
 });
+
+test('parseWords folds punctuation segs into the neighbouring word', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      {
+        tStartMs: 0,
+        dDurationMs: 2000,
+        segs: [
+          { utf8: 'hello' },
+          { utf8: ' ,', tOffsetMs: 300 },
+          { utf8: ' world', tOffsetMs: 400 },
+          { utf8: ' !', tOffsetMs: 800 },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(
+    words.map((w) => [w.text, w.startMs, w.endMs]),
+    [['hello,', 0, 300], ['world!', 400, 800]]
+  );
+});
+
+test('parseWords drops a repeated window even when its punctuation segs split differently', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 1000, segs: [{ utf8: 'hello ,' }, { utf8: ' world', tOffsetMs: 400 }] },
+      {
+        tStartMs: 1000,
+        dDurationMs: 1000,
+        segs: [
+          { utf8: 'hello' },
+          { utf8: ' ,', tOffsetMs: 100 },
+          { utf8: ' world', tOffsetMs: 200 },
+          { utf8: ' again', tOffsetMs: 400 },
+        ],
+      },
+    ],
+  });
+  assert.deepEqual(words.map((w) => w.text), ['hello,', 'world', 'again']);
+  assert.equal(words[2].startMs, 1400);
+});

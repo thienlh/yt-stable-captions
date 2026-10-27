@@ -34,3 +34,15 @@ test('merger concatenates disjoint text', () => {
   const m = new RollingTextMerger();
   assert.equal(m.merge('Hallo Welt', 'Wie geht es?'), 'Hallo Welt Wie geht es?');
 });
+
+test('splitWords attaches stray punctuation to its word', () => {
+  assert.deepEqual(TextUtils.splitWords('hello , world !'), ['hello,', 'world!']);
+  assert.deepEqual(TextUtils.splitWords('« Bonjour » ? ¿ Qué ?'), ['«Bonjour»?', '¿Qué?']);
+  assert.deepEqual(TextUtils.splitWords('wait ... ( really ) .'), ['wait...', '(really).']);
+});
+
+test('splitWords keeps dashes, symbols and bare quotes as tokens', () => {
+  assert.deepEqual(TextUtils.splitWords('rock & roll — yes " no'), ['rock', '&', 'roll', '—', 'yes', '"', 'no']);
+  assert.deepEqual(TextUtils.splitWords(', then'), [',', 'then']);
+  assert.deepEqual(TextUtils.splitWords('so ('), ['so', '(']);
+});
