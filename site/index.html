@@ -362,6 +362,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    width: max-content;
     max-width: calc(100% - 28px);
     padding: 7px 12px 7px 7px;
     border-radius: 999px;
@@ -378,6 +379,7 @@
     transition: opacity 160ms ease-out;
   }
   #ytsc-toast.ytsc-toast-visible { opacity: 1; }
+  #ytsc-toast > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .watch-bar {
     display: flex;
     flex-wrap: wrap;
@@ -443,7 +445,6 @@
     .watch { flex-basis: auto; width: 100%; }
     h1 { font-size: 64px; }
     .facts { grid-template-columns: 1fr; gap: 28px; }
-    #ytsc-toast { white-space: normal; }
   }
   @media (prefers-reduced-motion: reduce) {
     #ytsc-overlay.ytsc-fresh { animation: none; }
@@ -454,11 +455,21 @@
   }
   @media (max-width: 640px) {
     .for { display: none; }
-    header { flex-wrap: wrap; row-gap: 14px; }
+    header { gap: 12px; }
     .lockup { font-size: 24px; }
-    .nav-end { width: 100%; justify-content: flex-end; gap: 10px; }
+    .nav-end { gap: 10px; }
     h1 { font-size: 52px; }
     .keys { max-width: none; }
+    #ytsc-toast { gap: 6px; padding: 5px 10px 5px 5px; font-size: 12px; line-height: 16px; }
+    #ytsc-toast kbd { min-width: 20px; height: 20px; padding: 0 5px; font-size: 11px; }
+  }
+  /* Phones: one header row. Tip stays in the footer. */
+  @media (max-width: 480px) {
+    header .tip-btn { display: none; }
+    .ytsc-toast-hint { display: none; }
+    .lockup { gap: 8px; font-size: 22px; }
+    .lockup img { width: 30px; height: 30px; }
+    .install { padding: 8px 14px; font-size: 13px; }
   }
 </style>
 </head>

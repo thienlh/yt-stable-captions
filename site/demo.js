@@ -1,11 +1,13 @@
 (() => {
   'use strict';
 
-  // Opening of Tim Urban's TED talk (arj7oStGLkU), cut with the extension's
-  // chunker from the English captions on that video. Times are milliseconds.
+  // Opening of Tim Urban's TED talk (arj7oStGLkU): the English caption lines
+  // on that video, split into chunks of up to six words, laughter cues left
+  // out. Times are milliseconds. The clip runs past one tour loop, so the
+  // video only jumps back when the tour starts over.
   const CLIP_START = 13;
-  const CLIP_END = 42;
-  const CHUNKS = [[13000,15500,[["So",13000],["in",13417],["college,",13833]]],[15500,17000,[["I",15500],["was",15571],["a",15786],["government",15857],["major,",16571]]],[17000,18544,[["which",17000],["means",17368],["I",17735],["had",17809],["to",18029],["write",18176]]],[18544,19500,[["a",18544],["lot",18618],["of",18838],["papers.",18985]]],[19500,20757,[["Now,",19500],["when",19729],["a",19957],["normal",20014],["student",20357]]],[20757,21500,[["writes",20757],["a",21100],["paper,",21157]]],[21500,23024,[["they",21500],["might",21744],["spread",22049],["the",22415],["work",22598],["out",22841]]],[23024,24000,[["a",23024],["little",23085],["like",23451],["this.",23695]]],[24000,27000,[["So,",24000],["you",24818],["know,",25636]]],[27000,28563,[["you",27000],["get",27188],["started",27375],["maybe",27813],["a",28125],["little",28188]]],[28563,29909,[["slowly,",28563],["but",29000],["you",29182],["get",29364],["enough",29545]]],[29909,31234,[["done",29909],["in",30152],["the",30273],["first",30455],["week",30758],["that,",31000]]],[31234,32359,[["with",31234],["some",31422],["heavier",31609],["days",31938],["later",32125]]],[32359,34400,[["on,",32359],["everything",32500],["gets",33500],["done,",33900]]],[34400,36000,[["things",34400],["stay",35000],["civil.",35400]]],[36000,37417,[["And",36000],["I",36250],["would",36333],["want",36750],["to",37083],["do",37250]]],[37417,38500,[["that",37417],["like",37750],["that.",38083]]],[38500,39500,[["That",38500],["would",38711],["be",38974],["the",39079],["plan.",39237]]],[39500,41500,[["I",39500],["would",39600],["have",40100],["it",40500],["all",40700],["ready",41000]]],[41500,42500,[["to",41500],["go,",41700]]]].map(([startMs, endMs, words]) => ({
+  const CLIP_END = 116;
+  const CHUNKS = [[12645,14515,[["So",12645],["in",12873],["college,",13102]]],[15349,16937,[["I",15349],["was",15423],["a",15647],["government",15721],["major,",16466]]],[16937,18096,[["which",16937],["means",17299],["I",17661],["had",17734],["to",17951]]],[18096,19423,[["write",18096],["a",18458],["lot",18530],["of",18747],["papers.",18892]]],[19423,20301,[["Now,",19423],["when",19657],["a",19891],["normal",19950]]],[20301,21495,[["student",20301],["writes",20710],["a",21061],["paper,",21120]]],[21495,22768,[["they",21495],["might",21727],["spread",22016],["the",22363],["work",22537]]],[22768,23892,[["out",22768],["a",22942],["little",23000],["like",23347],["this.",23579]]],[23892,25543,[["So,",23892],["you",24180],["know",24468],["--",24851]]],[26748,27776,[["you",26748],["get",26919],["started",27091],["maybe",27490]]],[27776,28599,[["a",27776],["little",27833],["slowly,",28175]]],[28599,29494,[["but",28599],["you",28778],["get",28957],["enough",29136]]],[29494,30591,[["done",29494],["in",29732],["the",29851],["first",30030],["week",30328]]],[30591,31335,[["that,",30591],["with",30877],["some",31106]]],[31335,32446,[["heavier",31335],["days",31735],["later",31964],["on,",32250]]],[32446,33617,[["everything",32446],["gets",33062],["done,",33309]]],[33617,35103,[["things",33617],["stay",33987],["civil.",34233]]],[35853,36989,[["And",35853],["I",36080],["would",36156],["want",36534],["to",36837]]],[36989,38148,[["do",36989],["that",37140],["like",37443],["that.",37746]]],[38148,39366,[["That",38148],["would",38399],["be",38714],["the",38839],["plan.",39028]]],[39366,40561,[["I",39366],["would",39466],["have",39964],["it",40362]]],[40561,41880,[["all",40561],["ready",40860],["to",41358],["go,",41557]]],[41880,42940,[["but",41880],["then,",42067],["actually,",42379]]],[42940,44398,[["the",42940],["paper",43127],["would",43439],["come",43751],["along,",44000]]],[44398,45369,[["and",44398],["then",44622],["I",44921],["would",44995]]],[45369,46839,[["kind",45369],["of",45667],["do",45816],["this.",45966]]],[48757,49859,[["And",48757],["that",48941],["would",49186],["happen",49492]]],[49859,51400,[["every",49859],["single",50165],["paper.",50533]]],[51638,53167,[["But",51638],["then",51991],["came",52461],["my",52932]]],[53167,55544,[["90-page",53167],["senior",53991],["thesis,",54697]]],[55544,56851,[["a",55544],["paper",55609],["you're",55936],["supposed",56328]]],[56851,57855,[["to",56851],["spend",56982],["a",57308],["year",57374],["on.",57635]]],[57855,58934,[["And",57855],["I",58045],["knew",58109],["for",58363],["a",58553],["paper",58617]]],[58934,60268,[["like",58934],["that,",59188],["my",59506],["normal",59633],["work",60014]]],[60268,61498,[["flow",60268],["was",60522],["not",60712],["an",60903],["option.",61030]]],[61498,62168,[["It",61498],["was",61620],["way",61803],["too",61985]]],[62168,62923,[["big",62168],["a",62351],["project.",62412]]],[62923,64100,[["So",62923],["I",63038],["planned",63096],["things",63500],["out,",63845]]],[64100,65442,[["and",64100],["I",64324],["decided",64398],["I",64920],["kind",64994],["of",65293]]],[65442,67781,[["had",65442],["to",65665],["go",65814],["something",65963],["like",66634],["this.",66932]]],[67781,68507,[["This",67781],["is",68023],["how",68144],["the",68326]]],[68507,69257,[["year",68507],["would",68749],["go.",69052]]],[69257,71248,[["So",69257],["I'd",69464],["start",69775],["off",70292],["light,",70603]]],[71248,72262,[["and",71248],["I'd",71465],["bump",71683],["it",71972],["up",72117]]],[72262,73590,[["in",72262],["the",72407],["middle",72624],["months,",73059]]],[73590,74590,[["and",73590],["then",73778],["at",74028],["the",74153],["end,",74340]]],[74590,75216,[["I",74590],["would",74653],["kick",74966]]],[75216,76240,[["it",75216],["up",75341],["into",75466],["high",75716],["gear",75966]]],[76240,77703,[["just",76240],["like",76470],["a",76700],["little",76758],["staircase.",77103]]],[77703,78673,[["How",77703],["hard",77885],["could",78128],["it",78431],["be",78552]]],[78673,80233,[["to",78673],["walk",78795],["up",79037],["the",79159],["stairs?",79340]]],[80233,82052,[["No",80233],["big",80398],["deal,",80645],["right?",81057]]],[83090,83529,[["But",83090],["then,",83255]]],[83529,84924,[["the",83529],["funniest",83693],["thing",84132],["happened.",84406]]],[84924,86735,[["Those",84924],["first",85252],["few",85580],["months?",85776]]],[86791,87982,[["They",86791],["came",87083],["and",87375],["went,",87593]]],[87982,89591,[["and",87982],["I",88172],["couldn't",88236],["quite",88743],["do",89060],["stuff.",89187]]],[89591,90545,[["So",89591],["we",89710],["had",89830],["an",90009],["awesome",90128]]],[90545,91940,[["new",90545],["revised",90724],["plan.",91142]]],[92655,94314,[["And",92655],["then",93041],["--",93556]]],[95744,97029,[["But",95744],["then",95958],["those",96244],["middle",96601]]],[97029,98552,[["months",97029],["actually",97457],["went",98028],["by,",98314]]],[98552,99360,[["and",98552],["I",98794],["didn't",98875]]],[99360,100758,[["really",99360],["write",99845],["words,",100249]]],[100758,103093,[["and",100758],["so",101102],["we",101331],["were",101561],["here.",102020]]],[103500,104678,[["And",103500],["then",103721],["two",104015],["months",104236]]],[104678,106100,[["turned",104678],["into",105119],["one",105414],["month,",105634]]],[106100,107749,[["which",106100],["turned",106439],["into",106845],["two",107116],["weeks.",107319]]],[107749,109558,[["And",107749],["one",107994],["day",108240],["I",108485],["woke",108567],["up",108894]]],[109724,110859,[["with",109724],["three",110073],["days",110510]]],[110859,112843,[["until",110859],["the",111295],["deadline,",111557]]],[113502,114503,[["still",113502],["not",113860],["having",114074]]],[114503,115457,[["written",114503],["a",115004],["word,",115075]]]].map(([startMs, endMs, words]) => ({
     startMs,
     endMs,
     words: words.map(([text, wordStart]) => ({ text, startMs: wordStart })),
@@ -84,13 +86,20 @@
     document.querySelectorAll('kbd.is-down').forEach((el) => el.classList.remove('is-down'));
   };
 
-  const indicate = (shortcut, kbd, message) => {
+  const indicate = (shortcut, kbd, message, hint) => {
     clearTimeout(toastTimer);
     toast.replaceChildren();
     const cap = document.createElement('kbd');
     cap.textContent = kbd;
     const label = document.createElement('span');
     label.textContent = message;
+    if (hint) {
+      // Phones drop the hint so the toast stays on one line.
+      const extra = document.createElement('span');
+      extra.className = 'ytsc-toast-hint';
+      extra.textContent = ` ${hint}`;
+      label.append(extra);
+    }
     toast.append(cap, label);
     toast.classList.add('ytsc-toast-visible');
     document.querySelectorAll('.key.is-hot').forEach((el) => el.classList.remove('is-hot'));
@@ -244,7 +253,7 @@
     apply();
     void overlay.offsetWidth;
     overlay.classList.add('ytsc-clean');
-    indicate('clean', '⇧C', 'Clean captions: on (no um, uh, repeats)');
+    indicate('clean', '⇧C', 'Clean captions: on', '(no um, uh, repeats)');
   };
 
   // One change, then a long look. Pairs (off/on, two window steps) sit
@@ -268,6 +277,7 @@
 
   const restartTour = () => {
     manual = false;
+    rewind();
     clearTimeout(toastTimer);
     quietIndicator();
     finishDemo();
@@ -353,7 +363,7 @@
       state.clean = true;
       apply();
       overlay.classList.add('ytsc-clean');
-      indicate('clean', '⇧C', 'Clean captions: on (no um, uh, repeats)');
+      indicate('clean', '⇧C', 'Clean captions: on', '(no um, uh, repeats)');
       later(() => finishDemo(), HOLD_CLEAN);
       return;
     }
@@ -404,6 +414,14 @@
     const next = cueAt(ms);
     paint(next);
     if (next) highlight(ms);
+  };
+
+  // The tour's restart, with captions off, is the one seam a visitor sees.
+  const rewind = () => {
+    if (!player || typeof player.seekTo !== 'function') return;
+    try {
+      player.seekTo(CLIP_START, true);
+    } catch { /* Player not ready. */ }
   };
 
   const replay = () => {
