@@ -11,19 +11,120 @@
     words: words.map(([text, wordStart]) => ({ text, startMs: wordStart })),
   }));
 
+  // Mirrors src/core/settings.js and the toasts in src/content/settings-bridge.js.
+  const SIZES = ['tiny', 'xsmall', 'small', 'medium', 'large', 'xlarge', 'xxlarge'];
+  const SIZE_LABELS = {
+    tiny: 'Tiny', xsmall: 'Extra small', small: 'Small', medium: 'Medium',
+    large: 'Large', xlarge: 'Extra large', xxlarge: 'XXL',
+  };
+  const FROSTED_WINDOWS = ['clear', 'light', 'medium', 'dark', 'solid'];
+  const SHORT_WINDOWS = ['off', '25', '50', '75', '100'];
+  const WINDOW_LABELS = {
+    clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid',
+  };
+  const windowText = (level) => WINDOW_LABELS[level] || `${level}%`;
+
+  // The talk's cues are already clean, so ⇧C plays this line: fillers and the
+  // repeated "I" fold away, the same edit src/core/disfluency.js would make.
+  const DEMO_LINE = [
+    { text: 'So,', drop: false, at: 0 },
+    { text: 'um,', drop: true, at: 280 },
+    { text: 'I', drop: true, at: 560 },
+    { text: 'I', drop: true, at: 820 },
+    { text: 'I', drop: false, at: 1080 },
+    { text: 'think', drop: false, at: 1360 },
+    { text: "it's", drop: false, at: 1640 },
+    { text: 'better.', drop: false, at: 1920 },
+  ];
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const HOLD_CLEAN = reduceMotion ? 800 : 1600;
+  const TOAST_MS = 2400;
+  const TOUR_LOOP = 92;
+
   const screen = document.querySelector('.screen');
   const overlay = document.getElementById('ytsc-overlay');
-  if (!screen || !overlay) return;
+  const toast = document.getElementById('ytsc-toast');
+  if (!screen || !overlay || !toast) return;
 
   new ResizeObserver(([entry]) => {
     overlay.style.setProperty('--ytsc-player-h', `${entry.contentRect.height}px`);
   }).observe(screen);
+
+  const state = {
+    captions: false,
+    style: 'frosted',
+    size: 'medium',
+    highlight: true,
+    clean: true,
+    frostedWindow: 'medium',
+    tiktokWindow: 'off',
+  };
+
+  const apply = () => {
+    screen.dataset.ytscStyle = state.style;
+    screen.dataset.ytscSize = state.size;
+    screen.dataset.ytscHighlight = String(state.highlight);
+    screen.dataset.ytscFrostedWindow = state.frostedWindow;
+    screen.dataset.ytscTiktokWindow = state.tiktokWindow;
+    if (!state.captions) overlay.classList.remove('ytsc-visible');
+  };
+
+  const pop = () => {
+    if (reduceMotion || !overlay.classList.contains('ytsc-visible')) return;
+    overlay.classList.remove('ytsc-fresh');
+    void overlay.offsetWidth;
+    overlay.classList.add('ytsc-fresh');
+  };
+
+  let toastTimer = 0;
+  const quietIndicator = () => {
+    toast.classList.remove('ytsc-toast-visible');
+    document.querySelectorAll('.key.is-hot').forEach((el) => el.classList.remove('is-hot'));
+    document.querySelectorAll('kbd.is-down').forEach((el) => el.classList.remove('is-down'));
+  };
+
+  const indicate = (shortcut, kbd, message) => {
+    clearTimeout(toastTimer);
+    toast.replaceChildren();
+    const cap = document.createElement('kbd');
+    cap.textContent = kbd;
+    const label = document.createElement('span');
+    label.textContent = message;
+    toast.append(cap, label);
+    toast.classList.add('ytsc-toast-visible');
+    document.querySelectorAll('.key.is-hot').forEach((el) => el.classList.remove('is-hot'));
+    document.querySelectorAll('kbd.is-down').forEach((el) => el.classList.remove('is-down'));
+    const row = document.querySelector(`.key[data-shortcut="${shortcut}"]`);
+    if (row) {
+      row.classList.add('is-hot');
+      const down = row.querySelector(`kbd[data-kbd="${kbd}"]`);
+      if (down) down.classList.add('is-down');
+    }
+    toastTimer = setTimeout(quietIndicator, TOAST_MS);
+  };
 
   let player = null;
   let chunk = null;
   let spans = [];
   let active = -1;
   let looping = false;
+  let demoOn = false;
+  let demoStarted = 0;
+  let manual = false;
+  const laters = [];
+
+  const clearLaters = () => {
+    laters.splice(0).forEach((id) => clearTimeout(id));
+  };
+  const later = (fn, ms) => {
+    const id = setTimeout(fn, ms);
+    laters.push(id);
+  };
+
+  let origin = performance.now();
+
+  const localT = () => ((performance.now() - origin) % (TOUR_LOOP * 1000)) / 1000;
 
   const cueAt = (timeMs) => {
     for (let i = 0; i < CHUNKS.length; i++) {
@@ -37,9 +138,10 @@
     if (next === chunk) return;
     chunk = next;
     active = -1;
+    overlay.classList.remove('ytsc-demo', 'ytsc-clean', 'ytsc-fresh');
     overlay.textContent = '';
     spans = [];
-    if (!next) {
+    if (!next || !state.captions) {
       overlay.classList.remove('ytsc-visible');
       return;
     }
@@ -52,23 +154,250 @@
       spans.push(span);
     });
     overlay.classList.add('ytsc-visible');
+    if (state.style === 'tiktok') pop();
+  };
+
+  const setActive = (index) => {
+    if (index === active) return;
+    if (active >= 0 && spans[active]) spans[active].classList.remove('ytsc-active');
+    active = index;
+    if (index >= 0 && spans[index]) spans[index].classList.add('ytsc-active');
   };
 
   const highlight = (timeMs) => {
+    if (!chunk || !chunk.words) return;
     let index = -1;
     const words = chunk.words;
     for (let i = 0; i < words.length; i++) {
       if (words[i].startMs <= timeMs) index = i;
       else break;
     }
-    if (index === active) return;
-    if (active >= 0) spans[active].classList.remove('ytsc-active');
-    active = index;
-    if (index >= 0) spans[index].classList.add('ytsc-active');
+    setActive(index);
+  };
+
+  const highlightDemo = () => {
+    const elapsed = performance.now() - demoStarted;
+    let index = -1;
+    for (let i = 0; i < DEMO_LINE.length; i++) {
+      if (DEMO_LINE[i].at <= elapsed) index = i;
+    }
+    if (overlay.classList.contains('ytsc-clean')) {
+      while (index >= 0 && DEMO_LINE[index].drop) index -= 1;
+    }
+    setActive(index);
+  };
+
+  const showDirtyLine = () => {
+    demoOn = true;
+    demoStarted = performance.now();
+    chunk = { demo: true };
+    active = -1;
+    overlay.classList.add('ytsc-demo');
+    overlay.classList.remove('ytsc-clean');
+    overlay.textContent = '';
+    spans = [];
+    DEMO_LINE.forEach((word) => {
+      const span = document.createElement('span');
+      span.className = word.drop ? 'ytsc-word ytsc-drop' : 'ytsc-word';
+      span.textContent = word.text;
+      overlay.appendChild(span);
+      spans.push(span);
+    });
+    overlay.classList.add('ytsc-visible');
+    if (state.style === 'tiktok') pop();
+  };
+
+  const finishDemo = () => {
+    demoOn = false;
+    clearLaters();
+    overlay.classList.remove('ytsc-demo', 'ytsc-clean');
+    chunk = null;
+    state.clean = true;
+    apply();
+  };
+
+  // ⇧C plays on the tour clock, same as the other keys. The talk's cues have
+  // no fillers, so the beat swaps in one example line, then folds it clean.
+  const showCleanOff = () => {
+    clearLaters();
+    state.captions = true;
+    state.clean = false;
+    apply();
+    showDirtyLine();
+    indicate('clean', '⇧C', 'Clean captions: off');
+  };
+  const showCleanOn = () => {
+    if (!demoOn) return;
+    state.clean = true;
+    apply();
+    void overlay.offsetWidth;
+    overlay.classList.add('ytsc-clean');
+    indicate('clean', '⇧C', 'Clean captions: on (no um, uh, repeats)');
+  };
+
+  // One change, then a long look. Pairs (off/on, two window steps) sit
+  // further apart than the old two-second cuts.
+  const BEATS = [
+    { at: 1.5, run() { state.captions = true; apply(); indicate('captions', 'C', 'Captions on'); } },
+    { at: 9, run() { state.size = 'large'; apply(); indicate('size', '+', 'Caption size: Large'); } },
+    { at: 17, run() { state.frostedWindow = 'dark'; apply(); indicate('window', 'W', 'Frosted panel: Dark'); } },
+    { at: 25, run() { state.frostedWindow = 'solid'; apply(); indicate('window', 'W', 'Frosted panel: Solid'); } },
+    { at: 33, run() { state.highlight = false; apply(); indicate('highlight', 'H', 'Word highlight: off'); } },
+    { at: 41, run() { state.highlight = true; apply(); indicate('highlight', 'H', 'Word highlight: on'); } },
+    { at: 49, run: showCleanOff },
+    { at: 56, run: showCleanOn },
+    { at: 63, run() { if (demoOn) finishDemo(); } },
+    { at: 67, run() { state.style = 'tiktok'; apply(); pop(); indicate('style', '⌥C', 'Style: Short'); } },
+    { at: 75, run() { state.tiktokWindow = '25'; apply(); indicate('window', 'W', 'Background: 25%'); } },
+    { at: 83, run() { state.tiktokWindow = '50'; apply(); indicate('window', 'W', 'Background: 50%'); } },
+  ];
+  const fired = new Set();
+  let lastT = -1;
+
+  const restartTour = () => {
+    manual = false;
+    clearTimeout(toastTimer);
+    quietIndicator();
+    finishDemo();
+    state.captions = false;
+    state.style = 'frosted';
+    state.size = 'medium';
+    state.highlight = true;
+    state.clean = true;
+    state.frostedWindow = 'medium';
+    state.tiktokWindow = 'off';
+    apply();
+    fired.clear();
+  };
+
+  const advanceTour = () => {
+    const t = localT();
+    if (lastT >= 0 && t < lastT - 0.4) restartTour();
+    lastT = localT();
+    if (manual) return;
+    for (const beat of BEATS) {
+      if (t >= beat.at && !fired.has(beat)) {
+        fired.add(beat);
+        beat.run();
+      }
+    }
+  };
+
+  const takeOver = () => {
+    manual = true;
+    clearLaters();
+    if (demoOn) finishDemo();
+  };
+
+  const stepSize = (delta) => {
+    let index = SIZES.indexOf(state.size);
+    if (index < 0) index = SIZES.indexOf('medium');
+    index = Math.min(SIZES.length - 1, Math.max(0, index + delta));
+    state.size = SIZES[index];
+    apply();
+    indicate('size', delta > 0 ? '+' : '−', `Caption size: ${SIZE_LABELS[state.size]}`);
+  };
+
+  const stepWindow = () => {
+    const short = state.style === 'tiktok';
+    const levels = short ? SHORT_WINDOWS : FROSTED_WINDOWS;
+    const key = short ? 'tiktokWindow' : 'frostedWindow';
+    const index = Math.max(0, levels.indexOf(state[key]));
+    state[key] = levels[(index + 1) % levels.length];
+    apply();
+    const name = short ? 'Background' : 'Frosted panel';
+    indicate('window', 'W', `${name}: ${windowText(state[key])}`);
+  };
+
+  window.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.repeat) return;
+    const typing = e.target instanceof Element &&
+      (e.target.isContentEditable || e.target.closest('input, textarea, select, [contenteditable]'));
+    if (typing) return;
+    const styleKey = e.altKey && !e.shiftKey && e.code === 'KeyC';
+    if (e.altKey && !styleKey) return;
+    const delta = !e.altKey && (e.key === '+' || e.key === '=' ? 1 : e.key === '-' ? -1 : 0);
+    const cleanKey = !e.altKey && e.shiftKey && e.key === 'C';
+    const windowKey = !e.altKey && !e.shiftKey && e.key === 'w';
+    const highlightKey = !e.altKey && !e.shiftKey && e.key === 'h';
+    const captionKey = !e.altKey && !e.shiftKey && (e.key === 'c' || e.key === 'C');
+    if (!delta && !cleanKey && !windowKey && !highlightKey && !styleKey && !captionKey) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (cleanKey) {
+      manual = true;
+      clearLaters();
+      if (!state.clean || !demoOn) {
+        if (state.clean && !demoOn) {
+          state.captions = true;
+          state.clean = false;
+          apply();
+          showDirtyLine();
+          indicate('clean', '⇧C', 'Clean captions: off');
+          return;
+        }
+      }
+      state.clean = true;
+      state.captions = true;
+      apply();
+      if (demoOn) overlay.classList.add('ytsc-clean');
+      else showDirtyLine();
+      indicate('clean', '⇧C', 'Clean captions: on (no um, uh, repeats)');
+      later(() => finishDemo(), HOLD_CLEAN);
+      return;
+    }
+
+    takeOver();
+    if (styleKey) {
+      state.style = state.style === 'tiktok' ? 'frosted' : 'tiktok';
+      apply();
+      if (state.style === 'tiktok') pop();
+      indicate('style', '⌥C', `Style: ${state.style === 'tiktok' ? 'Short' : 'Frosted'}`);
+    } else if (windowKey) stepWindow();
+    else if (highlightKey) {
+      state.highlight = !state.highlight;
+      apply();
+      indicate('highlight', 'H', state.highlight ? 'Word highlight: on' : 'Word highlight: off');
+    } else if (delta) stepSize(delta);
+    else {
+      state.captions = !state.captions;
+      apply();
+      indicate('captions', 'C', state.captions ? 'Captions on' : 'Captions off');
+    }
+  });
+
+  const captionMs = () => {
+    if (player && typeof player.getCurrentTime === 'function' && typeof YT !== 'undefined') {
+      try {
+        const raw = player.getCurrentTime();
+        const ps = player.getPlayerState();
+        const onClip = ps === YT.PlayerState.PLAYING || ps === YT.PlayerState.PAUSED || ps === YT.PlayerState.BUFFERING;
+        if (onClip && raw >= CLIP_START && raw < CLIP_END + 0.3) return raw * 1000;
+      } catch { /* Player not ready. */ }
+    }
+    // No player yet: keep walking the clip so a late tour step still has words.
+    const span = (CLIP_END - CLIP_START) * 1000;
+    return CLIP_START * 1000 + ((localT() * 1000) % span);
+  };
+
+  const syncCaption = () => {
+    if (demoOn) {
+      highlightDemo();
+      return;
+    }
+    if (!state.captions) {
+      paint(null);
+      return;
+    }
+    const ms = captionMs();
+    const next = cueAt(ms);
+    paint(next);
+    if (next) highlight(ms);
   };
 
   const replay = () => {
-    if (!player || looping || typeof player.seekTo !== 'function') return;
+    if (!player || looping || demoOn || typeof player.seekTo !== 'function') return;
     looping = true;
     player.seekTo(CLIP_START, true);
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
@@ -76,14 +405,13 @@
   };
 
   const frame = () => {
-    if (player && typeof player.getCurrentTime === 'function') {
-      const time = player.getCurrentTime();
-      if (time >= CLIP_END) replay();
-      const ms = time * 1000;
-      const next = cueAt(ms);
-      paint(next);
-      if (next) highlight(ms);
+    if (player && typeof player.getCurrentTime === 'function' && !demoOn) {
+      try {
+        if (player.getCurrentTime() >= CLIP_END) replay();
+      } catch { /* Player not ready. */ }
     }
+    advanceTour();
+    syncCaption();
     requestAnimationFrame(frame);
   };
 
@@ -131,12 +459,13 @@
         onApiChange: keepCaptionsOff,
         onStateChange(event) {
           if (event.data === YT.PlayerState.PLAYING) keepCaptionsOff();
-          if (event.data === YT.PlayerState.ENDED) replay();
+          if (event.data === YT.PlayerState.ENDED && !demoOn) replay();
         },
       },
     });
   };
 
+  apply();
   const api = document.createElement('script');
   api.src = 'https://www.youtube.com/iframe_api';
   document.head.appendChild(api);
