@@ -231,10 +231,11 @@
   }
   /* Same caption treatments as the extension (src/content/styles.css).
      Size is a fraction of this stage, nudged up just enough to stay
-     readable on a small 16:9. */
+     readable on a small 16:9. Phones keep the desktop stage's size, so
+     captions stay legible and each size step still shows. */
   #ytsc-overlay {
     --ytsc-size: 0.03;
-    --ytsc-font: calc(var(--ytsc-player-h, 290px) * var(--ytsc-size) * 1.55);
+    --ytsc-font: calc(max(var(--ytsc-player-h, 290px), 290px) * var(--ytsc-size) * 1.55);
     position: absolute;
     left: 50%;
     bottom: 14%;
@@ -446,7 +447,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #ytsc-overlay.ytsc-fresh { animation: none; }
-    #ytsc-overlay .ytsc-drop,
+    #ytsc-overlay.ytsc-demo .ytsc-drop,
     #ytsc-toast,
     kbd,
     .key { transition: none; }
