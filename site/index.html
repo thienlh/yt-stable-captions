@@ -174,10 +174,13 @@
     color: rgba(251, 250, 248, 0.86);
   }
   .keys {
+    list-style: none;
+    margin: 0;
+    padding: 0;
     display: flex;
     flex-wrap: wrap;
-    align-items: center;
-    gap: 10px 22px;
+    gap: 8px 18px;
+    max-width: 420px;
   }
   .key {
     display: flex;
@@ -186,7 +189,10 @@
     color: rgba(251, 250, 248, 0.78);
     font-size: 13px;
     line-height: 18px;
+    transition: color 160ms ease;
   }
+  .key.is-hot { color: #fff; }
+  .keycaps { display: inline-flex; gap: 4px; }
   kbd {
     display: inline-flex;
     align-items: center;
@@ -201,6 +207,12 @@
     font-weight: 500;
     font-size: 12px;
     line-height: 16px;
+    transition: transform 90ms ease, background 90ms ease, color 90ms ease;
+  }
+  .key.is-hot kbd.is-down {
+    background: var(--blue);
+    color: var(--navy);
+    transform: translateY(1px);
   }
 
   .screen {
@@ -217,13 +229,15 @@
     height: 100%;
     border: 0;
   }
-  /* Same frosted panel as the extension (src/content/styles.css). */
+  /* Same caption treatments as the extension (src/content/styles.css).
+     Size is a fraction of this stage, nudged up just enough to stay
+     readable on a small 16:9. */
   #ytsc-overlay {
     --ytsc-size: 0.03;
-    --ytsc-font: max(16px, calc(var(--ytsc-player-h, 500px) * var(--ytsc-size)));
+    --ytsc-font: calc(var(--ytsc-player-h, 290px) * var(--ytsc-size) * 1.55);
     position: absolute;
     left: 50%;
-    bottom: 18%;
+    bottom: 14%;
     transform: translateX(-50%);
     z-index: 2;
     width: max-content;
@@ -239,18 +253,130 @@
     color: #fff;
     padding: 0.35em 0.7em;
     border-radius: 0.6em;
-    background: rgba(28, 28, 32, 0.38);
-    -webkit-backdrop-filter: blur(16px) saturate(1.4);
-    backdrop-filter: blur(16px) saturate(1.4);
+    background: rgba(28, 28, 32, var(--ytsc-panel-alpha, 0.38));
+    -webkit-backdrop-filter: blur(var(--ytsc-panel-blur, 16px)) saturate(1.4);
+    backdrop-filter: blur(var(--ytsc-panel-blur, 16px)) saturate(1.4);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.2em 0.8em rgba(0, 0, 0, 0.2);
     text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
   }
+  .screen[data-ytsc-size="tiny"] #ytsc-overlay { --ytsc-size: 0.02; }
+  .screen[data-ytsc-size="xsmall"] #ytsc-overlay { --ytsc-size: 0.023; }
+  .screen[data-ytsc-size="small"] #ytsc-overlay { --ytsc-size: 0.026; }
+  .screen[data-ytsc-size="large"] #ytsc-overlay { --ytsc-size: 0.036; }
+  .screen[data-ytsc-size="xlarge"] #ytsc-overlay { --ytsc-size: 0.042; }
+  .screen[data-ytsc-size="xxlarge"] #ytsc-overlay { --ytsc-size: 0.048; }
+  .screen[data-ytsc-frosted-window="clear"] { --ytsc-panel-alpha: 0.12; --ytsc-panel-blur: 10px; }
+  .screen[data-ytsc-frosted-window="light"] { --ytsc-panel-alpha: 0.25; --ytsc-panel-blur: 14px; }
+  .screen[data-ytsc-frosted-window="dark"] { --ytsc-panel-alpha: 0.55; --ytsc-panel-blur: 18px; }
+  .screen[data-ytsc-frosted-window="solid"] { --ytsc-panel-alpha: 0.78; --ytsc-panel-blur: 20px; }
+  .screen[data-ytsc-tiktok-window="25"] { --ytsc-tt-alpha: 0.25; }
+  .screen[data-ytsc-tiktok-window="50"] { --ytsc-tt-alpha: 0.5; }
+  .screen[data-ytsc-tiktok-window="75"] { --ytsc-tt-alpha: 0.75; }
+  .screen[data-ytsc-tiktok-window="100"] { --ytsc-tt-alpha: 1; }
+  .screen[data-ytsc-tiktok-window]:not([data-ytsc-tiktok-window="off"]) {
+    --ytsc-tt-pad: 0.12em 0.45em;
+    --ytsc-tt-radius: 0.3em;
+  }
   #ytsc-overlay.ytsc-visible { display: block; }
-  #ytsc-overlay .ytsc-word { opacity: 0.68; }
+  #ytsc-overlay .ytsc-word {
+    opacity: 0.68;
+    transition: opacity 90ms linear, text-shadow 90ms linear;
+  }
   #ytsc-overlay .ytsc-word.ytsc-active {
     opacity: 1;
     text-shadow: 0 0 0.4em rgba(255, 255, 255, 0.45), 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
   }
+  /* Clean-verbatim example: fillers and repeated words fold away. */
+  #ytsc-overlay.ytsc-demo { word-spacing: 0; }
+  #ytsc-overlay.ytsc-demo .ytsc-word {
+    display: inline-block;
+    margin-right: 0.32em;
+    vertical-align: bottom;
+  }
+  #ytsc-overlay.ytsc-demo .ytsc-word:last-child { margin-right: 0; }
+  #ytsc-overlay.ytsc-demo .ytsc-drop {
+    max-width: 4.2em;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 480ms cubic-bezier(.65, 0, .35, 1), opacity 320ms ease, margin-right 480ms cubic-bezier(.65, 0, .35, 1);
+  }
+  .screen[data-ytsc-style="tiktok"] #ytsc-overlay {
+    bottom: 18%;
+    max-width: min(80%, 14em);
+    font-family: Montserrat, Inter, "Helvetica Neue", Arial, sans-serif;
+    font-size: calc(var(--ytsc-font) * 1.1);
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    word-spacing: 0.12em;
+    padding: var(--ytsc-tt-pad, 0);
+    border-radius: var(--ytsc-tt-radius, 0);
+    background: rgba(0, 0, 0, var(--ytsc-tt-alpha, 0));
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    box-shadow: none;
+    text-shadow:
+      -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000,
+      -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
+      0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  }
+  .screen[data-ytsc-style="tiktok"] #ytsc-overlay.ytsc-fresh {
+    animation: ytsc-pop 140ms ease-out;
+  }
+  .screen[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word {
+    display: inline-block;
+    opacity: 1;
+    transition: color 80ms linear, transform 80ms ease-out;
+  }
+  .screen[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active {
+    color: #ffe135;
+    transform: scale(1.08);
+    text-shadow: inherit;
+  }
+  .screen[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word,
+  .screen[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word.ytsc-active {
+    opacity: 1;
+    color: inherit;
+    transform: none;
+    text-shadow: inherit;
+  }
+  .screen[data-ytsc-highlight] #ytsc-overlay.ytsc-clean .ytsc-word.ytsc-drop,
+  .screen[data-ytsc-highlight] #ytsc-overlay.ytsc-clean .ytsc-word.ytsc-drop.ytsc-active {
+    max-width: 0;
+    opacity: 0;
+    margin-right: 0;
+    transform: none;
+    color: inherit;
+  }
+  @keyframes ytsc-pop {
+    from { opacity: 0; transform: translateX(-50%) scale(0.85); }
+    to { opacity: 1; transform: translateX(-50%) scale(1); }
+  }
+  #ytsc-toast {
+    position: absolute;
+    top: 7%;
+    left: 50%;
+    z-index: 3;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    max-width: calc(100% - 28px);
+    padding: 7px 12px 7px 7px;
+    border-radius: 999px;
+    background: rgba(28, 28, 32, 0.55);
+    -webkit-backdrop-filter: blur(16px) saturate(1.4);
+    backdrop-filter: blur(16px) saturate(1.4);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14);
+    color: var(--paper);
+    font-size: 13px;
+    line-height: 18px;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 160ms ease-out;
+  }
+  #ytsc-toast.ytsc-toast-visible { opacity: 1; }
   .watch-bar {
     display: flex;
     flex-wrap: wrap;
@@ -316,12 +442,22 @@
     .watch { flex-basis: auto; width: 100%; }
     h1 { font-size: 64px; }
     .facts { grid-template-columns: 1fr; gap: 28px; }
+    #ytsc-toast { white-space: normal; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #ytsc-overlay.ytsc-fresh { animation: none; }
+    #ytsc-overlay .ytsc-drop,
+    #ytsc-toast,
+    kbd,
+    .key { transition: none; }
   }
   @media (max-width: 640px) {
     .for { display: none; }
+    header { flex-wrap: wrap; row-gap: 14px; }
     .lockup { font-size: 24px; }
+    .nav-end { width: 100%; justify-content: flex-end; gap: 10px; }
     h1 { font-size: 52px; }
-    .nav-end { gap: 10px; }
+    .keys { max-width: none; }
   }
 </style>
 </head>
@@ -344,18 +480,23 @@
       <div class="copy">
         <h1>Captions<em>that stay.</em></h1>
         <p class="lede">Short chunks, shown whole. The word being spoken is marked. The river of text is gone.</p>
-        <div class="keys">
-          <span class="key"><kbd>C</kbd> captions on/off</span>
-          <span class="key"><kbd>⌥C</kbd> switch style</span>
-        </div>
+        <ul class="keys">
+          <li class="key" data-shortcut="captions"><kbd data-kbd="C">C</kbd> captions on/off</li>
+          <li class="key" data-shortcut="size"><span class="keycaps"><kbd data-kbd="−">−</kbd><kbd data-kbd="+">+</kbd></span> text size</li>
+          <li class="key" data-shortcut="window"><kbd data-kbd="W">W</kbd> background</li>
+          <li class="key" data-shortcut="highlight"><kbd data-kbd="H">H</kbd> word highlight</li>
+          <li class="key" data-shortcut="clean"><kbd data-kbd="⇧C">⇧C</kbd> clean verbatim</li>
+          <li class="key" data-shortcut="style"><kbd data-kbd="⌥C">⌥C</kbd> switch style</li>
+        </ul>
       </div>
       <div class="watch">
-        <div class="screen">
+        <div class="screen" data-ytsc-style="frosted" data-ytsc-size="medium" data-ytsc-highlight="true" data-ytsc-frosted-window="medium" data-ytsc-tiktok-window="off">
           <div id="player"></div>
           <div id="ytsc-overlay" aria-hidden="true"></div>
+          <div id="ytsc-toast" role="status" aria-live="polite"></div>
         </div>
         <div class="watch-bar">
-          <span class="watch-title"><a href="https://www.youtube.com/watch?v=arj7oStGLkU&amp;t=13s">Tim Urban · TED</a>, on the real player. Sound starts muted.</span>
+          <span class="watch-title"><a href="https://www.youtube.com/watch?v=arj7oStGLkU&amp;t=13s">Tim Urban · TED</a>. Sound starts muted.</span>
         </div>
       </div>
     </section>
