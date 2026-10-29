@@ -123,6 +123,18 @@
   };
 
   let origin = performance.now();
+  let lastFrame = origin;
+
+  // Frames stop while the tab is hidden. Hold the tour clock over the gap so
+  // a returning visitor sees the step they left, not every missed one at once.
+  const holdClockOverGaps = () => {
+    const now = performance.now();
+    const gap = now - lastFrame;
+    lastFrame = now;
+    if (gap < 500) return;
+    origin += gap;
+    demoStarted += gap;
+  };
 
   const localT = () => ((performance.now() - origin) % (TOUR_LOOP * 1000)) / 1000;
 
@@ -328,21 +340,19 @@
     if (cleanKey) {
       manual = true;
       clearLaters();
-      if (!state.clean || !demoOn) {
-        if (state.clean && !demoOn) {
-          state.captions = true;
-          state.clean = false;
-          apply();
-          showDirtyLine();
-          indicate('clean', '⇧C', 'Clean captions: off');
-          return;
-        }
+      state.captions = true;
+      // An example already folded clean (manual or tour hold) goes back to
+      // the dirty line, so the key keeps toggling.
+      if (!demoOn || state.clean) {
+        state.clean = false;
+        apply();
+        showDirtyLine();
+        indicate('clean', '⇧C', 'Clean captions: off');
+        return;
       }
       state.clean = true;
-      state.captions = true;
       apply();
-      if (demoOn) overlay.classList.add('ytsc-clean');
-      else showDirtyLine();
+      overlay.classList.add('ytsc-clean');
       indicate('clean', '⇧C', 'Clean captions: on (no um, uh, repeats)');
       later(() => finishDemo(), HOLD_CLEAN);
       return;
@@ -397,7 +407,7 @@
   };
 
   const replay = () => {
-    if (!player || looping || demoOn || typeof player.seekTo !== 'function') return;
+    if (!player || looping || typeof player.seekTo !== 'function') return;
     looping = true;
     player.seekTo(CLIP_START, true);
     if (player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
@@ -405,7 +415,8 @@
   };
 
   const frame = () => {
-    if (player && typeof player.getCurrentTime === 'function' && !demoOn) {
+    holdClockOverGaps();
+    if (player && typeof player.getCurrentTime === 'function') {
       try {
         if (player.getCurrentTime() >= CLIP_END) replay();
       } catch { /* Player not ready. */ }
@@ -459,7 +470,7 @@
         onApiChange: keepCaptionsOff,
         onStateChange(event) {
           if (event.data === YT.PlayerState.PLAYING) keepCaptionsOff();
-          if (event.data === YT.PlayerState.ENDED && !demoOn) replay();
+          if (event.data === YT.PlayerState.ENDED) replay();
         },
       },
     });
