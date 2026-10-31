@@ -78,6 +78,7 @@ test('Boring shows every word at full contrast in the system font, with its own 
   const rule = css.match(/html\[data-ytsc-style="boring"\] #ytsc-overlay \{([^}]*)\}/);
   assert.ok(rule, 'boring overlay rule');
   assert.match(rule[1], /font-family: system-ui/);
+  assert.match(rule[1], /transition: none/, 'no slide when the controls show');
   assert.match(css, /html\[data-ytsc-style="boring"\] #ytsc-overlay \.ytsc-word\.ytsc-active \{[^}]*opacity: 1/);
   assert.match(css, /html\[data-ytsc-style="boring"\]\[data-ytsc-boring-highlight="true"\] #ytsc-overlay \.ytsc-word\.ytsc-active/);
   assert.equal(Settings.highlightSetting('boring'), 'boringHighlight');
