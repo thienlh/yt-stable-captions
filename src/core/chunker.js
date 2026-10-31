@@ -8,21 +8,21 @@
   };
 
   const DEFAULTS = {
-    maxWords: 7, // one glance
-    maxChars: 42, // one line of the Frosted and Boring panel (max-width 42ch)
+    maxWords: 6, // TikTok-style short bursts
+    maxChars: 30, // ~2 lines at the overlay's max width
     pauseMs: 600, // silence that forces a new chunk
     holdMs: 500, // keep a chunk visible briefly after its last word
-    minCommaWords: 5, // break after a comma once the chunk has this many words
+    minCommaWords: 3, // break after a comma once the chunk has this many words
     strandWords: 3, // a sentence end this close to a full chunk is not left on its own
     lineChars: 32, // wrap a manual caption line once it is longer than this
   };
-  // Per caption style (the `style` option). Short keeps TikTok-style bursts that
-  // fit its narrow box in about two lines.
+  // Per caption style (the `style` option). Boring, for accessibility, fills one
+  // line of its 42ch panel, so captions change less often.
   const STYLE_OPTIONS = {
-    tiktok: { maxWords: 6, maxChars: 30, minCommaWords: 3 },
+    boring: { maxWords: 7, maxChars: 42, minCommaWords: 5 },
   };
   // Live chunks show only once complete, so every extra word shows them later.
-  const LIVE_MAX_WORDS = { default: 6, tiktok: 5 };
+  const LIVE_MAX_WORDS = { default: 5, boring: 6 };
 
   /**
    * Where to cut a word stream into chunks. Shared by batch and live chunking.

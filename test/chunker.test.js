@@ -20,36 +20,37 @@ test('chunks stay short: max words and max chars', () => {
   }
 });
 
-test('chunks fill one line by default; the Short style keeps short bursts', () => {
+test('Boring fills one line; the other styles keep short bursts', () => {
   const words = 'one two three four five six seven eight nine ten eleven twelve'.split(' ').map((t, i) => w(t, i * 300));
-  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), [
+  assert.deepEqual(new CaptionChunker({ style: 'boring' }).build(words).map((c) => c.text), [
     'one two three four five six seven',
     'eight nine ten eleven twelve',
   ]);
-  assert.deepEqual(new CaptionChunker({ style: 'tiktok' }).build(words).map((c) => c.text), [
-    'one two three four five six',
-    'seven eight nine',
-    'ten eleven twelve',
-  ]);
-  for (const c of new CaptionChunker().build('Everything considered, extraordinary circumstances demand improvisation'.split(' ').map((t, i) => w(t, i * 300)))) {
-    assert.ok(c.text.length <= 42, c.text);
+  for (const style of [undefined, 'frosted', 'tiktok']) {
+    assert.equal(new CaptionChunker({ style }).build(words)[0].text, 'one two three four five six', style);
   }
 });
 
 test('setStyle changes the chunk length of the next build', () => {
   const words = 'one two three four five six seven eight'.split(' ').map((t, i) => w(t, i * 300));
-  const chunker = new CaptionChunker({ maxChars: 99, strandWords: 0 });
-  chunker.setStyle('tiktok');
-  assert.deepEqual(chunker.build(words).map((c) => c.text), ['one two three four five six', 'seven eight']);
-  chunker.setStyle('frosted');
+  const chunker = new CaptionChunker({ strandWords: 0 });
+  chunker.setStyle('boring');
   assert.deepEqual(chunker.build(words).map((c) => c.text), ['one two three four five six seven', 'eight']);
+  chunker.setStyle('frosted');
+  assert.deepEqual(chunker.build(words).map((c) => c.text), ['one two three four five six', 'seven eight']);
+});
+
+test('Boring breaks at a comma only once the chunk is longer', () => {
+  const words = [w('So', 0), w('one,', 300), w('two', 600), w('three,', 900), w('four', 1200)];
+  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), ['So one, two three,', 'four']);
+  assert.deepEqual(new CaptionChunker({ style: 'boring' }).build(words).map((c) => c.text), ['So one, two three, four']);
 });
 
 const sentence = (text) => text.split(' ').map((t, i) => w(t, i * 300));
 
 test('a sentence end a few words past a full chunk joins it when it fits', () => {
-  const chunks = new CaptionChunker().build(sentence('And I would want to do that like that. Then more'));
-  assert.deepEqual(chunks.map((c) => c.text), ['And I would want to do that like that.', 'Then more']);
+  const chunks = new CaptionChunker().build(sentence('And I would want to do that. Then more'));
+  assert.deepEqual(chunks.map((c) => c.text), ['And I would want to do that.', 'Then more']);
 });
 
 test('a stranded sentence end that does not fit moves the cut back to the last comma', () => {
@@ -58,23 +59,17 @@ test('a stranded sentence end that does not fit moves the cut back to the last c
 });
 
 test('without a comma, a stranded sentence end splits the sentence about evenly', () => {
-  const chunks = new CaptionChunker().build(sentence("a paper you're supposed to spend a year on."));
-  assert.deepEqual(chunks.map((c) => c.text), ["a paper you're supposed", 'to spend a year on.']);
+  const chunks = new CaptionChunker().build(sentence('How hard could it be to walk up the stairs?'));
+  assert.deepEqual(chunks.map((c) => c.text), ['How hard could it be to', 'walk up the stairs?']);
 });
 
 test('a longer run to the sentence end is cut at the size cap as usual', () => {
-  const chunks = new CaptionChunker().build(sentence('I would kick it up into high gear just like a staircase.'));
-  assert.deepEqual(chunks.map((c) => c.text), ['I would kick it up into high', 'gear just like a staircase.']);
-});
-
-test('a comma breaks a chunk once it is long enough for the style', () => {
-  const words = [w('So', 0), w('one,', 300), w('two', 600), w('three,', 900), w('four', 1200)];
-  assert.deepEqual(new CaptionChunker({ style: 'tiktok' }).build(words).map((c) => c.text), ['So one, two three,', 'four']);
-  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), ['So one, two three, four']);
+  const chunks = new CaptionChunker().build(sentence('I would kick it up into high gear like this.'));
+  assert.deepEqual(chunks.map((c) => c.text), ['I would kick it up into', 'high gear like this.']);
 });
 
 test('chunks break at sentence ends, commas and pauses', () => {
-  const chunks = new CaptionChunker({ minCommaWords: 3 }).build([
+  const chunks = new CaptionChunker().build([
     w('Hallo.', 0),
     w('Wir', 300),
     w('lernen', 600),
@@ -202,14 +197,6 @@ test('formatted captions with their own line breaks stay short single lines and 
   assert.equal(words.some((w) => w.estimated || w.cueStart || w.lineBreak), false);
   const chunks = new CaptionChunker().build(words);
   assert.deepEqual(chunks.map((c) => c.text), [
-    'Like, long introductions are no good.',
-    'Sam knows.',
-    'Alright, ready, everybody?',
-    "I'm not gonna ask if the mic",
-    'is working like in every talk so far.',
-  ]);
-  const short = new CaptionChunker({ style: 'tiktok' }).build(words);
-  assert.deepEqual(short.map((c) => c.text), [
     'Like, long introductions',
     'are no good.',
     'Sam knows.',
@@ -218,7 +205,7 @@ test('formatted captions with their own line breaks stay short single lines and 
     'mic is working like',
     'in every talk so far.',
   ]);
-  for (const chunk of [...chunks, ...short]) assert.equal(chunk.words.some((w) => w.lineBreak), false);
+  for (const chunk of chunks) assert.equal(chunk.words.some((w) => w.lineBreak), false);
 });
 
 test('parseWords spreads manual sentence timing and drops rolling repeats', () => {

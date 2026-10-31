@@ -37,14 +37,14 @@ test('live chunker emits whole chunks only, capped in size', () => {
   assert.equal(c.flush(), null);
 });
 
-test('live chunks are a little shorter, and shortest for the Short style', () => {
+test('live chunks are a little longer for Boring and follow a style change', () => {
   const words = 'one two three four five six seven'.split(' ');
-  assert.equal(new LiveChunker().push(words, 0)[0].text, 'one two three four five six');
-  const live = new LiveChunker({ style: 'tiktok' });
-  assert.equal(live.push(words, 0)[0].text, 'one two three four five');
-  live.setStyle('boring');
-  assert.deepEqual(live.push(['eight', 'nine', 'ten', 'eleven'], 0), []); // "six seven" stayed pending
-  assert.equal(live.flush().text, 'six seven eight nine ten eleven');
+  assert.equal(new LiveChunker().push(words, 0)[0].text, 'one two three four five');
+  const live = new LiveChunker({ style: 'boring' });
+  assert.equal(live.push(words, 0)[0].text, 'one two three four five six');
+  live.setStyle('frosted');
+  assert.deepEqual(live.push(['eight', 'nine', 'ten', 'eleven', 'twelve'], 0).map((c) => c.text), ['seven eight nine ten eleven']);
+  assert.equal(live.flush().text, 'twelve');
 });
 
 test('live chunker closes at sentence end', () => {

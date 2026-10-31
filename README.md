@@ -1,9 +1,10 @@
 # Stable Captions
 
 Replaces YouTube's flowing auto-captions with short, stable caption chunks
-(one line of about 7 words, shown whole) on a frosted, visionOS-inspired panel, with a
+(≤6 words, shown whole) on a frosted, visionOS-inspired panel, with a
 subtle emphasis on the word being spoken. A bold, playful **Short** style and a
-**Boring** one (YouTube's white on black in your system font, for legibility;
+**Boring** one (YouTube's white on black in your system font, a full line of up to 7
+words, for legibility;
 its word highlight starts off) are available from the toolbar popup.
 
 Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd)

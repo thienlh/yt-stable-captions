@@ -231,8 +231,8 @@
   <div class="row">
     <label>Chunks
       <select id="chunks">
-        <option value="short">Short phrases (≤30 chars) · Short style</option>
-        <option value="line" selected>One subtitle line (≤42 chars) · Frosted, Boring</option>
+        <option value="short">Short phrases (≤30 chars) · Frosted, Short</option>
+        <option value="line">One subtitle line (≤42 chars) · Boring</option>
         <option value="two">Two lines (≤84 chars) · broadcast</option>
       </select>
     </label>
@@ -326,8 +326,8 @@
   ];
 
   const CHUNKS = {
-    short: { style: 'tiktok' },
-    line: {},
+    short: {},
+    line: { style: 'boring' },
     two: { maxWords: 99, maxChars: 84, minCommaWords: 99 }, // broadcast: fill two lines, sentence ends still break
   };
 
