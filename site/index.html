@@ -34,6 +34,12 @@
     font-weight: 500;
     font-display: swap;
   }
+  @font-face { /* subset to the sticker's letters only: "beta!" */
+    font-family: "Stable Hand";
+    src: url("fonts/Caveat-Bold-beta.woff2") format("woff2");
+    font-weight: 700;
+    font-display: block;
+  }
   @font-face {
     font-family: Inter;
     src: url("fonts/InterVariable.woff2") format("woff2");
@@ -47,6 +53,8 @@
     --blue-soft: #c5d4ef;
     --ink: #1c1c20;
     --stage: #12131a;
+    --spring: cubic-bezier(.34, 1.56, .64, 1);
+    --fold: cubic-bezier(.65, 0, .35, 1);
   }
 
   * { box-sizing: border-box; }
@@ -106,6 +114,7 @@
     color: rgba(251, 250, 248, 0.82);
   }
   .install {
+    position: relative;
     display: inline-flex;
     align-items: center;
     padding: 9px 16px;
@@ -121,6 +130,8 @@
   .tip-btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
+    width: calc(8ch + 34px); /* "um, tip?" in Paper Mono, so the pill keeps its size as "um," folds */
     padding: 9px 16px;
     border-radius: 999px;
     border: 1px solid rgba(251, 250, 248, 0.55);
@@ -131,6 +142,48 @@
     line-height: 18px;
   }
   .tip-btn:hover { border-color: #fff; color: #fff; }
+  /* Clean verbatim on the tip button: "um," is struck out, then folds away like the demo's fillers. */
+  .um {
+    display: inline-block;
+    max-width: 3ch;
+    margin-right: 1ch;
+    overflow: hidden;
+    white-space: nowrap;
+    background: linear-gradient(currentColor, currentColor) no-repeat 0 55% / 0 1.5px;
+    transition: max-width 480ms var(--fold), margin-right 480ms var(--fold), opacity 320ms ease, background-size 160ms ease 480ms;
+  }
+  .tip-btn:hover .um,
+  .tip-btn:focus-visible .um,
+  .tip-btn.cleaned .um {
+    max-width: 0;
+    margin-right: 0;
+    opacity: 0;
+    background-size: 100% 1.5px;
+    transition: background-size 180ms ease, max-width 480ms var(--fold) 220ms, margin-right 480ms var(--fold) 220ms, opacity 320ms ease 300ms;
+  }
+
+  /* The popup's "picked!" sticker, slapped on the Safari beta links. */
+  .sticker {
+    display: inline-block;
+    padding: 1px 8px 2px;
+    border-radius: 7px;
+    font: normal 700 16px/18px "Stable Hand", Caveat, cursive;
+    color: #fff;
+    background: #5f7fc2;
+    box-shadow: 0 1.5px 0 rgba(0, 0, 0, 0.18);
+    rotate: 7deg;
+    animation: sticker-slap 360ms var(--spring) 500ms both;
+    transition: rotate 260ms var(--spring), scale 260ms var(--spring);
+    pointer-events: none;
+  }
+  .stores .sticker { margin-left: 6px; }
+  .install .sticker { position: absolute; right: -22px; top: -16px; }
+  a:hover > .sticker,
+  a:focus-visible > .sticker { rotate: -6deg; scale: 1.12; }
+  @keyframes sticker-slap {
+    from { scale: 0; }
+    to { scale: 1; }
+  }
 
   .hero {
     display: flex;
@@ -431,7 +484,7 @@
   footer a { color: var(--blue-soft); text-decoration: none; }
   footer a:hover { color: #fff; text-decoration: underline; }
   .stores { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
-  .stores span { color: rgba(251, 250, 248, 0.5); }
+  .stores > span { color: rgba(251, 250, 248, 0.5); }
   .stores .tip-btn { margin-left: 8px; }
 
   @media (max-width: 980px) {
@@ -451,7 +504,10 @@
     #ytsc-overlay.ytsc-demo .ytsc-drop,
     #ytsc-toast,
     kbd,
-    .key { transition: none; }
+    .key,
+    .um,
+    .sticker { transition: none !important; }
+    .sticker { animation: none; }
   }
   @media (max-width: 640px) {
     .for { display: none; }
@@ -483,7 +539,7 @@
       </a>
       <div class="nav-end">
         <span class="for">for YouTube</span>
-        <a class="tip-btn" href="https://ko-fi.com/stablecaptions">Tip</a>
+        <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
         <a class="install" href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Add to Chrome</a>
       </div>
     </header>
@@ -531,20 +587,35 @@
     <footer id="get">
       <div class="stores">
         <span>Get it</span>
-        <a href="#">Safari</a>
+        <a href="https://testflight.apple.com/join/htQvssyM">Safari<span class="sticker">beta!</span></a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
         <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
-        <a class="tip-btn" href="https://ko-fi.com/stablecaptions">Tip</a>
+        <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
       </div>
+      <p>The Safari version is in beta. Join it on TestFlight to help test it on your Mac before it reaches the App Store.</p>
       <p>Stable Captions collects nothing. It runs only on youtube.com, and your settings stay in the browser. After installing, turn it on and allow it on youtube.com.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
     </footer>
   </div>
   <script>
+    const install = document.querySelector('header .install');
     if (/Firefox\//.test(navigator.userAgent)) {
-      const install = document.querySelector('header .install');
       install.href = 'https://addons.mozilla.org/firefox/addon/stable-captions/';
       install.textContent = 'Add to Firefox';
+    } else if (/Macintosh/.test(navigator.userAgent) && /Version\/[\d.]+.*Safari\//.test(navigator.userAgent) && navigator.maxTouchPoints < 2) {
+      // Safari on a Mac. Chrome and Edge also say "Safari/" but not "Version/"; iPads say "Macintosh" but have touch.
+      install.href = 'https://testflight.apple.com/join/htQvssyM';
+      install.textContent = 'Help test in Safari';
+      install.append(document.querySelector('#get .sticker').cloneNode(true));
+    }
+    // Without hover, fold the footer tip's "um," once it scrolls into view.
+    if (matchMedia('(hover: none)').matches && 'IntersectionObserver' in window) {
+      const tip = document.querySelector('#get .tip-btn');
+      new IntersectionObserver((entries, observer) => {
+        if (!entries[0].isIntersecting) return;
+        observer.disconnect();
+        setTimeout(() => tip.classList.add('cleaned'), 700);
+      }, { threshold: 1 }).observe(tip);
     }
   </script>
   <script src="paper-shaders.js"></script>

@@ -14,9 +14,11 @@ const fonts = [
   'PaperMono-Regular-latin.woff2',
   'PaperMono-Medium-latin.woff2',
   'InterVariable.woff2',
+  'Caveat-Bold-beta.woff2',
   'InstrumentSerif-LICENSE.txt',
   'PaperMono-LICENSE.txt',
   'Inter-LICENSE.txt',
+  'Caveat-LICENSE.txt',
 ];
 
 fs.rmSync(out, { recursive: true, force: true });
