@@ -8,13 +8,20 @@
   };
 
   const DEFAULTS = {
-    maxWords: 6, // TikTok-style short bursts
-    maxChars: 30, // ~2 lines at the overlay's max width
+    maxWords: 8, // one glance; maxChars usually ends a chunk first
+    maxChars: 42, // one line of the Frosted and Boring panel (max-width 42ch)
     pauseMs: 600, // silence that forces a new chunk
     holdMs: 500, // keep a chunk visible briefly after its last word
-    minCommaWords: 3, // break after a comma once the chunk has this many words
+    minCommaWords: 5, // break after a comma once the chunk has this many words
     lineChars: 32, // wrap a manual caption line once it is longer than this
   };
+  // Per caption style (the `style` option). Short keeps TikTok-style bursts that
+  // fit its narrow box in about two lines.
+  const STYLE_OPTIONS = {
+    tiktok: { maxWords: 6, maxChars: 30, minCommaWords: 3 },
+  };
+  // Live chunks show only once complete, so every extra word shows them later.
+  const LIVE_MAX_WORDS = { default: 6, tiktok: 5 };
 
   /**
    * Where to cut a word stream into chunks. Shared by batch and live chunking.
@@ -22,7 +29,7 @@
    */
   class ChunkRules {
     constructor(options = {}, textUtils = null) {
-      this.opts = { ...DEFAULTS, ...options };
+      this.opts = { ...DEFAULTS, ...STYLE_OPTIONS[options.style], ...options };
       this.text = textUtils || loadDep('TextUtils', './text-utils.js');
     }
 
@@ -107,7 +114,13 @@
    */
   class CaptionChunker {
     constructor(options = {}) {
-      this.rules = new ChunkRules(options);
+      this.options = options;
+      this.setStyle(options.style);
+    }
+
+    /** Chunk for this caption style from now on (the next build). */
+    setStyle(style) {
+      this.rules = new ChunkRules({ ...this.options, style });
     }
 
     build(words) {
@@ -142,9 +155,16 @@
    */
   class LiveChunker {
     constructor(options = {}) {
-      this.rules = new ChunkRules({ maxWords: 5, ...options });
+      this.options = options;
+      this.setStyle(options.style);
       this.pending = [];
       this.count = 0;
+    }
+
+    /** Chunk for this caption style from now on; words already pending stay. */
+    setStyle(style) {
+      const maxWords = LIVE_MAX_WORDS[style] ?? LIVE_MAX_WORDS.default;
+      this.rules = new ChunkRules({ maxWords, ...this.options, style });
     }
 
     /** Returns the chunks completed by these words (possibly none). */

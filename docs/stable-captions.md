@@ -1,6 +1,6 @@
 # Stable Captions
 
-YouTube's auto-captions scroll word by word, so you end up reading a moving line. Stable Captions replaces them with short chunks of up to six words. Each chunk appears whole and stays put until the next one, with a soft highlight on the word being spoken.
+YouTube's auto-captions scroll word by word, so you end up reading a moving line. Stable Captions replaces them with short chunks of up to eight words, about one line. Each chunk appears whole and stays put until the next one, with a soft highlight on the word being spoken.
 
 ## Features
 

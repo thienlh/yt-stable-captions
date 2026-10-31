@@ -20,8 +20,38 @@ test('chunks stay short: max words and max chars', () => {
   }
 });
 
+test('chunks fill one line by default; the Short style keeps short bursts', () => {
+  const words = 'one two three four five six seven eight nine ten'.split(' ').map((t, i) => w(t, i * 300));
+  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), [
+    'one two three four five six seven eight',
+    'nine ten',
+  ]);
+  assert.deepEqual(new CaptionChunker({ style: 'tiktok' }).build(words).map((c) => c.text), [
+    'one two three four five six',
+    'seven eight nine ten',
+  ]);
+  for (const c of new CaptionChunker().build('Everything considered, extraordinary circumstances demand improvisation'.split(' ').map((t, i) => w(t, i * 300)))) {
+    assert.ok(c.text.length <= 42, c.text);
+  }
+});
+
+test('setStyle changes the chunk length of the next build', () => {
+  const words = 'one two three four five six seven eight'.split(' ').map((t, i) => w(t, i * 300));
+  const chunker = new CaptionChunker({ maxChars: 99 });
+  chunker.setStyle('tiktok');
+  assert.deepEqual(chunker.build(words).map((c) => c.text), ['one two three four five six', 'seven eight']);
+  chunker.setStyle('frosted');
+  assert.equal(chunker.build(words).length, 1);
+});
+
+test('a comma breaks a chunk once it is long enough for the style', () => {
+  const words = [w('So', 0), w('one,', 300), w('two', 600), w('three,', 900), w('four', 1200)];
+  assert.deepEqual(new CaptionChunker({ style: 'tiktok' }).build(words).map((c) => c.text), ['So one, two three,', 'four']);
+  assert.deepEqual(new CaptionChunker().build(words).map((c) => c.text), ['So one, two three, four']);
+});
+
 test('chunks break at sentence ends, commas and pauses', () => {
-  const chunks = new CaptionChunker().build([
+  const chunks = new CaptionChunker({ minCommaWords: 3 }).build([
     w('Hallo.', 0),
     w('Wir', 300),
     w('lernen', 600),
@@ -149,6 +179,14 @@ test('formatted captions with their own line breaks stay short single lines and 
   assert.equal(words.some((w) => w.estimated || w.cueStart || w.lineBreak), false);
   const chunks = new CaptionChunker().build(words);
   assert.deepEqual(chunks.map((c) => c.text), [
+    'Like, long introductions are no good.',
+    'Sam knows.',
+    'Alright, ready, everybody?',
+    "I'm not gonna ask if the mic is",
+    'working like in every talk so far.',
+  ]);
+  const short = new CaptionChunker({ style: 'tiktok' }).build(words);
+  assert.deepEqual(short.map((c) => c.text), [
     'Like, long introductions are',
     'no good.',
     'Sam knows.',
@@ -157,7 +195,7 @@ test('formatted captions with their own line breaks stay short single lines and 
     'mic is working like in every',
     'talk so far.',
   ]);
-  for (const chunk of chunks) assert.equal(chunk.words.some((w) => w.lineBreak), false);
+  for (const chunk of [...chunks, ...short]) assert.equal(chunk.words.some((w) => w.lineBreak), false);
 });
 
 test('parseWords spreads manual sentence timing and drops rolling repeats', () => {
