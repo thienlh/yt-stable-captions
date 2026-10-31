@@ -7,6 +7,7 @@ available from the toolbar popup.
 
 Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd)
 or on Firefox from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/).
+The Safari version is in beta: [join it on TestFlight](https://testflight.apple.com/join/htQvssyM) to help test it on your Mac.
 If it is useful, [tip on Ko-fi](https://ko-fi.com/stablecaptions).
 
 ## What it does
