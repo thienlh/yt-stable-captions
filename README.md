@@ -1,7 +1,7 @@
 # Stable Captions
 
 Replaces YouTube's flowing auto-captions with short, stable caption chunks
-(one line of up to 8 words, shown whole) on a frosted, visionOS-inspired panel, with a
+(one line of about 7 words, shown whole) on a frosted, visionOS-inspired panel, with a
 subtle emphasis on the word being spoken. A bold, playful **Short** style and a
 **Boring** one (YouTube's white on black in your system font, for legibility;
 its word highlight starts off) are available from the toolbar popup.
