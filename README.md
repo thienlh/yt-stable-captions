@@ -2,8 +2,9 @@
 
 Replaces YouTube's flowing auto-captions with short, stable caption chunks
 (≤6 words, shown whole) on a frosted, visionOS-inspired panel, with a
-subtle emphasis on the word being spoken. A bold, playful **Short** style is
-available from the toolbar popup.
+subtle emphasis on the word being spoken. A bold, playful **Short** style and a
+**Boring** one (YouTube's white on black in your system font, for legibility;
+its word highlight starts off) are available from the toolbar popup.
 
 Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd)
 or on Firefox from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/).
@@ -43,7 +44,7 @@ remove the flowing-text distraction.
 - `src/content/overlay.js` — DOM rendering only
 - `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>`, font registration (isolated world)
 - `src/core/settings.js` — settings vocabulary (keys, defaults, sizes, levels, labels) shared by popup and bridge
-- `src/popup/` — toolbar popup: both styles previewed live, size, background, clean verbatim
+- `src/popup/` — toolbar popup: every style previewed live, size, background, clean verbatim
 - `src/content/main.js` — composition root (`StableCaptionsController`)
 
 Core files attach to `globalThis.YTSC` and also export via CommonJS, so the
