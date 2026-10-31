@@ -24,6 +24,9 @@ test('every window level has a styles.css rule (defaults are the base values)', 
   for (const level of Settings.WINDOWS.tiktok.levels.filter((l) => l !== 'off')) {
     assert.match(css, new RegExp(`data-ytsc-tiktok-window="${level}"\\]`), `short ${level}`);
   }
+  for (const level of Settings.WINDOWS.boring.levels.filter((l) => l !== '75')) {
+    assert.match(css, new RegExp(`data-ytsc-boring-window="${level}"\\]`), `boring ${level}`);
+  }
 });
 
 test('defaults are valid values, with clean verbatim on', () => {
@@ -32,8 +35,10 @@ test('defaults are valid values, with clean verbatim on', () => {
   assert.ok(Settings.SIZES.includes(d.size));
   assert.ok(Settings.WINDOWS.frosted.levels.includes(d.frostedWindow));
   assert.ok(Settings.WINDOWS.tiktok.levels.includes(d.tiktokWindow));
+  assert.ok(Settings.WINDOWS.boring.levels.includes(d.boringWindow));
   assert.equal(d.clean, true);
   assert.equal(d.highlight, true);
+  assert.equal(d.boringHighlight, false, 'Boring starts plain');
   assert.equal(Settings.STYLE_LABELS.tiktok, 'Short');
 });
 
@@ -59,4 +64,24 @@ test('word highlight off has a styles.css rule that beats both styles', () => {
   assert.match(css, /html\[data-ytsc-highlight="false"\] #ytsc-overlay \.ytsc-word\.ytsc-active/);
   const off = css.indexOf('data-ytsc-highlight="false"');
   assert.ok(off > css.lastIndexOf('html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active'), 'comes after the Short rule');
+});
+
+test('every style has a label, a tag and window levels', () => {
+  for (const style of Settings.STYLES) {
+    assert.ok(Settings.STYLE_LABELS[style], `${style} label`);
+    assert.ok(Settings.STYLE_TAGS[style], `${style} tag`);
+    assert.ok(Settings.WINDOWS[style], `${style} window`);
+  }
+});
+
+test('Boring shows every word at full contrast in the system font, with its own highlight', () => {
+  const rule = css.match(/html\[data-ytsc-style="boring"\] #ytsc-overlay \{([^}]*)\}/);
+  assert.ok(rule, 'boring overlay rule');
+  assert.match(rule[1], /font-family: system-ui/);
+  assert.match(rule[1], /transition: none/, 'no slide when the controls show');
+  assert.match(css, /html\[data-ytsc-style="boring"\] #ytsc-overlay \.ytsc-word\.ytsc-active \{[^}]*opacity: 1/);
+  assert.match(css, /html\[data-ytsc-style="boring"\]\[data-ytsc-boring-highlight="true"\] #ytsc-overlay \.ytsc-word\.ytsc-active/);
+  assert.equal(Settings.highlightSetting('boring'), 'boringHighlight');
+  assert.equal(Settings.highlightSetting('frosted'), 'highlight');
+  assert.equal(Settings.highlightSetting('tiktok'), 'highlight');
 });

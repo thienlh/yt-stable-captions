@@ -180,6 +180,21 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   pointer-events: none;
 }
 .style-card.sel .sticker { transform: rotate(7deg) scale(1); }
+/* Boring is the quiet extra: one slim row, its name beside a strip of the video
+   with the caption centred at the size the other previews use. */
+.style-card.slim {
+  grid-column: 1 / -1;
+  grid-template-columns: auto 1fr; align-items: center; gap: 10px;
+  padding: 4px;
+}
+.style-card.slim .sc-name { flex-direction: column; gap: 1px; padding: 0 0 0 8px; }
+.style-card.slim .pv { aspect-ratio: auto; height: 38px; border-radius: 10px; }
+.style-card.slim .cap {
+  /* The size the cards above use (they are ~81px tall), capped so two lines fit. */
+  --fs: min(calc(var(--pv-size, 0.03) * 300px), 11px);
+  bottom: 50%; transform: translate(-50%, 50%);
+  max-width: 94%;
+}
 
 /* ---------- Mini caption previews (mirror src/content/styles.css, scaled up) ---------- */
 .pv {
@@ -236,6 +251,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     0 0.12em 0.25em rgba(0, 0, 0, 0.6);
 }
 .cap.tiktok.fresh { animation: pop 140ms ease-out; }
+.cap.boring {
+  font: 500 var(--fs)/1.35 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  padding: 0.2em 0.5em;
+  border-radius: 0.15em;
+  background: rgba(8, 8, 8, var(--pv-boring-alpha, 0.75));
+}
+.cap.boring .w.cur { color: #ffe135; }
 .cap.tiktok .w { display: inline-block; transition: color 80ms, transform 80ms; }
 .cap.tiktok .w.cur { color: #ffe135; transform: scale(1.08); }
 /* Word highlight off: the previews show each caption plainly, like the video. */

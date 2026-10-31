@@ -64,6 +64,9 @@ html[data-ytsc-tiktok-window="50"] { --ytsc-tt-alpha: 0.5; }
 html[data-ytsc-tiktok-window="75"] { --ytsc-tt-alpha: 0.75; }
 html[data-ytsc-tiktok-window="100"] { --ytsc-tt-alpha: 1; }
 html[data-ytsc-tiktok-window]:not([data-ytsc-tiktok-window="off"]) { --ytsc-tt-pad: 0.12em 0.45em; --ytsc-tt-radius: 0.3em; }
+html[data-ytsc-boring-window="25"] { --ytsc-boring-alpha: 0.25; }
+html[data-ytsc-boring-window="50"] { --ytsc-boring-alpha: 0.5; }
+html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 /* Sit above the control bar while it is showing, like native captions. */
 .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
@@ -153,6 +156,39 @@ html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active {
   color: #ffe135;
   transform: scale(1.08);
   text-shadow: inherit;
+}
+
+/* ---------- Optional "Boring" style (popup setting → html[data-ytsc-style]) ---------- */
+/* An accessibility option: YouTube's white on black, in the OS's own UI font, with
+   no blur, glow, dimmed words or motion. Its word highlight is its own setting
+   (html[data-ytsc-boring-highlight], off by default): the spoken word turns yellow. */
+
+html[data-ytsc-style="boring"] #ytsc-overlay {
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-weight: 500;
+  line-height: 1.35;
+  padding: 0.2em 0.5em;
+  border-radius: 0.15em;
+  background: rgba(8, 8, 8, var(--ytsc-boring-alpha, 0.75));
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  box-shadow: none;
+  text-shadow: none;
+  transition: none; /* jumps above the control bar instead of sliding */
+}
+
+/* Every word at full contrast; Frosted's dimming and glow don't apply. */
+html[data-ytsc-style="boring"] #ytsc-overlay .ytsc-word,
+html[data-ytsc-style="boring"] #ytsc-overlay .ytsc-word.ytsc-active {
+  opacity: 1;
+  color: inherit;
+  text-shadow: none;
+  transition: none;
+}
+
+/* More specific than the highlight-off rule below, which follows the other styles' setting. */
+html[data-ytsc-style="boring"][data-ytsc-boring-highlight="true"] #ytsc-overlay .ytsc-word.ytsc-active {
+  color: #ffe135;
 }
 
 /* Word highlight off (popup / h): every word as is, in both styles. After the

@@ -8,7 +8,7 @@
    * storage; settings-bridge.js applies them to open YouTube tabs.
    */
   const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
-  const { DEFAULTS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel, sizeMigration } = Settings;
+  const { DEFAULTS, STYLES, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel, sizeMigration, highlightSetting } = Settings;
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
 
@@ -18,7 +18,7 @@
   // ---------- Live previews (the extension's own chunker and cleaner) ----------
 
   const FROSTED_LEVELS = { clear: [0.12, 10], light: [0.25, 14], medium: [0.38, 16], dark: [0.55, 18], solid: [0.78, 20] };
-  const SHORT_ALPHA = { off: 0, 25: 0.25, 50: 0.5, 75: 0.75, 100: 1 };
+  const BOX_ALPHA = { off: 0, 25: 0.25, 50: 0.5, 75: 0.75, 100: 1 }; // Short's and Boring's background
 
   const SAMPLE = '[Music] So, um, I I think captions should feel, uh, calm and easy. Every word lands where you expect it.';
   const SAMPLE_WORDS = (() => {
@@ -49,10 +49,11 @@
       const [alpha, blur] = FROSTED_LEVELS[state.frostedWindow] || FROSTED_LEVELS.medium;
       this.el.style.setProperty('--pv-alpha', alpha);
       this.el.style.setProperty('--pv-blur', `${blur}px`);
-      const shortAlpha = SHORT_ALPHA[state.tiktokWindow] ?? 0;
+      const shortAlpha = BOX_ALPHA[state.tiktokWindow] ?? 0;
       this.el.style.setProperty('--pv-tt-alpha', shortAlpha);
       this.el.style.setProperty('--pv-tt-pad', shortAlpha ? '.12em .45em' : '0');
-      this.el.classList.toggle('plain', !state.highlight);
+      this.el.style.setProperty('--pv-boring-alpha', BOX_ALPHA[state.boringWindow] ?? 0.75);
+      this.el.classList.toggle('plain', !state[highlightSetting(this.style)]);
       this.current = undefined; // repaint: the words may have changed
     }
 
@@ -133,8 +134,9 @@
       b.setAttribute('aria-pressed', String(sel));
     }
 
-    $('highlight').setAttribute('aria-checked', String(state.highlight));
-    $('highlight-hint').textContent = state.highlight ? 'Mark the word being spoken' : 'Show each caption plainly';
+    const highlight = state[highlightSetting(state.style)];
+    $('highlight').setAttribute('aria-checked', String(highlight));
+    $('highlight-hint').textContent = highlight ? 'Mark the word being spoken' : 'Show each caption plainly';
     $('clean').setAttribute('aria-checked', String(state.clean));
 
     previews.forEach((p) => p.apply());
@@ -152,6 +154,10 @@
     const i = Math.min(SIZES.length - 1, Math.max(0, SIZES.indexOf(state.size) + delta));
     update({ size: SIZES[i] });
   };
+  const toggleHighlight = () => {
+    const key = highlightSetting(state.style);
+    update({ [key]: !state[key] });
+  };
   const cycleWindow = () => {
     const w = WINDOWS[state.style];
     update({ [w.key]: w.levels[(w.levels.indexOf(state[w.key]) + 1) % w.levels.length] });
@@ -165,7 +171,7 @@
     if (t.dataset.style) update({ style: t.dataset.style });
     else if (t.dataset.sizeStep) stepSize(Number(t.dataset.sizeStep));
     else if (t.dataset.window) update({ [WINDOWS[state.style].key]: t.dataset.window });
-    else if (t.id === 'highlight') update({ highlight: !state.highlight });
+    else if (t.id === 'highlight') toggleHighlight();
     else if (t.id === 'clean') update({ clean: !state.clean });
   });
 
@@ -174,13 +180,13 @@
     if (e.ctrlKey || e.metaKey || e.repeat) return;
     if (e.altKey && !e.shiftKey && e.code === 'KeyC') {
       e.preventDefault();
-      update({ style: state.style === 'frosted' ? 'tiktok' : 'frosted' });
+      update({ style: STYLES[(STYLES.indexOf(state.style) + 1) % STYLES.length] });
     } else if (e.altKey) {
       return;
     } else if (e.key === '=' || e.key === '+') stepSize(1);
     else if (e.key === '-') stepSize(-1);
     else if (e.key === 'w') cycleWindow();
-    else if (e.key === 'h') update({ highlight: !state.highlight });
+    else if (e.key === 'h') toggleHighlight();
     else if (e.key === 'C' && e.shiftKey) update({ clean: !state.clean });
   });
 

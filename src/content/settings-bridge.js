@@ -33,14 +33,18 @@
   styles.href = api.runtime.getURL('src/content/styles.css');
   document.documentElement.appendChild(styles);
 
-  const { DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel, sizeMigration } = globalThis.YTSC.Settings;
+  const {
+    DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel, sizeMigration, highlightSetting,
+  } = globalThis.YTSC.Settings;
   const ATTRS = {
     style: 'ytscStyle',
     size: 'ytscSize',
     clean: 'ytscClean',
     highlight: 'ytscHighlight',
+    boringHighlight: 'ytscBoringHighlight',
     frostedWindow: 'ytscFrostedWindow',
     tiktokWindow: 'ytscTiktokWindow',
+    boringWindow: 'ytscBoringWindow',
   };
   const current = { ...DEFAULTS };
   const apply = (settings) => {
@@ -130,8 +134,9 @@
         return;
       }
       if (highlightKey) {
-        const on = !current.highlight;
-        setting('highlight', on, on ? 'Word highlight: on' : 'Word highlight: off');
+        const key = highlightSetting(current.style);
+        const on = !current[key];
+        setting(key, on, on ? 'Word highlight: on' : 'Word highlight: off');
         return;
       }
       if (windowKey) { // cycles like YouTube's own window-opacity key (wraps around)

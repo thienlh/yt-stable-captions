@@ -6,9 +6,9 @@
    * keys, defaults, allowed values and the labels people see.
    * Single responsibility: data only, no storage or DOM.
    */
-  const STYLES = ['frosted', 'tiktok']; // "tiktok" is the internal key of the style shown as "Short"
-  const STYLE_LABELS = { frosted: 'Frosted', tiktok: 'Short' };
-  const STYLE_TAGS = { frosted: 'calm', tiktok: 'fun' };
+  const STYLES = ['frosted', 'tiktok', 'boring']; // "tiktok" is the internal key of the style shown as "Short"
+  const STYLE_LABELS = { frosted: 'Frosted', tiktok: 'Short', boring: 'Boring' };
+  const STYLE_TAGS = { frosted: 'calm', tiktok: 'fun', boring: 'for accessibility' };
 
   const SIZES = ['tiny', 'xsmall', 'small', 'medium', 'large', 'xlarge', 'xxlarge'];
   const SIZE_LABELS = {
@@ -38,20 +38,28 @@
     return patch;
   };
 
-  // Window (background) levels are per style: the frosted panel vs. a box behind Short text.
+  // Window (background) levels are per style: the frosted panel, a box behind Short text,
+  // or Boring's black box (YouTube's levels, minus none: it is there for legibility).
   const WINDOWS = {
     frosted: { key: 'frostedWindow', levels: ['clear', 'light', 'medium', 'dark', 'solid'], label: 'Frosted panel' },
     tiktok: { key: 'tiktokWindow', levels: ['off', '25', '50', '75', '100'], label: 'Background' },
+    boring: { key: 'boringWindow', levels: ['25', '50', '75', '100'], label: 'Background' },
   };
   const WINDOW_LABELS = { clear: 'Clear', light: 'Light', medium: 'Medium', dark: 'Dark', solid: 'Solid', off: 'Off' };
   const windowLabel = (level) => WINDOW_LABELS[level] || `${level}%`;
 
-  // highlight: mark the word being spoken; off shows each caption plainly.
-  const DEFAULTS = { style: 'frosted', size: 'medium', clean: true, highlight: true, frostedWindow: 'medium', tiktokWindow: 'off' };
+  // highlight: mark the word being spoken; off shows each caption plainly. Boring keeps
+  // its own, off by default, so it starts out as plain as YouTube's captions.
+  const highlightSetting = (style) => (style === 'boring' ? 'boringHighlight' : 'highlight');
+
+  const DEFAULTS = {
+    style: 'frosted', size: 'medium', clean: true, highlight: true, boringHighlight: false,
+    frostedWindow: 'medium', tiktokWindow: 'off', boringWindow: '75',
+  };
 
   const Settings = {
     STYLES, STYLE_LABELS, STYLE_TAGS, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, WINDOW_LABELS, DEFAULTS, windowLabel,
-    sizeMigration,
+    sizeMigration, highlightSetting,
   };
 
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, { Settings });
