@@ -98,7 +98,10 @@
     el.textContent = text;
     el.classList.add('ytsc-toast-visible');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => el.classList.remove('ytsc-toast-visible'), 1200);
+    // main.js (page world) shows this toast too, with its own timer: hide only our message.
+    toastTimer = setTimeout(() => {
+      if (el.textContent === text) el.classList.remove('ytsc-toast-visible');
+    }, 1200);
   };
 
   const setting = (key, value, message) => {

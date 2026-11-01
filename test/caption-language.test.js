@@ -153,3 +153,38 @@ test('the original selection reads auto-translation from the player track', () =
   assert.equal(original.track, EN);
   assert.equal(original.translationLanguage, 'de');
 });
+
+test('a translation only matches when its source track matches too', () => {
+  const { controller } = setup();
+  const asrToVi = { track: EN, translationLanguage: 'vi' };
+  const manualToVi = tap('https://www.youtube.com/api/timedtext?v=abc&lang=en&tlang=vi');
+  assert.equal(controller.entryMatchesSelection(manualToVi, asrToVi), false);
+  assert.equal(controller.entryMatchesSelection(tap(`${EN.baseUrl}&tlang=vi`), asrToVi), true);
+
+  // A cached translation of another source track is not replayed.
+  controller.rememberTap(manualToVi);
+  assert.equal(controller.cachedTap(asrToVi), null);
+});
+
+test('a stalled load of the requested tap still ends the switch at the timeout', async () => {
+  const { controller } = setup();
+  controller.selectionTimeoutMs = 5;
+  controller.loadFromTap = () => new Promise(() => {}); // e.g. a json3 re-download that never answers
+
+  const switching = controller.toggleCaptionLanguage();
+  void controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  await switching;
+  assert.equal(controller.toasts[0], 'Tiếng Việt captions did not load');
+  assert.equal(controller.languageSwitching, false);
+});
+
+test('a failing load of the requested tap ends the switch', async () => {
+  const { controller } = setup();
+  controller.loadFromTap = async () => { throw new Error('bad payload'); };
+
+  const switching = controller.toggleCaptionLanguage();
+  await assert.rejects(controller.onTap(tap(`${EN.baseUrl}&tlang=vi`)), /bad payload/);
+  await switching;
+  assert.equal(controller.toasts[0], 'Tiếng Việt captions did not load');
+  assert.equal(controller.languageSwitching, false);
+});

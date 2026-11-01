@@ -114,9 +114,14 @@
       // While a shortcut switch is in flight, only the requested language may load.
       if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
       this.pendingSelection = null;
-      clearTimeout(pending.timer);
-      const loaded = await this.loadFromTap(entry);
-      pending.resolve?.(loaded);
+      // The timeout keeps running: a non-JSON tap is downloaded again, which can stall.
+      let loaded = false;
+      try {
+        loaded = await this.loadFromTap(entry);
+      } finally {
+        clearTimeout(pending.timer);
+        pending.resolve?.(loaded);
+      }
     }
 
     rememberTap(entry) {
@@ -172,15 +177,16 @@
       const { TrackProvider } = globalThis.YTSC;
       try {
         const u = new URL(entry.url, globalThis.location?.href || 'https://www.youtube.com/');
-        const translated = u.searchParams.get('tlang');
-        if (selection.translationLanguage) {
-          return TrackProvider.languageMatches(translated, selection.translationLanguage);
-        }
-        if (translated) return false;
         // Manual and ASR tracks share a language code; only `kind` tells them apart.
-        return TrackProvider.normalizeLanguage(u.searchParams.get('lang')) ===
+        // A translation names its source track the same way, plus `tlang`.
+        const sameSource = TrackProvider.normalizeLanguage(u.searchParams.get('lang')) ===
             TrackProvider.normalizeLanguage(selection.track.languageCode) &&
           (u.searchParams.get('kind') || '') === (selection.track.kind || '');
+        const translated = u.searchParams.get('tlang');
+        if (selection.translationLanguage) {
+          return sameSource && TrackProvider.languageMatches(translated, selection.translationLanguage);
+        }
+        return sameSource && !translated;
       } catch {
         return false;
       }
@@ -262,8 +268,10 @@
       if (cached) return this.loadFromTap(cached);
       // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
       this.startLiveMode();
+      // Fires while waiting for the tap or while loading it; a promise settles only once.
       pending.timer = setTimeout(() => {
-        if (this.pendingSelection === pending) this.settlePending(false);
+        if (this.pendingSelection === pending) this.pendingSelection = null;
+        pending.resolve(false);
       }, this.selectionTimeoutMs);
       return loaded;
     }
@@ -338,7 +346,10 @@
       el.textContent = text;
       el.classList.add('ytsc-toast-visible');
       clearTimeout(this.toastTimer);
-      this.toastTimer = setTimeout(() => el.classList.remove('ytsc-toast-visible'), 1600);
+      // settings-bridge.js shows this toast too, with its own timer: hide only our message.
+      this.toastTimer = setTimeout(() => {
+        if (el.textContent === text) el.classList.remove('ytsc-toast-visible');
+      }, 1600);
     }
 
     currentVideoId() {
