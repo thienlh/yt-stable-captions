@@ -36,6 +36,7 @@
       this.pendingSelection = null;
       this.selectionTimeoutMs = 10000;
       this.taps = []; // this video's tapped downloads, reused when the player answers from its cache
+      this.loadGeneration = 0; // bumped by every new caption source; stale downloads check it
       this.toastTimer = 0;
     }
 
@@ -144,6 +145,7 @@
     }
 
     async loadFromTap(entry) {
+      const generation = ++this.loadGeneration;
       let payload = null;
       try {
         payload = JSON.parse(entry.body);
@@ -155,6 +157,8 @@
           this.log(`[ytsc] tap refetch failed: ${err?.message || err}`);
           return false;
         }
+        // A language switch or navigation started while this downloaded: it no longer applies.
+        if (generation !== this.loadGeneration) return false;
       }
       return this.useTimeline(payload, entry.url, `tap lang=${entry.lang}`);
     }
@@ -258,6 +262,7 @@
       const loaded = pending && new Promise((resolve) => { pending.resolve = resolve; });
       this.settlePending(false);
       this.pendingSelection = pending;
+      this.loadGeneration++;
       try {
         player.setOption('captions', 'track', track);
       } catch (err) {
@@ -396,6 +401,7 @@
         this.settlePending(false);
       }
       this.videoId = videoId;
+      this.loadGeneration++;
       try {
         const found = this.provider.getTracksWithSource
           ? this.provider.getTracksWithSource()

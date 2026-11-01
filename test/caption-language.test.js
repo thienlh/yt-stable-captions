@@ -188,3 +188,28 @@ test('a failing load of the requested tap ends the switch', async () => {
   assert.equal(controller.toasts[0], 'Tiếng Việt captions did not load');
   assert.equal(controller.languageSwitching, false);
 });
+
+test('a slow download from an earlier switch does not replace newer captions', async (t) => {
+  globalThis.location = new URL('https://www.youtube.com/watch?v=abc'); // withJson3 resolves against it
+  t.after(() => { delete globalThis.location; });
+  const { controller, calls } = setup();
+  controller.selectionTimeoutMs = 5;
+  controller.rememberTap(tap(EN.baseUrl));
+  let finishStale;
+  controller.provider.fetchUrl = () => new Promise((resolve) => { finishStale = resolve; });
+
+  // The translated tap is not JSON, so it is downloaded again, and that outlasts the timeout.
+  const switching = controller.toggleCaptionLanguage();
+  void controller.onTap({ ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' });
+  await switching;
+  assert.equal(controller.browserCaptions, true);
+
+  // Shift+L again restores the original, then the stale download finishes.
+  await controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  assert.equal(controller.loaded.at(-1), EN.baseUrl);
+  finishStale({});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.equal(controller.loaded.at(-1), EN.baseUrl);
+  assert.equal(controller.loaded.length, 1);
+});
