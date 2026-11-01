@@ -15,13 +15,20 @@ const safari = `${mac} AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Saf
 
 // Only model the DOM used by the inline install/picker script.
 function setup(userAgent = chrome, maxTouchPoints = 0) {
-  const installMarkup = html.match(/<a class="install" href="([^"]+)">([^<]+)<\/a>/);
+  const installMarkup = html.match(/<a class="install" href="([^"]+)"><span class="label">([^<]+)<\/span><span class="sticker">([^<]+)<\/span><\/a>/);
   assert.ok(installMarkup, 'primary install remains a direct anchor, not a summary');
+  const label = {
+    textContent: installMarkup[2],
+    words: [],
+    replaceChildren(...nodes) {
+      this.words = nodes.filter((node) => typeof node !== 'string');
+      this.textContent = nodes.map((node) => (typeof node === 'string' ? node : node.textContent)).join('');
+    },
+  };
+  const installSticker = { textContent: installMarkup[3] };
   const install = {
     href: installMarkup[1],
-    textContent: installMarkup[2],
-    children: [],
-    append(child) { this.children.push(child); },
+    querySelector(selector) { return { '.label': label, '.sticker': installSticker }[selector]; },
   };
   const summary = { focused: false, focus() { this.focused = true; } };
   const links = Array.from({ length: 4 }, () => new EventTarget());
@@ -31,24 +38,23 @@ function setup(userAgent = chrome, maxTouchPoints = 0) {
     querySelector(selector) { assert.equal(selector, 'summary'); return summary; },
     querySelectorAll(selector) { assert.equal(selector, 'a'); return links; },
   });
-  const sticker = { textContent: 'beta!' };
   const elements = {
     'header .install': install,
     '.browser-picker': picker,
-    '#get .sticker': { cloneNode: () => ({ ...sticker }) },
   };
   const document = Object.assign(new EventTarget(), {
     querySelector(selector) {
       assert.ok(elements[selector], `unexpected selector: ${selector}`);
       return elements[selector];
     },
+    createElement: () => ({ style: { setProperty(name, value) { this[name] = value; } } }),
   });
   vm.runInNewContext(script, {
     document,
     navigator: { userAgent, maxTouchPoints },
     matchMedia: () => ({ matches: false }),
   });
-  return { install, picker, summary, links, document };
+  return { install, label, sticker: installSticker, picker, summary, links, document };
 }
 
 for (const [name, ua, touch, label, href] of [
@@ -60,22 +66,28 @@ for (const [name, ua, touch, label, href] of [
   ['unknown browser', '', 0, 'Add to Chrome', chromeStore],
 ]) {
   test(`site install links directly to the store for ${name}`, () => {
-    const { install } = setup(ua, touch);
-    assert.equal(install.href, href);
-    assert.equal(install.textContent, label);
-    assert.equal(install.children.length, href === safariBeta ? 1 : 0);
+    const result = setup(ua, touch);
+    assert.equal(result.install.href, href);
+    assert.equal(result.label.textContent, label);
+    assert.equal(result.sticker.textContent, href === safariBeta ? 'beta!' : 'free!');
   });
 }
 
-test('hero and separate picker expose all browsers without JavaScript', () => {
-  assert.match(html, /<details class="browser-picker">\s*<summary>Other browsers<\/summary>/);
-  for (const className of ['browser-links', 'browser-options']) {
-    const nav = html.match(new RegExp(`<nav class="${className}"[^>]*>([\\s\\S]*?)<\\/nav>`))[1];
-    for (const [browser, href] of [['Chrome', chromeStore], ['Edge', chromeStore], ['Firefox', firefoxStore], ['Safari', safariBeta]]) {
-      assert.ok(nav.includes(`<a href="${href}">${browser}`), `${className} links to ${browser}`);
-    }
-    assert.match(nav, /Safari[\s\S]*beta/);
+test('install label is split into one word span per word, in order', () => {
+  const { label } = setup(safari);
+  assert.deepEqual(label.words.map((word) => word.textContent), ['Help', 'test', 'in', 'Safari']);
+  assert.deepEqual(label.words.map((word) => word.className), ['word', 'word', 'word', 'word']);
+  assert.deepEqual(label.words.map((word) => word.style['--i']), [0, 1, 2, 3]);
+});
+
+test('arrow picker beside the install link exposes all browsers without JavaScript', () => {
+  assert.match(html, /<details class="browser-picker">\s*<summary aria-label="Other browsers"[^>]*><\/summary>/);
+  assert.doesNotMatch(html, /class="browser-links"/, 'hero no longer repeats the footer store links');
+  const nav = html.match(/<nav class="browser-options"[^>]*>([\s\S]*?)<\/nav>/)[1];
+  for (const [browser, href] of [['Chrome', chromeStore], ['Edge', chromeStore], ['Firefox', firefoxStore], ['Safari', safariBeta]]) {
+    assert.ok(nav.includes(`<a href="${href}">${browser}`), `picker links to ${browser}`);
   }
+  assert.match(nav, /Safari[\s\S]*beta/);
 });
 
 test('Escape closes the picker and restores focus to its summary', () => {

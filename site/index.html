@@ -87,6 +87,11 @@
     justify-content: space-between;
     min-height: 44px;
   }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
   .lockup {
     display: flex;
     align-items: center;
@@ -113,18 +118,19 @@
     line-height: 18px;
     color: rgba(251, 250, 248, 0.82);
   }
-  .install-actions {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-  }
-  .install {
+  /* One pill: the store link, then an arrow that opens the other browsers. */
+  .install-split {
     position: relative;
     display: inline-flex;
+    transition: translate 90ms ease;
+  }
+  /* Pressed like the hero's keycaps. */
+  .install-split:has(.install:active, summary:active) { translate: 0 1px; }
+  .install {
+    display: inline-flex;
     align-items: center;
-    padding: 9px 16px;
-    border-radius: 999px;
+    padding: 9px 12px 9px 16px;
+    border-radius: 999px 0 0 999px;
     background: var(--paper);
     color: var(--ink);
     text-decoration: none;
@@ -133,29 +139,39 @@
     line-height: 18px;
   }
   .install:hover { background: #fff; }
-  .browser-picker { position: relative; z-index: 4; }
+  /* On hover the label is read out like a caption: each word lights up as it's spoken. */
+  .install:hover .word,
+  .install:focus-visible .word {
+    animation: install-speak 140ms ease calc(var(--i) * 170ms) both;
+  }
+  @keyframes install-speak {
+    from { opacity: 0.4; }
+    to { opacity: 1; }
+  }
+  .browser-picker { position: relative; z-index: 4; display: flex; }
   .browser-picker summary {
     display: flex;
     align-items: center;
-    gap: 8px;
-    color: var(--blue-soft);
-    font-size: 12px;
-    line-height: 20px;
-    white-space: nowrap;
+    padding: 0 14px 0 11px;
+    border-left: 1px solid rgba(28, 28, 32, 0.14);
+    border-radius: 0 999px 999px 0;
+    background: var(--paper);
+    color: var(--ink);
     cursor: pointer;
     list-style: none;
   }
   .browser-picker summary::-webkit-details-marker { display: none; }
   .browser-picker summary::after {
     content: "";
-    width: 5px;
-    height: 5px;
-    border-right: 1px solid currentColor;
-    border-bottom: 1px solid currentColor;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
     transform: translateY(-2px) rotate(45deg);
   }
-  .browser-picker[open] summary::after { transform: translateY(1px) rotate(225deg); }
-  .browser-picker summary:hover { color: #fff; }
+  .browser-picker[open] summary::after { transform: translateY(2px) rotate(225deg); }
+  .browser-picker summary:hover,
+  .browser-picker[open] summary { background: #fff; }
   .browser-options {
     position: absolute;
     top: calc(100% + 8px);
@@ -279,27 +295,6 @@
     line-height: 26px;
     color: rgba(251, 250, 248, 0.86);
   }
-  .availability {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 12px;
-    font-size: 14px;
-    line-height: 22px;
-  }
-  .availability > span { color: var(--blue-soft); }
-  .browser-links {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 6px 12px;
-  }
-  .browser-links a {
-    text-decoration-color: rgba(251, 250, 248, 0.4);
-    text-underline-offset: 4px;
-  }
-  .browser-links a:hover { color: #fff; text-decoration-color: #fff; }
-  .browser-links .sticker { margin-left: 4px; }
   .keys {
     list-style: none;
     margin: 0;
@@ -580,8 +575,10 @@
     kbd,
     .key,
     .um,
-    .sticker { transition: none !important; }
-    .sticker { animation: none; }
+    .sticker,
+    .install-split { transition: none !important; }
+    .sticker,
+    .install .word { animation: none !important; }
   }
   @media (max-width: 640px) {
     .for { display: none; }
@@ -601,7 +598,9 @@
     .ytsc-toast-hint { display: none; }
     .lockup { gap: 8px; font-size: 22px; }
     .lockup img { width: 30px; height: 30px; }
-    .install { padding: 8px 14px; font-size: 13px; }
+    .install { padding: 8px 10px 8px 14px; font-size: 13px; }
+    .browser-picker summary { padding: 0 12px 0 9px; }
+    .install .sticker { right: -10px; }
   }
 </style>
 </head>
@@ -609,17 +608,19 @@
   <div class="backdrop" aria-hidden="true"></div>
   <div class="page">
     <header>
-      <a class="lockup" href="/">
-        <img src="icon.png" width="36" height="36" alt="">
-        Stable Captions
-      </a>
-      <div class="nav-end">
+      <div class="brand">
+        <a class="lockup" href="/">
+          <img src="icon.png" width="36" height="36" alt="">
+          Stable Captions
+        </a>
         <span class="for">for YouTube</span>
+      </div>
+      <div class="nav-end">
         <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
-        <div class="install-actions">
-          <a class="install" href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Add to Chrome</a>
+        <div class="install-split">
+          <a class="install" href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd"><span class="label">Add to Chrome</span><span class="sticker">free!</span></a>
           <details class="browser-picker">
-            <summary>Other browsers</summary>
+            <summary aria-label="Other browsers" title="Other browsers"></summary>
             <nav class="browser-options" aria-label="Choose your browser">
               <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
               <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
@@ -635,15 +636,6 @@
       <div class="copy">
         <h1>Captions<em>that stay.</em></h1>
         <p class="lede">Short chunks, shown whole. The word being spoken is marked. The river of text is gone.</p>
-        <div class="availability">
-          <span>Free extension for</span>
-          <nav class="browser-links" aria-label="Install Stable Captions">
-            <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
-            <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
-            <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
-            <a href="https://testflight.apple.com/join/htQvssyM">Safari<span class="sticker">beta!</span></a>
-          </nav>
-        </div>
         <ul class="keys">
           <li class="key" data-shortcut="captions"><kbd data-kbd="C">C</kbd> captions on/off</li>
           <li class="key" data-shortcut="size"><span class="keycaps"><kbd data-kbd="−">−</kbd><kbd data-kbd="+">+</kbd></span> text size</li>
@@ -696,17 +688,26 @@
   </div>
   <script>
     const install = document.querySelector('header .install');
+    const label = install.querySelector('.label');
     if (/Firefox\//.test(navigator.userAgent)) {
       install.href = 'https://addons.mozilla.org/firefox/addon/stable-captions/';
-      install.textContent = 'Add to Firefox';
+      label.textContent = 'Add to Firefox';
     } else if (/Edg\//.test(navigator.userAgent)) {
-      install.textContent = 'Add to Edge';
+      label.textContent = 'Add to Edge';
     } else if (/Macintosh/.test(navigator.userAgent) && /Version\/[\d.]+.*Safari\//.test(navigator.userAgent) && navigator.maxTouchPoints < 2) {
       // Safari on a Mac. Chrome and Edge also say "Safari/" but not "Version/"; iPads say "Macintosh" but have touch.
       install.href = 'https://testflight.apple.com/join/htQvssyM';
-      install.textContent = 'Help test in Safari';
-      install.append(document.querySelector('#get .sticker').cloneNode(true));
+      label.textContent = 'Help test in Safari';
+      install.querySelector('.sticker').textContent = 'beta!';
     }
+    // One span per word so hover can light them up in turn.
+    label.replaceChildren(...label.textContent.split(' ').flatMap((text, i) => {
+      const word = document.createElement('span');
+      word.className = 'word';
+      word.style.setProperty('--i', i);
+      word.textContent = text;
+      return i ? [' ', word] : [word];
+    }));
     const browserPicker = document.querySelector('.browser-picker');
     document.addEventListener('click', (event) => {
       if (!browserPicker.contains(event.target)) browserPicker.open = false;
