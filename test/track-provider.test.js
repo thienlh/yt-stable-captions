@@ -68,4 +68,7 @@ test('selectionFromUrl restores the source track and translation', () => {
   );
   assert.equal(selection.track, asr);
   assert.equal(selection.translationLanguage, 'vi');
+  assert.equal(TrackProvider.languageFromUrl(asr.baseUrl), 'en');
+  assert.equal(TrackProvider.languageFromUrl(`${asr.baseUrl}&tlang=vi-VN`), 'vi-vn');
+  assert.equal(TrackProvider.languageFromUrl('not a url'), null);
 });

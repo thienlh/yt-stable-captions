@@ -43,8 +43,9 @@ remove the flowing-text distraction.
 - `src/content/live-source.js` — caption DOM → new words → live chunks
 - `src/content/track-provider.js` — track discovery + `fmt=json3` fetch
 - `src/content/overlay.js` — DOM rendering only
-- `src/content/settings-bridge.js` — popup settings → `<html data-ytsc-style/-size>`, font registration (isolated world)
+- `src/content/settings-bridge.js` — popup settings + local language learning → `<html>`, font registration (isolated world)
 - `src/core/settings.js` — settings vocabulary (keys, defaults, sizes, levels, labels) shared by popup and bridge
+- `src/core/language-preference.js` — latest-choice, local-only language preference model
 - `src/popup/` — toolbar popup: every style previewed live, size, background, clean verbatim
 - `src/content/main.js` — composition root (`StableCaptionsController`)
 
@@ -103,13 +104,18 @@ Same keys as YouTube's own captions:
 | `h` | Word highlight on/off — off shows each caption plainly, without marking the spoken word |
 | `Alt+C` / `⌥C` | Switch style: Frosted ↔ Short |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
-| `Shift+L` | Toggle between the video's original caption selection and your browser language |
+| `Shift+L` | Toggle between the video's original captions and your preferred language |
 
-The language shortcut prefers an existing browser-language track, otherwise it uses YouTube
-auto-translate when that language is offered for the video. It restores the original source
-track (including its manual/ASR choice and any original translation) on the next press. Every
-switch goes through YouTube's own player, like its subtitles menu, so a later caption download
-(CC toggled off and on) keeps the language you chose.
+The language shortcut starts with your browser language. The first manual non-default caption
+choice in YouTube becomes the preferred target immediately; later manual choices replace it.
+Automatic player changes, extension switches and repeated choices on one video are ignored.
+Only the latest language code and selection timestamp are stored (no video ID), in
+`storage.local`, and never leave the browser.
+
+The shortcut prefers an existing target-language track, otherwise it uses YouTube auto-translate
+when offered. It restores the original source track (including its manual/ASR choice and any
+original translation) on the next press. Every switch goes through YouTube's own player, like
+its subtitles menu, so a later caption download (CC toggled off and on) keeps the language.
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach
 YouTube as usual), are ignored while typing or with Ctrl/⌘ (Alt only for `Alt+C`), and save to the popup setting.

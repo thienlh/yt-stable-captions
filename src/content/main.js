@@ -37,6 +37,11 @@
       this.selectionTimeoutMs = 10000;
       this.taps = []; // this video's tapped downloads, reused when the player answers from its cache
       this.loadGeneration = 0; // bumped by every new caption source; stale downloads check it
+      this.activeCaptionLanguage = null;
+      this.defaultCaptionLanguage = null;
+      this.learningReadyAt = 0;
+      this.learningCountedVideoId = null;
+      this.learningGraceMs = 2000;
       this.toastTimer = 0;
     }
 
@@ -109,7 +114,9 @@
       if (entry.url === this.loadedUrl) return;
       const pending = this.pendingSelection;
       if (!pending) {
-        await this.loadFromTap(entry);
+        const previousLanguage = this.activeCaptionLanguage;
+        const loaded = await this.loadFromTap(entry);
+        if (loaded) this.learnManualSelection(entry, previousLanguage);
         return;
       }
       // While a shortcut switch is in flight, only the requested language may load.
@@ -170,6 +177,7 @@
       this.stop();
       this.words = words;
       this.cues = chunks;
+      this.noteCaptionLanguage(globalThis.YTSC.TrackProvider.languageFromUrl(url));
       this.loadedUrl = url;
       this.log(`[ytsc] ${chunks.length} chunks (${label})`);
       this.overlay.mount();
@@ -210,6 +218,44 @@
       return globalThis.navigator?.language || '';
     }
 
+    learnedCaptionLanguage() {
+      return globalThis.document?.documentElement?.dataset?.ytscLearnedLanguage || '';
+    }
+
+    preferredCaptionLanguage() {
+      return this.learnedCaptionLanguage() || this.browserLanguage();
+    }
+
+    noteCaptionLanguage(language) {
+      language = globalThis.YTSC.TrackProvider.normalizeLanguage(language);
+      if (!language) return;
+      if (!this.defaultCaptionLanguage) {
+        this.defaultCaptionLanguage = language;
+        // YouTube can apply its saved preference just after the first download.
+        // A short grace period keeps that automatic change out of the training data.
+        this.learningReadyAt = Date.now() + this.learningGraceMs;
+      }
+      this.activeCaptionLanguage = language;
+    }
+
+    learnManualSelection(entry, previousLanguage) {
+      const videoId = this.currentVideoId();
+      if (!previousLanguage || !this.defaultCaptionLanguage || this.languageSwitching ||
+          this.pendingSelection || this.learningCountedVideoId === videoId ||
+          Date.now() < this.learningReadyAt) return;
+      const selected = globalThis.YTSC.TrackProvider.languageFromUrl(entry.url);
+      if (!selected || selected === previousLanguage || selected === this.defaultCaptionLanguage) return;
+      this.learningCountedVideoId = videoId;
+      this.reportManualLanguage(selected);
+    }
+
+    reportManualLanguage(language) {
+      if (typeof window === 'undefined') return;
+      window.dispatchEvent(new CustomEvent('ytsc:manual-caption-language', {
+        detail: JSON.stringify({ language }),
+      }));
+    }
+
     languageName(code) {
       try {
         return new Intl.DisplayNames([this.browserLanguage() || 'en'], { type: 'language' }).of(code) || code;
@@ -238,6 +284,9 @@
       if (!selection) selection = { track: this.provider.pickBest(tracks), translationLanguage: null };
       this.selectionVideoId = videoId;
       this.originalSelection = selection.track ? selection : null;
+      if (this.originalSelection) {
+        this.noteCaptionLanguage(this.originalSelection.translationLanguage || this.originalSelection.track.languageCode);
+      }
       this.browserCaptions = false;
       return this.originalSelection;
     }
@@ -298,9 +347,9 @@
         let selection = original;
         let autoTranslated = Boolean(original.translationLanguage);
         if (!restoring) {
-          const requested = this.browserLanguage();
+          const requested = this.preferredCaptionLanguage();
           if (!requested) {
-            this.showToast('Browser language unavailable');
+            this.showToast('Caption language unavailable');
             return;
           }
           const direct = this.provider.pickLanguage(found.tracks, requested);
@@ -398,6 +447,10 @@
         this.originalSelection = null;
         this.selectionVideoId = null;
         this.browserCaptions = false;
+        this.activeCaptionLanguage = null;
+        this.defaultCaptionLanguage = null;
+        this.learningReadyAt = 0;
+        this.learningCountedVideoId = null;
         this.settlePending(false);
       }
       this.videoId = videoId;

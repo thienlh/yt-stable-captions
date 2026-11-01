@@ -2,18 +2,47 @@
   'use strict';
 
   /**
-   * Mirrors the popup settings onto <html data-ytsc-style="…" data-ytsc-size="…">,
-   * registers the bundled font with this browser's extension URL, and handles
+   * Mirrors popup settings and the learned caption language onto <html>, remembers
+   * the latest manual language choice locally, registers the bundled font, and handles
    * the shortcuts that change settings (=/+ and - size, w window, h word
    * highlight, Shift+C clean verbatim, Alt/Option+C style).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle. Shift+L
    * is handled by main.js, which owns caption tracks and the player API.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
-   * Single responsibility: extension settings/resources -> DOM.
+   * Single responsibility: extension-owned state/resources -> DOM.
    */
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
+  const preferenceStore = api.storage.local; // behavior never leaves this browser
+  const LANGUAGE_HISTORY = 'captionLanguageHistory';
+  const Preference = globalThis.YTSC.CaptionLanguagePreference;
+  let languageHistory = [];
+
+  const applyLearnedLanguage = () => {
+    const learned = Preference.preferred(languageHistory);
+    if (learned) document.documentElement.dataset.ytscLearnedLanguage = learned;
+    else delete document.documentElement.dataset.ytscLearnedLanguage;
+  };
+
+  let historyReady = preferenceStore.get({ [LANGUAGE_HISTORY]: [] })
+    .then((raw) => {
+      languageHistory = Preference.clean(raw?.[LANGUAGE_HISTORY]);
+      applyLearnedLanguage();
+    })
+    .catch(() => {});
+
+  // Page-world events use a JSON string: object details do not cross every
+  // extension-world boundary (notably Firefox). No video ID is included.
+  window.addEventListener('ytsc:manual-caption-language', (e) => {
+    let language = '';
+    try { language = JSON.parse(e.detail).language; } catch { return; }
+    historyReady = historyReady.then(async () => {
+      languageHistory = Preference.record(languageHistory, language);
+      applyLearnedLanguage();
+      await preferenceStore.set({ [LANGUAGE_HISTORY]: languageHistory });
+    }).catch(() => {});
+  });
 
   const font = document.createElement('style');
   font.id = 'ytsc-font';
@@ -66,6 +95,10 @@
     .then(apply, () => {});
   api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync' && area !== 'local') return;
+    if (area === 'local' && changes[LANGUAGE_HISTORY]) {
+      languageHistory = Preference.clean(changes[LANGUAGE_HISTORY].newValue);
+      applyLearnedLanguage();
+    }
     const changed = {};
     for (const key of Object.keys(ATTRS)) if (changes[key]) changed[key] = changes[key].newValue;
     apply(changed);

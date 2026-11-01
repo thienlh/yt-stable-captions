@@ -80,6 +80,16 @@
         (left === right || left.split('-')[0] === right.split('-')[0]);
     }
 
+    /** The visible language: an auto-translation target, otherwise the source track. */
+    static languageFromUrl(url) {
+      try {
+        const u = new URL(url, globalThis.location?.href || 'https://www.youtube.com/');
+        return TrackProvider.normalizeLanguage(u.searchParams.get('tlang') || u.searchParams.get('lang')) || null;
+      } catch {
+        return null;
+      }
+    }
+
     /** Prefer an exact regional match, then another track in the same base language. */
     pickLanguage(tracks, language) {
       const matches = tracks.filter((t) => TrackProvider.languageMatches(t.languageCode, language));

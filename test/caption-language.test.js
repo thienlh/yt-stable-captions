@@ -213,3 +213,56 @@ test('a slow download from an earlier switch does not replace newer captions', a
   assert.equal(controller.loaded.at(-1), EN.baseUrl);
   assert.equal(controller.loaded.length, 1);
 });
+
+test('a learned language overrides the browser fallback on Shift+L', async () => {
+  const { controller, calls } = setup({ translationLanguages: [{ languageCode: 'fr' }] });
+  controller.browserLanguage = () => 'en-GB';
+  controller.learnedCaptionLanguage = () => 'fr';
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls, [[
+    'captions',
+    'track',
+    { languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'fr' } },
+  ]]);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr`));
+  await switching;
+  assert.equal(controller.loaded.at(-1), `${EN.baseUrl}&tlang=fr`);
+});
+
+test('a successful non-default manual selection is reported once per video', async () => {
+  const { controller } = setup();
+  controller.defaultCaptionLanguage = 'en';
+  controller.activeCaptionLanguage = 'en';
+  controller.learningReadyAt = 0;
+  const reported = [];
+  controller.reportManualLanguage = (language) => reported.push(language);
+  controller.loadFromTap = async () => true;
+
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  assert.deepEqual(reported, ['vi']);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr`));
+  assert.deepEqual(reported, ['vi'], 'another choice on the same video does not skew frequency');
+});
+
+test('automatic, duplicate, default and early selections are not learned', () => {
+  const { controller } = setup();
+  const reported = [];
+  controller.reportManualLanguage = (language) => reported.push(language);
+  controller.defaultCaptionLanguage = 'en';
+  controller.activeCaptionLanguage = 'en';
+
+  controller.learningReadyAt = Date.now() + 10000;
+  controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'en');
+  assert.equal(reported.length, 0, 'initial player preference grace period');
+
+  controller.learningReadyAt = 0;
+  controller.languageSwitching = true;
+  controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'en');
+  assert.equal(reported.length, 0, 'extension-initiated switch');
+
+  controller.languageSwitching = false;
+  controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'vi');
+  controller.learnManualSelection(tap(`${EN.baseUrl}&sig=2`), 'vi');
+  assert.equal(reported.length, 0, 'duplicate language and return to the default track');
+});
