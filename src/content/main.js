@@ -29,6 +29,14 @@
       this.videoId = null;
       this.raf = 0;
       this.video = null;
+      this.originalSelection = null;
+      this.selectionVideoId = null;
+      this.browserCaptions = false;
+      this.languageSwitching = false;
+      this.pendingSelection = null;
+      this.selectionTimeoutMs = 10000;
+      this.taps = []; // this video's tapped downloads, reused when the player answers from its cache
+      this.toastTimer = 0;
     }
 
     start() {
@@ -36,6 +44,7 @@
       // The player's own (signed) caption download, captured by timedtext-tap.js.
       // Also fires when the user switches CC language, so we follow their choice.
       window.addEventListener('ytsc:timedtext', (e) => this.onTap(e.detail));
+      window.addEventListener('keydown', (e) => this.onLanguageKey(e), true);
       // Media events don't bubble, but a capturing listener on document still sees
       // them, including from a <video> YouTube swapped in (e.g. after a long sleep).
       for (const type of ['play', 'pause', 'seeked', 'loadeddata']) {
@@ -94,8 +103,39 @@
     }
 
     async onTap(entry) {
-      if (!entry || entry.videoId !== this.currentVideoId() || entry.url === this.loadedUrl) return;
-      await this.loadFromTap(entry);
+      if (!entry || entry.videoId !== this.currentVideoId()) return;
+      this.rememberTap(entry);
+      if (entry.url === this.loadedUrl) return;
+      const pending = this.pendingSelection;
+      if (!pending) {
+        await this.loadFromTap(entry);
+        return;
+      }
+      // While a shortcut switch is in flight, only the requested language may load.
+      if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
+      this.pendingSelection = null;
+      clearTimeout(pending.timer);
+      const loaded = await this.loadFromTap(entry);
+      pending.resolve?.(loaded);
+    }
+
+    rememberTap(entry) {
+      this.taps = this.taps.filter((t) => t.videoId === entry.videoId && t.url !== entry.url);
+      this.taps.push(entry);
+      if (this.taps.length > 8) this.taps.shift();
+    }
+
+    cachedTap(selection) {
+      const videoId = this.currentVideoId();
+      return this.taps.findLast((t) => t.videoId === videoId && this.entryMatchesSelection(t, selection)) || null;
+    }
+
+    settlePending(loaded) {
+      const pending = this.pendingSelection;
+      this.pendingSelection = null;
+      if (!pending) return;
+      clearTimeout(pending.timer);
+      pending.resolve?.(loaded);
     }
 
     async loadFromTap(entry) {
@@ -126,6 +166,179 @@
       this.overlay.mount();
       this.attachVideo();
       return true;
+    }
+
+    entryMatchesSelection(entry, selection) {
+      const { TrackProvider } = globalThis.YTSC;
+      try {
+        const u = new URL(entry.url, globalThis.location?.href || 'https://www.youtube.com/');
+        const translated = u.searchParams.get('tlang');
+        if (selection.translationLanguage) {
+          return TrackProvider.languageMatches(translated, selection.translationLanguage);
+        }
+        if (translated) return false;
+        // Manual and ASR tracks share a language code; only `kind` tells them apart.
+        return TrackProvider.normalizeLanguage(u.searchParams.get('lang')) ===
+            TrackProvider.normalizeLanguage(selection.track.languageCode) &&
+          (u.searchParams.get('kind') || '') === (selection.track.kind || '');
+      } catch {
+        return false;
+      }
+    }
+
+    onLanguageKey(e) {
+      if (e.key !== 'L' || !e.shiftKey || e.altKey || e.ctrlKey || e.metaKey || e.repeat) return;
+      const target = e.target;
+      if (target?.isContentEditable || target?.closest?.('input, textarea, select, [contenteditable]')) return;
+      if ((!this.cues.length && !this.live) || !this.captionsEnabled()) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      void this.toggleCaptionLanguage();
+    }
+
+    browserLanguage() {
+      return globalThis.navigator?.language || '';
+    }
+
+    languageName(code) {
+      try {
+        return new Intl.DisplayNames([this.browserLanguage() || 'en'], { type: 'language' }).of(code) || code;
+      } catch {
+        return code;
+      }
+    }
+
+    captureOriginalSelection(tracks) {
+      const videoId = this.currentVideoId();
+      if (this.selectionVideoId === videoId && this.originalSelection) return this.originalSelection;
+      const tapped = this.tapFor(videoId);
+      let selection = globalThis.YTSC.TrackProvider.selectionFromUrl(this.loadedUrl || tapped?.url, tracks);
+      if (!selection) {
+        const player = this.provider.getPlayer?.();
+        try {
+          // The player reports an auto-translation on the track itself.
+          const current = player?.getOption?.('captions', 'track');
+          const sameKind = (t) => (t.kind || '') === (current?.kind || '');
+          const track = current?.languageCode &&
+            (this.provider.pickLanguage(tracks.filter(sameKind), current.languageCode) ||
+              this.provider.pickLanguage(tracks, current.languageCode));
+          if (track) selection = { track, translationLanguage: current.translationLanguage?.languageCode || null };
+        } catch { /* use the provider's default below */ }
+      }
+      if (!selection) selection = { track: this.provider.pickBest(tracks), translationLanguage: null };
+      this.selectionVideoId = videoId;
+      this.originalSelection = selection.track ? selection : null;
+      this.browserCaptions = false;
+      return this.originalSelection;
+    }
+
+    /**
+     * Switches the player itself, like its own subtitles menu, so a later download
+     * (CC toggled, player rebuilt) brings back the same language instead of the old
+     * one. Our own fetch could not do that, and a rewritten URL can't auto-translate.
+     * Returns null if the player didn't switch, else a promise of whether the new
+     * captions loaded.
+     */
+    switchPlayerCaptions(selection) {
+      const player = this.provider.getPlayer?.();
+      if (!player || typeof player.setOption !== 'function') return null;
+      const track = { languageCode: selection.track.languageCode };
+      if (selection.track.kind) track.kind = selection.track.kind;
+      // The player takes auto-translation on the track, not as a separate option.
+      if (selection.translationLanguage) track.translationLanguage = { languageCode: selection.translationLanguage };
+      // The player may answer a track it loaded before from its cache, without a download.
+      const cached = this.cachedTap(selection);
+      const pending = cached ? null : { selection, videoId: this.currentVideoId() };
+      const loaded = pending && new Promise((resolve) => { pending.resolve = resolve; });
+      this.settlePending(false);
+      this.pendingSelection = pending;
+      try {
+        player.setOption('captions', 'track', track);
+      } catch (err) {
+        this.settlePending(false);
+        this.log(`[ytsc] player language switch failed: ${err?.message || err}`);
+        return null;
+      }
+      if (cached) return this.loadFromTap(cached);
+      // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
+      this.startLiveMode();
+      pending.timer = setTimeout(() => {
+        if (this.pendingSelection === pending) this.settlePending(false);
+      }, this.selectionTimeoutMs);
+      return loaded;
+    }
+
+    async toggleCaptionLanguage() {
+      if (this.languageSwitching) return;
+      this.languageSwitching = true;
+      try {
+        const videoId = this.currentVideoId();
+        const found = this.provider.getTracksWithSource
+          ? this.provider.getTracksWithSource()
+          : { tracks: this.provider.getTracks(), translationLanguages: [] };
+        const original = this.captureOriginalSelection(found.tracks);
+        if (!original) {
+          this.showToast('No captions available');
+          return;
+        }
+        const restoring = this.browserCaptions;
+        let selection = original;
+        let autoTranslated = Boolean(original.translationLanguage);
+        if (!restoring) {
+          const requested = this.browserLanguage();
+          if (!requested) {
+            this.showToast('Browser language unavailable');
+            return;
+          }
+          const direct = this.provider.pickLanguage(found.tracks, requested);
+          if (direct) {
+            selection = { track: direct, translationLanguage: null };
+            autoTranslated = false;
+          } else {
+            const languages = found.translationLanguages || [];
+            const supported = this.provider.findTranslationLanguage(languages, requested);
+            if (languages.length && !supported) {
+              this.showToast(`${this.languageName(requested)} captions unavailable`);
+              return;
+            }
+            selection = {
+              track: original.track,
+              translationLanguage: supported?.languageCode || requested,
+            };
+            autoTranslated = true;
+          }
+        }
+        const loading = this.switchPlayerCaptions(selection);
+        if (!loading) {
+          this.showToast('Could not switch caption language');
+          return;
+        }
+        // The player now holds this selection, whether or not its captions arrive.
+        this.browserCaptions = !restoring;
+        const loaded = await loading;
+        if (videoId !== this.currentVideoId()) return;
+        const name = this.languageName(selection.translationLanguage || selection.track.languageCode);
+        this.showToast(loaded
+          ? `Captions: ${name}${autoTranslated ? ' (auto-translated)' : ''}`
+          : `${name} captions did not load`);
+      } finally {
+        this.languageSwitching = false;
+      }
+    }
+
+    showToast(text) {
+      const player = this.overlay.el?.parentElement || document.querySelector('.html5-video-player');
+      if (!player) return;
+      let el = document.getElementById('ytsc-toast');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'ytsc-toast';
+        player.appendChild(el);
+      }
+      el.textContent = text;
+      el.classList.add('ytsc-toast-visible');
+      clearTimeout(this.toastTimer);
+      this.toastTimer = setTimeout(() => el.classList.remove('ytsc-toast-visible'), 1600);
     }
 
     currentVideoId() {
@@ -165,6 +378,12 @@
 
     async load(videoId) {
       this.stop();
+      if (this.videoId !== videoId) {
+        this.originalSelection = null;
+        this.selectionVideoId = null;
+        this.browserCaptions = false;
+        this.settlePending(false);
+      }
       this.videoId = videoId;
       try {
         const found = this.provider.getTracksWithSource
@@ -184,6 +403,7 @@
           return;
         }
         const tapped = this.tapFor(videoId);
+        if (tapped) this.rememberTap(tapped);
         if (tapped && (await this.loadFromTap(tapped))) return;
         this.log(`[ytsc] loading track ${best.languageCode} kind=${best.kind || 'manual'} source=${found.source} (${tracks.length} tracks)`);
         try {

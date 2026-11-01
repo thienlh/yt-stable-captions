@@ -25,14 +25,26 @@
           try { resp = JSON.parse(resp); } catch { /* keep string */ }
         }
         const tracks = TrackProvider.tracksFromResponse(resp);
-        if (tracks.length) return { tracks, source: 'movie_player.getPlayerResponse' };
+        if (tracks.length) {
+          return {
+            tracks,
+            translationLanguages: TrackProvider.translationLanguagesFromResponse(resp),
+            source: 'movie_player.getPlayerResponse',
+          };
+        }
       } catch { /* fall through */ }
 
       // 2. Initial page data (populated before the player API is ready).
       try {
         const init = window.ytInitialPlayerResponse;
         const tracks = TrackProvider.tracksFromResponse(init);
-        if (tracks.length) return { tracks, source: 'ytInitialPlayerResponse' };
+        if (tracks.length) {
+          return {
+            tracks,
+            translationLanguages: TrackProvider.translationLanguagesFromResponse(init),
+            source: 'ytInitialPlayerResponse',
+          };
+        }
       } catch { /* fall through */ }
 
       // 3. Embedded JSON in the page (works even when the API is gated).
@@ -41,7 +53,7 @@
         if (tracks.length) return { tracks, source: 'embedded-json' };
       } catch { /* fall through */ }
 
-      return { tracks: [], source: 'none' };
+      return { tracks: [], translationLanguages: [], source: 'none' };
     }
 
     static tracksFromResponse(resp) {
@@ -50,6 +62,52 @@
       // NOTE: do not filter on 'timedtext' substring — some locales serve
       // translated baseUrls without it. Any non-empty baseUrl is fetchable.
       return arr.filter((t) => typeof t?.baseUrl === 'string' && t.baseUrl.length > 0);
+    }
+
+    static translationLanguagesFromResponse(resp) {
+      const languages = resp?.captions?.playerCaptionsTracklistRenderer?.translationLanguages;
+      return Array.isArray(languages) ? languages : [];
+    }
+
+    static normalizeLanguage(language) {
+      return String(language || '').trim().replaceAll('_', '-').toLowerCase();
+    }
+
+    static languageMatches(a, b) {
+      const left = TrackProvider.normalizeLanguage(a);
+      const right = TrackProvider.normalizeLanguage(b);
+      return Boolean(left && right) &&
+        (left === right || left.split('-')[0] === right.split('-')[0]);
+    }
+
+    /** Prefer an exact regional match, then another track in the same base language. */
+    pickLanguage(tracks, language) {
+      const matches = tracks.filter((t) => TrackProvider.languageMatches(t.languageCode, language));
+      const normalized = TrackProvider.normalizeLanguage(language);
+      const exact = matches.filter((t) => TrackProvider.normalizeLanguage(t.languageCode) === normalized);
+      return this.pickBest(exact.length ? exact : matches);
+    }
+
+    findTranslationLanguage(languages, language) {
+      const normalized = TrackProvider.normalizeLanguage(language);
+      return languages.find((l) => TrackProvider.normalizeLanguage(l.languageCode) === normalized) ||
+        languages.find((l) => TrackProvider.languageMatches(l.languageCode, language)) || null;
+    }
+
+    /** Recover the source track and optional translation from a timedtext URL. */
+    static selectionFromUrl(url, tracks) {
+      if (!url) return null;
+      try {
+        const u = new URL(url, globalThis.location?.href || 'https://www.youtube.com/');
+        const language = u.searchParams.get('lang');
+        const kind = u.searchParams.get('kind');
+        const candidates = tracks.filter((t) =>
+          TrackProvider.normalizeLanguage(t.languageCode) === TrackProvider.normalizeLanguage(language));
+        const track = candidates.find((t) => (t.kind || '') === (kind || '')) || candidates[0];
+        return track ? { track, translationLanguage: u.searchParams.get('tlang') || null } : null;
+      } catch {
+        return null;
+      }
     }
 
     getTracksFromEmbeddedJson() {

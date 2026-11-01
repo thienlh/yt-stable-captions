@@ -6,7 +6,8 @@
    * registers the bundled font with this browser's extension URL, and handles
    * the shortcuts that change settings (=/+ and - size, w window, h word
    * highlight, Shift+C clean verbatim, Alt/Option+C style).
-   * (`c` stays YouTube's: the overlay follows the player's CC toggle.)
+   * (`c` stays YouTube's: the overlay follows the player's CC toggle. Shift+L
+   * is handled by main.js, which owns caption tracks and the player API.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
    * Single responsibility: extension settings/resources -> DOM.

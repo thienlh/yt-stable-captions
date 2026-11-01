@@ -35,3 +35,37 @@ test('pickBest prefers manual over ASR, and English first', () => {
   const autoOnly = tracks.slice(0, 2);
   assert.equal(p.pickBest(autoOnly).baseUrl, 'https://x/timedtext?a=2');
 });
+
+test('language choice prefers an exact region and manual tracks over ASR', () => {
+  const p = new TrackProvider();
+  const tracks = [
+    { languageCode: 'en', kind: 'asr', baseUrl: 'https://x/timedtext?lang=en&kind=asr' },
+    { languageCode: 'en', baseUrl: 'https://x/timedtext?lang=en' },
+    { languageCode: 'pt', baseUrl: 'https://x/timedtext?lang=pt' },
+    { languageCode: 'pt-BR', baseUrl: 'https://x/timedtext?lang=pt-BR' },
+  ];
+  assert.equal(p.pickLanguage(tracks, 'en-US').kind, undefined);
+  assert.equal(p.pickLanguage(tracks, 'pt-BR').languageCode, 'pt-BR');
+  assert.equal(p.pickLanguage(tracks, 'pt-PT').languageCode, 'pt');
+  assert.equal(p.pickLanguage(tracks, 'vi'), null);
+});
+
+test('translation languages match browser regional locales', () => {
+  const p = new TrackProvider();
+  const languages = [{ languageCode: 'en' }, { languageCode: 'vi' }];
+  assert.equal(p.findTranslationLanguage(languages, 'vi-VN').languageCode, 'vi');
+  assert.equal(p.findTranslationLanguage(languages, 'fr'), null);
+  const resp = { captions: { playerCaptionsTracklistRenderer: { translationLanguages: languages } } };
+  assert.deepEqual(TrackProvider.translationLanguagesFromResponse(resp), languages);
+});
+
+test('selectionFromUrl restores the source track and translation', () => {
+  const manual = { languageCode: 'en', baseUrl: 'https://x/timedtext?lang=en' };
+  const asr = { languageCode: 'en', kind: 'asr', baseUrl: 'https://x/timedtext?lang=en&kind=asr' };
+  const selection = TrackProvider.selectionFromUrl(
+    'https://www.youtube.com/api/timedtext?v=abc&lang=en&kind=asr&tlang=vi',
+    [manual, asr]
+  );
+  assert.equal(selection.track, asr);
+  assert.equal(selection.translationLanguage, 'vi');
+});

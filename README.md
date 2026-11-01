@@ -87,7 +87,8 @@ choosing one is a click on the picture. Below: text size (Tiny → XXL, seven st
 style's background level, word highlight, and clean verbatim. The little TV says whether the active
 tab is a YouTube video (readable via the youtube.com host permission; no `tabs` permission); when that
 permission is missing (Firefox can withhold it), an **Allow on YouTube** button requests it. The same
-shortcuts work inside the popup. Kanagawa blue accent; follows the system light/dark mode.
+setting shortcuts work inside the popup (except `c`, which belongs to YouTube, and `Shift+L`,
+which controls the video). Kanagawa blue accent; follows the system light/dark mode.
 
 ## Keyboard shortcuts
 
@@ -102,6 +103,13 @@ Same keys as YouTube's own captions:
 | `h` | Word highlight on/off — off shows each caption plainly, without marking the spoken word |
 | `Alt+C` / `⌥C` | Switch style: Frosted ↔ Short |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
+| `Shift+L` | Toggle between the video's original caption selection and your browser language |
+
+The language shortcut prefers an existing browser-language track, otherwise it uses YouTube
+auto-translate when that language is offered for the video. It restores the original source
+track (including its manual/ASR choice and any original translation) on the next press. Every
+switch goes through YouTube's own player, like its subtitles menu, so a later caption download
+(CC toggled off and on) keeps the language you chose.
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach
 YouTube as usual), are ignored while typing or with Ctrl/⌘ (Alt only for `Alt+C`), and save to the popup setting.
