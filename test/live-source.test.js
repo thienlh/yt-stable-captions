@@ -37,6 +37,16 @@ test('live chunker emits whole chunks only, capped in size', () => {
   assert.equal(c.flush(), null);
 });
 
+test('live chunks are a little longer for Boring and follow a style change', () => {
+  const words = 'one two three four five six seven'.split(' ');
+  assert.equal(new LiveChunker().push(words, 0)[0].text, 'one two three four five');
+  const live = new LiveChunker({ style: 'boring' });
+  assert.equal(live.push(words, 0)[0].text, 'one two three four five six');
+  live.setStyle('frosted');
+  assert.deepEqual(live.push(['eight', 'nine', 'ten', 'eleven', 'twelve'], 0).map((c) => c.text), ['seven eight nine ten eleven']);
+  assert.equal(live.flush().text, 'twelve');
+});
+
 test('live chunker closes at sentence end', () => {
   const c = new LiveChunker();
   const closed = c.push(['Das', 'ist', 'fertig.', 'Und'], 0);

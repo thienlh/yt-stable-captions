@@ -41,15 +41,19 @@
       for (const type of ['play', 'pause', 'seeked', 'loadeddata']) {
         document.addEventListener(type, (e) => this.onMediaEvent(e), true);
       }
-      // "Clean verbatim" is a popup setting mirrored onto <html> by settings-bridge.js.
+      // "Clean verbatim" and the style (chunk length) are popup settings mirrored onto
+      // <html> by settings-bridge.js.
       // aria-pressed on the CC button repaints while paused (no frame loop then).
+      this.followStyle();
       new MutationObserver((records) => {
-        if (records.some((r) => r.attributeName === 'data-ytsc-clean')) this.rechunk();
+        const changed = (name) => records.some((r) => r.attributeName === name);
+        if (changed('data-ytsc-style')) this.followStyle();
+        if (changed('data-ytsc-clean') || changed('data-ytsc-style')) this.rechunk();
         if (records.some((r) => r.target.matches?.('.ytp-subtitles-button'))) this.renderNow();
       }).observe(document.documentElement, {
         attributes: true,
         subtree: true,
-        attributeFilter: ['data-ytsc-clean', 'aria-pressed'],
+        attributeFilter: ['data-ytsc-clean', 'data-ytsc-style', 'aria-pressed'],
       });
       this.reload();
     }
@@ -65,6 +69,13 @@
 
     cleanEnabled() {
       return document.documentElement.dataset.ytscClean === 'true';
+    }
+
+    /** Each style has its own chunk length (see chunker.js). */
+    followStyle() {
+      const style = document.documentElement.dataset.ytscStyle;
+      this.chunker.setStyle?.(style);
+      this.live?.chunker.setStyle?.(style);
     }
 
     buildChunks(words) {
@@ -234,6 +245,7 @@
         return;
       }
       this.live = new DomSource({
+        chunker: new NS.LiveChunker({ style: document.documentElement.dataset.ytscStyle }),
         onChunk: (chunk) => {
           if (!this.captionsEnabled()) return;
           // Live chunks are cleaned one at a time (repeats spanning two chunks stay).

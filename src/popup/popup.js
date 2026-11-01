@@ -30,9 +30,10 @@
     });
   })();
   const LOOP_MS = SAMPLE_WORDS[SAMPLE_WORDS.length - 1].endMs + 1400;
-  let chunks = [];
+  let chunks = {}; // per style: each chunks to its own length
   const rebuildChunks = () => {
-    chunks = new CaptionChunker().build(state.clean ? new Disfluency().clean(SAMPLE_WORDS) : SAMPLE_WORDS);
+    const words = state.clean ? new Disfluency().clean(SAMPLE_WORDS) : SAMPLE_WORDS;
+    chunks = Object.fromEntries(STYLES.map((style) => [style, new CaptionChunker({ style }).build(words)]));
   };
 
   class Preview {
@@ -58,7 +59,7 @@
     }
 
     render(t) {
-      const chunk = cueAtTime(chunks, t);
+      const chunk = cueAtTime(chunks[this.style], t);
       if (chunk !== this.current) {
         this.current = chunk;
         this.cap.textContent = '';

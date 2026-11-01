@@ -13,8 +13,16 @@
     pauseMs: 600, // silence that forces a new chunk
     holdMs: 500, // keep a chunk visible briefly after its last word
     minCommaWords: 3, // break after a comma once the chunk has this many words
+    strandWords: 3, // a sentence end this close to a full chunk is not left on its own
     lineChars: 32, // wrap a manual caption line once it is longer than this
   };
+  // Per caption style (the `style` option). Boring, for accessibility, fills one
+  // line of its 42ch panel, so captions change less often.
+  const STYLE_OPTIONS = {
+    boring: { maxWords: 7, maxChars: 42, minCommaWords: 5 },
+  };
+  // Live chunks show only once complete, so every extra word shows them later.
+  const LIVE_MAX_WORDS = { default: 5, boring: 6 };
 
   /**
    * Where to cut a word stream into chunks. Shared by batch and live chunking.
@@ -22,29 +30,85 @@
    */
   class ChunkRules {
     constructor(options = {}, textUtils = null) {
-      this.opts = { ...DEFAULTS, ...options };
+      this.opts = { ...DEFAULTS, ...STYLE_OPTIONS[options.style], ...options };
       this.text = textUtils || loadDep('TextUtils', './text-utils.js');
     }
 
     breakBefore(current, next) {
+      return this.mustBreak(current, next) || this.isFull(current, next);
+    }
+
+    /** A break the words ask for: a new caption line, a standalone cue or a pause. */
+    mustBreak(current, next) {
       if (!current.length) return false;
+      const last = current[current.length - 1];
       // Standalone words (e.g. the ♪ music cue) always get a chunk of their own.
       // A manual caption line starts its own chunk and is not cut mid-line.
-      if (next.cueStart || next.standalone || current[current.length - 1].standalone) return true;
+      if (next.cueStart || next.standalone || last.standalone) return true;
+      if (next.estimated && last.estimated) return false;
+      return next.startMs - last.endMs >= this.opts.pauseMs;
+    }
+
+    /** No room for the next word. */
+    isFull(current, next) {
+      if (!current.length) return false;
       if (next.estimated && current[current.length - 1].estimated) return false;
-      const o = this.opts;
-      if (current.length >= o.maxWords) return true;
-      const chars = current.reduce((n, w) => n + w.text.length + 1, 0) + next.text.length;
-      if (chars > o.maxChars) return true;
-      const last = current[current.length - 1];
-      return next.startMs - last.endMs >= o.pauseMs;
+      return current.length >= this.opts.maxWords || !this.fits([...current, next]);
+    }
+
+    fits(words) {
+      return this._length(words) <= this.opts.maxChars;
     }
 
     breakAfter(current) {
       const last = current[current.length - 1];
       if (!last || last.estimated) return false;
       if (this.text.sentenceIsComplete(last.text)) return true;
-      return current.length >= this.opts.minCommaWords && /[,;:]["'»”’)]*$/u.test(last.text);
+      return current.length >= this.opts.minCommaWords && this._endsClause(last);
+    }
+
+    /**
+     * How many words from words[i] on finish their sentence or clause, when that
+     * is at most strandWords; 0 when more follow. Cutting before them would
+     * leave them stranded in a chunk of their own.
+     */
+    strandedTail(words, i) {
+      for (let n = 1; n <= this.opts.strandWords; n++) {
+        const word = words[i + n - 1];
+        if (!word || (n > 1 && this.mustBreak([words[i + n - 2]], word))) return n - 1;
+        if (this.text.sentenceIsComplete(word.text) || this._endsClause(word)) return n;
+      }
+      return 0;
+    }
+
+    /**
+     * Where to cut a full chunk early so `tail` joins its last words: after its
+     * last comma, or else where the two chunks come out about even. 0 when the
+     * tail fits with neither.
+     */
+    earlyCut(current, tail) {
+      const lastComma = current.findLastIndex((w, i) => i && i < current.length - 1 && this._endsClause(w));
+      if (lastComma > 0 && this.fits([...current.slice(lastComma + 1), ...tail])) return lastComma + 1;
+      let best = 0;
+      let bestGap = Infinity;
+      for (let cut = 2; cut < current.length; cut++) {
+        const rest = [...current.slice(cut), ...tail];
+        const gap = Math.abs(this._length(current.slice(0, cut)) - this._length(rest));
+        if (this.fits(rest) && gap < bestGap) {
+          best = cut;
+          bestGap = gap;
+        }
+      }
+      return best;
+    }
+
+    /** Characters on screen, spaces included. */
+    _length(words) {
+      return words.reduce((n, w) => n + w.text.length + 1, -1);
+    }
+
+    _endsClause(word) {
+      return /[,;:]["'»”’)]*$/u.test(word.text);
     }
 
     toChunk(words) {
@@ -107,25 +171,39 @@
    */
   class CaptionChunker {
     constructor(options = {}) {
-      this.rules = new ChunkRules(options);
+      this.options = options;
+      this.setStyle(options.style);
+    }
+
+    /** Chunk for this caption style from now on (the next build). */
+    setStyle(style) {
+      this.rules = new ChunkRules({ ...this.options, style });
     }
 
     build(words) {
       const r = this.rules;
       const chunks = [];
       let current = [];
-      for (const word of words) {
-        if (r.breakBefore(current, word)) {
-          chunks.push(r.toChunk(current));
-          current = [];
+      let pulledIn = 0; // words of a stranded tail still to take past the size cap
+      const close = (count = current.length) => {
+        chunks.push(r.toChunk(current.slice(0, count)));
+        current = current.slice(count);
+      };
+      words.forEach((word, i) => {
+        if (pulledIn) pulledIn--;
+        else if (r.mustBreak(current, word)) close();
+        else if (r.isFull(current, word)) {
+          // The whole timeline is known, so look ahead: a sentence or clause that
+          // ends a few words later goes into this chunk if it fits, or else the
+          // chunk is cut early so those words don't end up on their own.
+          const tail = words.slice(i, i + r.strandedTail(words, i));
+          if (tail.length && r.fits([...current, ...tail])) pulledIn = tail.length - 1;
+          else close((tail.length && r.earlyCut(current, tail)) || current.length);
         }
         current.push(word);
-        if (r.breakAfter(current)) {
-          chunks.push(r.toChunk(current));
-          current = [];
-        }
-      }
-      if (current.length) chunks.push(r.toChunk(current));
+        if (r.breakAfter(current)) close();
+      });
+      if (current.length) close();
 
       const { holdMs } = r.opts;
       return chunks.map((chunk, index) => {
@@ -142,9 +220,16 @@
    */
   class LiveChunker {
     constructor(options = {}) {
-      this.rules = new ChunkRules({ maxWords: 5, ...options });
+      this.options = options;
+      this.setStyle(options.style);
       this.pending = [];
       this.count = 0;
+    }
+
+    /** Chunk for this caption style from now on; words already pending stay. */
+    setStyle(style) {
+      const maxWords = LIVE_MAX_WORDS[style] ?? LIVE_MAX_WORDS.default;
+      this.rules = new ChunkRules({ maxWords, ...this.options, style });
     }
 
     /** Returns the chunks completed by these words (possibly none). */
