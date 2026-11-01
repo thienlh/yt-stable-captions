@@ -68,7 +68,7 @@
   /* Same dither as the popup (src/popup/backdrop.js). The navy stays if WebGL is missing. */
   .backdrop { position: fixed; inset: 0; z-index: 0; pointer-events: none; }
   a { color: inherit; }
-  a:focus-visible, button:focus-visible {
+  a:focus-visible, button:focus-visible, summary:focus-visible {
     outline: 2px solid var(--blue);
     outline-offset: 3px;
   }
@@ -113,20 +113,62 @@
     line-height: 18px;
     color: rgba(251, 250, 248, 0.82);
   }
+  .install-picker { position: relative; z-index: 4; }
   .install {
-    position: relative;
     display: inline-flex;
     align-items: center;
+    gap: 9px;
     padding: 9px 16px;
     border-radius: 999px;
     background: var(--paper);
     color: var(--ink);
-    text-decoration: none;
     font-weight: 500;
     font-size: 14px;
     line-height: 18px;
+    white-space: nowrap;
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
   }
+  .install::-webkit-details-marker { display: none; }
+  .install::after {
+    content: "";
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid currentColor;
+    border-bottom: 1.5px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+    transition: transform 160ms ease;
+  }
+  .install-picker[open] .install::after { transform: translateY(2px) rotate(225deg); }
   .install:hover { background: #fff; }
+  .install-options {
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    min-width: 190px;
+    padding: 8px;
+    border: 1px solid rgba(251, 250, 248, 0.18);
+    border-radius: 14px;
+    background: rgba(26, 39, 68, 0.96);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.24);
+  }
+  .install-options a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    color: var(--paper);
+    text-decoration: none;
+    font-size: 14px;
+    line-height: 18px;
+  }
+  .install-options a:hover { background: rgba(251, 250, 248, 0.1); }
+  .install-options small { color: var(--blue-soft); font-size: 12px; }
   .tip-btn {
     display: inline-flex;
     align-items: center;
@@ -177,7 +219,6 @@
     pointer-events: none;
   }
   .stores .sticker { margin-left: 6px; }
-  .install .sticker { position: absolute; right: -22px; top: -16px; }
   a:hover > .sticker,
   a:focus-visible > .sticker { rotate: -6deg; scale: 1.12; }
   @keyframes sticker-slap {
@@ -562,7 +603,15 @@
       <div class="nav-end">
         <span class="for">for YouTube</span>
         <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
-        <a class="install" href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Add to Chrome</a>
+        <details class="install-picker">
+          <summary class="install"><span class="install-label">Add to Chrome</span></summary>
+          <nav class="install-options" aria-label="Choose your browser">
+            <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
+            <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
+            <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
+            <a href="https://testflight.apple.com/join/htQvssyM">Safari <small>beta</small></a>
+          </nav>
+        </details>
       </div>
     </header>
 
@@ -630,18 +679,27 @@
     </footer>
   </div>
   <script>
-    const install = document.querySelector('header .install');
+    const installPicker = document.querySelector('.install-picker');
+    const installLabel = installPicker.querySelector('.install-label');
     if (/Firefox\//.test(navigator.userAgent)) {
-      install.href = 'https://addons.mozilla.org/firefox/addon/stable-captions/';
-      install.textContent = 'Add to Firefox';
+      installLabel.textContent = 'Add to Firefox';
     } else if (/Edg\//.test(navigator.userAgent)) {
-      install.textContent = 'Add to Edge';
+      installLabel.textContent = 'Add to Edge';
     } else if (/Macintosh/.test(navigator.userAgent) && /Version\/[\d.]+.*Safari\//.test(navigator.userAgent) && navigator.maxTouchPoints < 2) {
       // Safari on a Mac. Chrome and Edge also say "Safari/" but not "Version/"; iPads say "Macintosh" but have touch.
-      install.href = 'https://testflight.apple.com/join/htQvssyM';
-      install.textContent = 'Help test in Safari';
-      install.append(document.querySelector('#get .sticker').cloneNode(true));
+      installLabel.textContent = 'Get Safari beta';
     }
+    document.addEventListener('click', (event) => {
+      if (!installPicker.contains(event.target)) installPicker.removeAttribute('open');
+    });
+    installPicker.addEventListener('keydown', (event) => {
+      if (event.key !== 'Escape') return;
+      installPicker.removeAttribute('open');
+      installPicker.querySelector('summary').focus();
+    });
+    installPicker.querySelectorAll('a').forEach((link) => {
+      link.addEventListener('click', () => installPicker.removeAttribute('open'));
+    });
     // Without hover, fold the footer tip's "um," once it scrolls into view.
     if (matchMedia('(hover: none)').matches && 'IntersectionObserver' in window) {
       const tip = document.querySelector('#get .tip-btn');
