@@ -212,9 +212,9 @@
     ],
   };
 
-  async function hasAccess() {
+  async function hasAccess(sites = VIDEO_SITES) {
     try {
-      return await api.permissions.contains(VIDEO_SITES);
+      return await api.permissions.contains(sites);
     } catch {
       return true; // no permissions API: assume the install granted it
     }
@@ -233,18 +233,23 @@
   });
 
   async function showStatus() {
-    if (!(await hasAccess())) {
-      $('status').hidden = true;
-      $('grant').hidden = false;
-      return;
-    }
     let url = '';
     try {
       const [tab] = await api.tabs.query({ active: true, currentWindow: true });
       url = tab?.url || '';
     } catch { /* no tab info: treat as an unsupported page */ }
-    const onYouTube = /^https:\/\/www\.youtube(?:-nocookie)?\.com\//.test(url);
-    const onHackerTube = /^https:\/\/hackertube\.org\//.test(url);
+    const host = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|hackertube\.org)\//.exec(url)?.[1];
+    // Access to an unrelated video site is not required for this page to work.
+    // HackerTube also needs access to its youtube-nocookie caption iframe.
+    const origins = host ? [`https://${host}/*`] : VIDEO_SITES.origins;
+    if (host === 'hackertube.org') origins.push('https://www.youtube-nocookie.com/*');
+    if (!(await hasAccess({ origins }))) {
+      $('status').hidden = true;
+      $('grant').hidden = false;
+      return;
+    }
+    const onYouTube = host === 'www.youtube.com' || host === 'www.youtube-nocookie.com';
+    const onHackerTube = host === 'hackertube.org';
     const onVideo = /^https:\/\/www\.youtube\.com\/watch\b/.test(url)
       || /^https:\/\/www\.youtube-nocookie\.com\/embed\/[^/?#]+/.test(url)
       || /^https:\/\/hackertube\.org\/watch\/[^/?#]+/.test(url);
