@@ -7,7 +7,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 - **Two styles.** *Frosted* is a calm glass panel. *Short* is bold, punchy text. Pick one from the toolbar popup.
 - **Clean verbatim.** Hides fillers like *um* and *uh* and stumbles like *I I I think*. On by default.
 - **Seven text sizes** and adjustable background strength.
-- **Works with any caption language** you pick in the YouTube player.
+- **Works on YouTube and HackerTube**, with any caption language you pick in the player.
 - **Keyboard shortcuts** that match YouTube's own:
 
 | Key | Action |
@@ -24,11 +24,11 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 - **Chrome**: [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd), free
 - **Firefox**: [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/), free
 
-After installing, turn it on and allow it on youtube.com. Then play any video with captions.
+After installing, turn it on and allow it on YouTube and HackerTube. Then play any video with captions.
 
 ## Privacy
 
-Stable Captions collects nothing. There are no analytics, no accounts and no servers. It runs only on youtube.com, and your settings stay in your browser's extension storage. Nothing is sent anywhere.
+Stable Captions collects nothing. There are no analytics, no accounts and no servers. It runs only on YouTube, its privacy-enhanced embedded player and HackerTube, and your settings stay in your browser's extension storage. Nothing is sent anywhere.
 
 ## Support
 

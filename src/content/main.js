@@ -130,7 +130,11 @@
 
     currentVideoId() {
       try {
-        return new URLSearchParams(location.search).get('v');
+        const url = new URL(location.href);
+        if (url.pathname === '/watch') return url.searchParams.get('v');
+        // HackerTube uses YouTube's privacy-enhanced /embed/<id> player.
+        // This method runs in that iframe, not on HackerTube's own watch page.
+        return url.pathname.match(/^\/embed\/([\w-]+)\/?$/)?.[1] || null;
       } catch {
         return null;
       }
@@ -138,7 +142,7 @@
 
     async reload() {
       const id = this.currentVideoId();
-      if (!id || location.pathname !== '/watch') {
+      if (!id) {
         this.stop();
         return;
       }
