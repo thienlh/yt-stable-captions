@@ -58,11 +58,27 @@
   // styles.css is also listed in the manifest, but Safari sometimes stops applying
   // manifest CSS (until a full restart) while the scripts keep running: the overlay
   // then renders unstyled, behind the video. A page stylesheet doesn't depend on that.
-  const styles = document.createElement('link');
-  styles.id = 'ytsc-styles';
-  styles.rel = 'stylesheet';
-  styles.href = api.runtime.getURL('src/content/styles.css');
-  document.documentElement.appendChild(styles);
+  // Safari can load it through a <link> to safari-web-extension://. Chrome cannot:
+  // a <link href="chrome-extension://…"> is a page subresource in same-origin mode,
+  // so the frame refuses it ("Unsafe attempt to load URL chrome-extension://…/styles.css
+  // from frame with URL https://www.youtube.com/…. Domains, protocols and ports must
+  // match."). Fetch from this isolated world and inline the text instead.
+  const stylesUrl = api.runtime.getURL('src/content/styles.css');
+  if (stylesUrl.startsWith('safari-')) {
+    const link = document.createElement('link');
+    link.id = 'ytsc-styles';
+    link.rel = 'stylesheet';
+    link.href = stylesUrl;
+    document.documentElement.appendChild(link);
+  } else {
+    const styles = document.createElement('style');
+    styles.id = 'ytsc-styles';
+    document.documentElement.appendChild(styles);
+    fetch(stylesUrl)
+      .then((response) => (response.ok ? response.text() : Promise.reject(response.status)))
+      .then((css) => { styles.textContent = css; })
+      .catch(() => {});
+  }
 
   const {
     DEFAULTS, SIZES, SIZE_LABELS, WINDOWS, STYLES, STYLE_LABELS, windowLabel, sizeMigration, highlightSetting,
