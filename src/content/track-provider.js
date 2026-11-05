@@ -29,6 +29,7 @@
           return {
             tracks,
             translationLanguages: TrackProvider.translationLanguagesFromResponse(resp),
+            defaultTrack: TrackProvider.defaultTrackFromResponse(resp),
             source: 'movie_player.getPlayerResponse',
           };
         }
@@ -42,6 +43,7 @@
           return {
             tracks,
             translationLanguages: TrackProvider.translationLanguagesFromResponse(init),
+            defaultTrack: TrackProvider.defaultTrackFromResponse(init),
             source: 'ytInitialPlayerResponse',
           };
         }
@@ -50,10 +52,48 @@
       // 3. Embedded JSON in the page (works even when the API is gated).
       try {
         const tracks = this.getTracksFromEmbeddedJson();
-        if (tracks.length) return { tracks, source: 'embedded-json' };
+        if (tracks.length) return { tracks, defaultTrack: null, source: 'embedded-json' };
       } catch { /* fall through */ }
 
-      return { tracks: [], translationLanguages: [], source: 'none' };
+      return { tracks: [], translationLanguages: [], defaultTrack: null, source: 'none' };
+    }
+
+    /** The video's own caption track, from the audio track's default index. */
+    static defaultTrackFromResponse(resp) {
+      const renderer = resp?.captions?.playerCaptionsTracklistRenderer;
+      const raw = Array.isArray(renderer?.captionTracks) ? renderer.captionTracks : [];
+      const audio = Array.isArray(renderer?.audioTracks) ? renderer.audioTracks : [];
+      const indexed = audio.find((item) => Number.isInteger(item?.defaultCaptionTrackIndex));
+      const index = indexed?.defaultCaptionTrackIndex ?? renderer?.defaultCaptionTrackIndex;
+      const track = Number.isInteger(index) ? raw[index] : null;
+      return typeof track?.baseUrl === 'string' && track.baseUrl ? track : null;
+    }
+
+    static sameVideo(track, videoId) {
+      if (!videoId || !track?.baseUrl) return true;
+      try {
+        const id = new URL(track.baseUrl, 'https://www.youtube.com/').searchParams.get('v');
+        return !id || id === videoId;
+      } catch {
+        return true;
+      }
+    }
+
+    /**
+     * The track Shift+L restores. YouTube carries the last caption language onto
+     * the next video, so the first download may already be that language. Prefer
+     * the player's default track, otherwise the source behind a carried translation.
+     */
+    static videoOriginal({ defaultTrack = null, observed = null, preferred = '' } = {}) {
+      if (defaultTrack) return { track: defaultTrack, translationLanguage: null };
+      if (!observed?.track) return null;
+      const visible = observed.translationLanguage || observed.track.languageCode;
+      if (observed.translationLanguage &&
+          TrackProvider.languageMatches(visible, preferred) &&
+          !TrackProvider.languageMatches(observed.track.languageCode, preferred)) {
+        return { track: observed.track, translationLanguage: null };
+      }
+      return observed;
     }
 
     static tracksFromResponse(resp) {
@@ -88,6 +128,33 @@
       } catch {
         return null;
       }
+    }
+
+    /**
+     * True when a settings-menu label is one of the player's caption tracks or
+     * translation languages. Quality and speed rows do not match.
+     */
+    static matchesCaptionLabel(label, tracks = [], translationLanguages = []) {
+      const text = TrackProvider.normalizeLabel(label);
+      if (!text) return false;
+      const names = [...tracks, ...translationLanguages]
+        .map((entity) => TrackProvider.normalizeLabel(TrackProvider.trackLabel(entity)))
+        .filter(Boolean);
+      return names.some((name) => text === name || text.startsWith(`${name} `) || text.startsWith(`${name}(`) ||
+        name.startsWith(`${text} `) || name.startsWith(`${text}(`));
+    }
+
+    static trackLabel(entity) {
+      const name = entity?.name || entity?.languageName;
+      if (!name) return '';
+      if (typeof name === 'string') return name;
+      if (typeof name.simpleText === 'string') return name.simpleText;
+      if (Array.isArray(name.runs)) return name.runs.map((run) => run?.text || '').join('');
+      return '';
+    }
+
+    static normalizeLabel(label) {
+      return String(label || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
     /** Prefer an exact regional match, then another track in the same base language. */

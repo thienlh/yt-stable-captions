@@ -32,9 +32,10 @@
     })
     .catch(() => {});
 
-  // Page-world events use a JSON string: object details do not cross every
-  // extension-world boundary (notably Firefox). No video ID is included.
-  window.addEventListener('ytsc:manual-caption-language', (e) => {
+  // The page world dispatches on document: that node is shared across worlds,
+  // and a JSON string crosses where a detail object does not (notably Firefox).
+  // No video ID is included.
+  document.addEventListener('ytsc:manual-caption-language', (e) => {
     let language = '';
     try { language = JSON.parse(e.detail).language; } catch { return; }
     historyReady = historyReady.then(async () => {

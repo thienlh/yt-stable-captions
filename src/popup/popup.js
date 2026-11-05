@@ -191,9 +191,24 @@
     else if (e.key === 'C' && e.shiftKey) update({ clean: !state.clean });
   });
 
+  // The learned caption language lives in local storage, separate from synced settings.
+  const LANGUAGE_HISTORY = 'captionLanguageHistory';
+  const languageHint = document.querySelector('[data-language-hint]');
+  const applyLanguageHint = (history) => {
+    if (!languageHint) return;
+    const learned = globalThis.YTSC.CaptionLanguagePreference?.preferred(history);
+    languageHint.title = learned
+      ? `Preferred language: ${learned}. A language you pick in YouTube's subtitles menu replaces it.`
+      : "Starts with your browser language. A language you pick in YouTube's subtitles menu replaces it.";
+  };
+  api.storage.local?.get({ [LANGUAGE_HISTORY]: [] })
+    .then((raw) => applyLanguageHint(raw?.[LANGUAGE_HISTORY]))
+    .catch(() => {});
+
   // Keep in step with shortcut changes made on the video while the popup is open.
   api.storage.onChanged.addListener((changes, area) => {
     if (area !== 'sync' && area !== 'local') return;
+    if (area === 'local' && changes[LANGUAGE_HISTORY]) applyLanguageHint(changes[LANGUAGE_HISTORY].newValue);
     const patch = {};
     for (const key of Object.keys(DEFAULTS)) if (changes[key]) patch[key] = changes[key].newValue ?? DEFAULTS[key];
     if (Object.keys(patch).length) update(patch, { persist: false });

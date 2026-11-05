@@ -31,17 +31,15 @@
       this.video = null;
       this.originalSelection = null;
       this.selectionVideoId = null;
-      this.browserCaptions = false;
       this.languageSwitching = false;
       this.pendingSelection = null;
       this.selectionTimeoutMs = 10000;
       this.taps = []; // this video's tapped downloads, reused when the player answers from its cache
       this.loadGeneration = 0; // bumped by every new caption source; stale downloads check it
       this.activeCaptionLanguage = null;
-      this.defaultCaptionLanguage = null;
-      this.learningReadyAt = 0;
-      this.learningCountedVideoId = null;
-      this.learningGraceMs = 2000;
+      this.captionChoiceAt = 0; // last trusted click on a caption row in YouTube's menu
+      this.captionChoiceMs = 5000;
+      this.applyingPlayerTrack = false;
       this.toastTimer = 0;
     }
 
@@ -50,7 +48,13 @@
       // The player's own (signed) caption download, captured by timedtext-tap.js.
       // Also fires when the user switches CC language, so we follow their choice.
       window.addEventListener('ytsc:timedtext', (e) => this.onTap(e.detail));
-      window.addEventListener('keydown', (e) => this.onLanguageKey(e), true);
+      window.addEventListener('keydown', (e) => {
+        this.onCaptionMenuEvent(e);
+        this.onLanguageKey(e);
+      }, true);
+      // Capture runs before YouTube's own menu handler, so a caption click is armed
+      // before the player applies the track.
+      window.addEventListener('click', (e) => this.onCaptionMenuEvent(e), true);
       // Media events don't bubble, but a capturing listener on document still sees
       // them, including from a <video> YouTube swapped in (e.g. after a long sleep).
       for (const type of ['play', 'pause', 'seeked', 'loadeddata']) {
@@ -177,7 +181,7 @@
       this.stop();
       this.words = words;
       this.cues = chunks;
-      this.noteCaptionLanguage(globalThis.YTSC.TrackProvider.languageFromUrl(url));
+      this.noteLoadedCaption(url);
       this.loadedUrl = url;
       this.log(`[ytsc] ${chunks.length} chunks (${label})`);
       this.overlay.mount();
@@ -229,29 +233,133 @@
     noteCaptionLanguage(language) {
       language = globalThis.YTSC.TrackProvider.normalizeLanguage(language);
       if (!language) return;
-      if (!this.defaultCaptionLanguage) {
-        this.defaultCaptionLanguage = language;
-        // YouTube can apply its saved preference just after the first download.
-        // A short grace period keeps that automatic change out of the training data.
-        this.learningReadyAt = Date.now() + this.learningGraceMs;
-      }
       this.activeCaptionLanguage = language;
     }
 
-    learnManualSelection(entry, previousLanguage) {
+    noteLoadedCaption(url) {
+      this.noteCaptionLanguage(globalThis.YTSC.TrackProvider.languageFromUrl(url));
+      this.freezeOriginal(url);
+    }
+
+    /**
+     * Original means the video's own captions. YouTube opens the next video in
+     * the language you just picked, so that first download must not become the
+     * track Shift+L restores. A preferred-language placeholder is replaced once
+     * the real source is known.
+     */
+    freezeOriginal(url) {
+      const { TrackProvider } = globalThis.YTSC;
       const videoId = this.currentVideoId();
-      if (!previousLanguage || !this.defaultCaptionLanguage || this.languageSwitching ||
-          this.pendingSelection || this.learningCountedVideoId === videoId ||
-          Date.now() < this.learningReadyAt) return;
+      if (!videoId) return;
+      const found = this.provider.getTracksWithSource
+        ? this.provider.getTracksWithSource()
+        : { tracks: this.provider.getTracks?.() || [], defaultTrack: null };
+      const tracks = found.tracks || [];
+      let defaultTrack = found.defaultTrack || null;
+      if (defaultTrack && !TrackProvider.sameVideo(defaultTrack, videoId)) defaultTrack = null;
+      if (defaultTrack) {
+        this.selectionVideoId = videoId;
+        this.originalSelection = { track: defaultTrack, translationLanguage: null };
+        return;
+      }
+      const observed = (url && TrackProvider.selectionFromUrl(url, tracks)) ||
+        (this.selectionVideoId === videoId ? this.originalSelection : null);
+      const selection = TrackProvider.videoOriginal({
+        observed,
+        preferred: this.preferredCaptionLanguage(),
+      });
+      if (!selection?.track) return;
+      const prior = this.selectionVideoId === videoId ? this.originalSelection : null;
+      if (prior && !this.isPreferredSelection(prior) && this.isPreferredSelection(selection)) return;
+      this.selectionVideoId = videoId;
+      this.originalSelection = selection;
+    }
+
+    isPreferredSelection(selection) {
+      if (!selection?.track) return false;
+      const visible = selection.translationLanguage || selection.track.languageCode;
+      return globalThis.YTSC.TrackProvider.languageMatches(visible, this.preferredCaptionLanguage());
+    }
+
+    /**
+     * A caption row in YouTube's settings menu, not a quality or speed row.
+     * Only a trusted click or Enter/Space counts: the player's own downloads
+     * are not a choice.
+     */
+    onCaptionMenuEvent(event) {
+      if (!event?.isTrusted) return;
+      if (event.type === 'keydown' && event.key !== 'Enter' && event.key !== ' ') return;
+      if (event.type === 'keydown' && event.repeat) return;
+      const label = this.captionMenuLabel(event.target);
+      if (!label) return;
+      this.watchPlayer();
+      this.armCaptionMenuChoice(label);
+    }
+
+    captionMenuLabel(target) {
+      const item = target?.closest?.('.ytp-menuitem');
+      if (!item?.closest?.('.ytp-settings-menu, .ytp-popup')) return '';
+      return item.querySelector?.('.ytp-menuitem-label')?.textContent?.trim() || '';
+    }
+
+    armCaptionMenuChoice(label) {
+      const found = this.provider.getTracksWithSource
+        ? this.provider.getTracksWithSource()
+        : { tracks: this.provider.getTracks?.() || [], translationLanguages: [] };
+      const { TrackProvider } = globalThis.YTSC;
+      if (!TrackProvider.matchesCaptionLabel(label, found.tracks, found.translationLanguages)) return false;
+      this.captionChoiceAt = Date.now();
+      return true;
+    }
+
+    captionMenuArmed() {
+      return this.captionChoiceAt > 0 && Date.now() - this.captionChoiceAt < this.captionChoiceMs;
+    }
+
+    /**
+     * YouTube applies a menu choice through setOption. Wrapping it catches the
+     * language even when the signed download is slow. Calls with no preceding
+     * caption-menu gesture are the player's own, and are ignored.
+     */
+    watchPlayer() {
+      const player = this.provider.getPlayer?.();
+      if (!player || player.__ytscSetOption || typeof player.setOption !== 'function') return;
+      const original = player.setOption.bind(player);
+      const controller = this;
+      player.setOption = function (module, option, value) {
+        const result = original(module, option, value);
+        if (module === 'captions' && option === 'track') controller.notePlayerTrackChoice(value);
+        return result;
+      };
+      player.__ytscSetOption = true;
+    }
+
+    notePlayerTrackChoice(track) {
+      if (this.applyingPlayerTrack || this.languageSwitching || !this.captionMenuArmed()) return;
+      const language = globalThis.YTSC.TrackProvider.normalizeLanguage(
+        track?.translationLanguage?.languageCode || track?.languageCode
+      );
+      if (!language) return;
+      this.captionChoiceAt = 0;
+      this.reportManualLanguage(language);
+    }
+
+    learnManualSelection(entry, previousLanguage) {
+      if (this.languageSwitching || this.pendingSelection || !this.captionMenuArmed()) return;
       const selected = globalThis.YTSC.TrackProvider.languageFromUrl(entry.url);
-      if (!selected || selected === previousLanguage || selected === this.defaultCaptionLanguage) return;
-      this.learningCountedVideoId = videoId;
+      // A refetch of the language already showing leaves the gesture armed for
+      // the download of the row the user actually picked.
+      if (!selected || selected === previousLanguage) return;
+      this.captionChoiceAt = 0;
       this.reportManualLanguage(selected);
     }
 
     reportManualLanguage(language) {
-      if (typeof window === 'undefined') return;
-      window.dispatchEvent(new CustomEvent('ytsc:manual-caption-language', {
+      // document is shared with the isolated-world bridge; each world's window is not.
+      // A JSON string crosses where a detail object does not (notably Firefox).
+      const target = globalThis.document;
+      if (!target?.dispatchEvent) return;
+      target.dispatchEvent(new CustomEvent('ytsc:manual-caption-language', {
         detail: JSON.stringify({ language }),
       }));
     }
@@ -266,8 +374,9 @@
 
     captureOriginalSelection(tracks) {
       const videoId = this.currentVideoId();
-      if (this.selectionVideoId === videoId && this.originalSelection) return this.originalSelection;
       const tapped = this.tapFor(videoId);
+      this.freezeOriginal(this.loadedUrl || tapped?.url);
+      if (this.selectionVideoId === videoId && this.originalSelection) return this.originalSelection;
       let selection = globalThis.YTSC.TrackProvider.selectionFromUrl(this.loadedUrl || tapped?.url, tracks);
       if (!selection) {
         const player = this.provider.getPlayer?.();
@@ -284,10 +393,9 @@
       if (!selection) selection = { track: this.provider.pickBest(tracks), translationLanguage: null };
       this.selectionVideoId = videoId;
       this.originalSelection = selection.track ? selection : null;
-      if (this.originalSelection) {
+      if (this.originalSelection && !this.activeCaptionLanguage) {
         this.noteCaptionLanguage(this.originalSelection.translationLanguage || this.originalSelection.track.languageCode);
       }
-      this.browserCaptions = false;
       return this.originalSelection;
     }
 
@@ -312,13 +420,19 @@
       this.settlePending(false);
       this.pendingSelection = pending;
       this.loadGeneration++;
+      this.watchPlayer();
+      this.applyingPlayerTrack = true;
       try {
         player.setOption('captions', 'track', track);
       } catch (err) {
         this.settlePending(false);
         this.log(`[ytsc] player language switch failed: ${err?.message || err}`);
         return null;
+      } finally {
+        this.applyingPlayerTrack = false;
       }
+      // The player is on this track now, even if its download has not arrived.
+      this.noteCaptionLanguage(selection.translationLanguage || selection.track.languageCode);
       if (cached) return this.loadFromTap(cached);
       // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
       this.startLiveMode();
@@ -330,9 +444,46 @@
       return loaded;
     }
 
+    activeMatchesLanguage(language) {
+      const { TrackProvider } = globalThis.YTSC;
+      return TrackProvider.languageMatches(this.activeCaptionLanguage, language);
+    }
+
+    /** The preferred-language selection, or an error toast string. */
+    preferredSelection(found, original) {
+      const requested = this.preferredCaptionLanguage();
+      if (!requested) return { error: 'Caption language unavailable' };
+      const direct = this.provider.pickLanguage(found.tracks, requested);
+      if (direct) return { selection: { track: direct, translationLanguage: null } };
+      const languages = found.translationLanguages || [];
+      const supported = this.provider.findTranslationLanguage(languages, requested);
+      if (languages.length && !supported) {
+        return { error: `${this.languageName(requested)} captions unavailable` };
+      }
+      return {
+        selection: {
+          track: original.track,
+          translationLanguage: supported?.languageCode || requested,
+        },
+      };
+    }
+
+    showingSelection(selection) {
+      if (!selection?.track || !this.loadedUrl) return false;
+      if (!this.entryMatchesSelection({ url: this.loadedUrl }, selection)) return false;
+      // The player can already be on another language while the previous download's
+      // URL is still the one we loaded. Trust the language we last asked for.
+      const { TrackProvider } = globalThis.YTSC;
+      const visible = TrackProvider.normalizeLanguage(selection.translationLanguage || selection.track.languageCode);
+      return !this.activeCaptionLanguage || TrackProvider.languageMatches(this.activeCaptionLanguage, visible);
+    }
+
     async toggleCaptionLanguage() {
       if (this.languageSwitching) return;
       this.languageSwitching = true;
+      // This press is ours. A caption click just before it must not be learned
+      // from the download the shortcut itself triggers.
+      this.captionChoiceAt = 0;
       try {
         const videoId = this.currentVideoId();
         const found = this.provider.getTracksWithSource
@@ -343,43 +494,30 @@
           this.showToast('No captions available');
           return;
         }
-        const restoring = this.browserCaptions;
-        let selection = original;
-        let autoTranslated = Boolean(original.translationLanguage);
-        if (!restoring) {
-          const requested = this.preferredCaptionLanguage();
-          if (!requested) {
-            this.showToast('Caption language unavailable');
-            return;
-          }
-          const direct = this.provider.pickLanguage(found.tracks, requested);
-          if (direct) {
-            selection = { track: direct, translationLanguage: null };
-            autoTranslated = false;
-          } else {
-            const languages = found.translationLanguages || [];
-            const supported = this.provider.findTranslationLanguage(languages, requested);
-            if (languages.length && !supported) {
-              this.showToast(`${this.languageName(requested)} captions unavailable`);
-              return;
-            }
-            selection = {
-              track: original.track,
-              translationLanguage: supported?.languageCode || requested,
-            };
-            autoTranslated = true;
-          }
+        const preferred = this.preferredSelection(found, original);
+        if (preferred.error) {
+          this.showToast(preferred.error);
+          return;
+        }
+        // Follow the language on screen: preferred goes back to the video's
+        // original, anything else goes to preferred.
+        const selection = this.activeMatchesLanguage(this.preferredCaptionLanguage())
+          ? original
+          : preferred.selection;
+        if (this.showingSelection(selection)) {
+          const name = this.languageName(selection.translationLanguage || selection.track.languageCode);
+          this.showToast(`Captions: ${name}`);
+          return;
         }
         const loading = this.switchPlayerCaptions(selection);
         if (!loading) {
           this.showToast('Could not switch caption language');
           return;
         }
-        // The player now holds this selection, whether or not its captions arrive.
-        this.browserCaptions = !restoring;
         const loaded = await loading;
         if (videoId !== this.currentVideoId()) return;
         const name = this.languageName(selection.translationLanguage || selection.track.languageCode);
+        const autoTranslated = Boolean(selection.translationLanguage);
         this.showToast(loaded
           ? `Captions: ${name}${autoTranslated ? ' (auto-translated)' : ''}`
           : `${name} captions did not load`);
@@ -446,11 +584,8 @@
       if (this.videoId !== videoId) {
         this.originalSelection = null;
         this.selectionVideoId = null;
-        this.browserCaptions = false;
         this.activeCaptionLanguage = null;
-        this.defaultCaptionLanguage = null;
-        this.learningReadyAt = 0;
-        this.learningCountedVideoId = null;
+        this.captionChoiceAt = 0;
         this.settlePending(false);
       }
       this.videoId = videoId;

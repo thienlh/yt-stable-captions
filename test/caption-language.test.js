@@ -10,12 +10,14 @@ const VI = { languageCode: 'vi', baseUrl: 'https://www.youtube.com/api/timedtext
 /** What timedtext-tap.js publishes when the player downloads `url`. */
 const tap = (url) => ({ videoId: 'abc', url, body: '{}' });
 
-function setup({ tracks = [EN], translationLanguages = [{ languageCode: 'vi' }], player } = {}) {
+function setup({ tracks = [EN], translationLanguages = [{ languageCode: 'vi' }], defaultTrack = null, player } = {}) {
   const provider = new TrackProvider();
-  provider.getTracksWithSource = () => ({ tracks, translationLanguages, source: 'test' });
+  provider.getTracksWithSource = () => ({ tracks, translationLanguages, defaultTrack, source: 'test' });
   provider.fetchJson3 = async () => { throw new Error('the shortcut must not fetch tracks itself'); };
   const calls = [];
-  provider.getPlayer = () => (player === undefined ? { setOption: (...args) => calls.push(args) } : player);
+  // One player object: the shortcut and the menu hook must wrap the same setOption.
+  const fallbackPlayer = { setOption: (...args) => calls.push(args) };
+  provider.getPlayer = () => (player === undefined ? fallbackPlayer : player);
   const controller = new StableCaptionsController({
     provider,
     parser: {},
@@ -32,6 +34,7 @@ function setup({ tracks = [EN], translationLanguages = [{ languageCode: 'vi' }],
   controller.useTimeline = (payload, url) => {
     controller.loaded.push(url);
     controller.loadedUrl = url;
+    controller.noteLoadedCaption(url);
     return true;
   };
   controller.live = 0;
@@ -49,7 +52,6 @@ test('Shift+L auto-translates through the player track and restores the source t
   assert.deepEqual(calls, [
     ['captions', 'track', { languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'vi' } }],
   ]);
-  assert.equal(controller.browserCaptions, true);
   assert.equal(controller.live, 1);
   assert.equal(controller.toasts.length, 0, 'no success toast before the translation arrives');
 
@@ -61,7 +63,6 @@ test('Shift+L auto-translates through the player track and restores the source t
   // The player answers its earlier track from cache, so the tapped original is reused.
   await controller.toggleCaptionLanguage();
   assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
-  assert.equal(controller.browserCaptions, false);
   assert.equal(controller.loaded.at(-1), EN.baseUrl);
   assert.doesNotMatch(controller.toasts[1], /auto-translated/);
 });
@@ -87,7 +88,7 @@ test('a later player download keeps the switched language', async () => {
   const again = tap(`${VI.baseUrl}&sig=2`);
   await controller.onTap(again);
   assert.equal(controller.loaded.at(-1), again.url);
-  assert.equal(controller.browserCaptions, true);
+  assert.equal(controller.activeCaptionLanguage, 'vi');
 });
 
 test('unsupported YouTube translation languages leave captions unchanged', async () => {
@@ -95,7 +96,6 @@ test('unsupported YouTube translation languages leave captions unchanged', async
 
   await controller.toggleCaptionLanguage();
   assert.equal(calls.length, 0);
-  assert.equal(controller.browserCaptions, false);
   assert.match(controller.toasts[0], /captions unavailable/);
 });
 
@@ -103,7 +103,6 @@ test('without the player API nothing switches', async () => {
   const { controller } = setup({ player: null });
 
   await controller.toggleCaptionLanguage();
-  assert.equal(controller.browserCaptions, false);
   assert.equal(controller.toasts[0], 'Could not switch caption language');
 });
 
@@ -202,7 +201,6 @@ test('a slow download from an earlier switch does not replace newer captions', a
   const switching = controller.toggleCaptionLanguage();
   void controller.onTap({ ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' });
   await switching;
-  assert.equal(controller.browserCaptions, true);
 
   // Shift+L again restores the original, then the stale download finishes.
   await controller.toggleCaptionLanguage();
@@ -230,39 +228,166 @@ test('a learned language overrides the browser fallback on Shift+L', async () =>
   assert.equal(controller.loaded.at(-1), `${EN.baseUrl}&tlang=fr`);
 });
 
-test('a successful non-default manual selection is reported once per video', async () => {
-  const { controller } = setup();
-  controller.defaultCaptionLanguage = 'en';
-  controller.activeCaptionLanguage = 'en';
-  controller.learningReadyAt = 0;
-  const reported = [];
-  controller.reportManualLanguage = (language) => reported.push(language);
-  controller.loadFromTap = async () => true;
+test('Shift+L follows the language on screen back to the video\'s first track', async () => {
+  const { controller, calls } = setup();
+  controller.rememberTap(tap(EN.baseUrl));
+  controller.noteLoadedCaption(EN.baseUrl);
+  controller.loadedUrl = `${EN.baseUrl}&tlang=vi`;
+  controller.noteCaptionLanguage('vi');
 
-  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
-  assert.deepEqual(reported, ['vi']);
-  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr`));
-  assert.deepEqual(reported, ['vi'], 'another choice on the same video does not skew frequency');
+  await controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  assert.equal(controller.originalSelection.track, EN);
 });
 
-test('automatic, duplicate, default and early selections are not learned', () => {
-  const { controller } = setup();
+test('Shift+L from a third language goes to the preferred language', async () => {
+  const { controller, calls } = setup();
+  controller.noteLoadedCaption(EN.baseUrl);
+  controller.loadedUrl = 'https://www.youtube.com/api/timedtext?v=abc&lang=fr';
+  controller.noteCaptionLanguage('fr');
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], [
+    'captions', 'track', { languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'vi' } },
+  ]);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  await switching;
+});
+
+test('a later video that opens already translated toggles back to its source track', async () => {
+  const { controller, calls } = setup();
+  controller.rememberTap(tap(EN.baseUrl));
+  // YouTube carried Vietnamese onto this video, so the first download is a translation.
+  controller.noteLoadedCaption(`${EN.baseUrl}&tlang=vi`);
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.originalSelection.translationLanguage, null);
+  assert.equal(controller.activeCaptionLanguage, 'vi');
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  await switching;
+  assert.equal(controller.activeCaptionLanguage, 'en');
+});
+
+test('the player default track stays original when the preferred language is already selected', async () => {
+  const { controller, calls } = setup({ tracks: [EN, VI], defaultTrack: EN });
+  controller.rememberTap(tap(EN.baseUrl));
+  controller.noteLoadedCaption(VI.baseUrl);
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.originalSelection.translationLanguage, null);
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  await switching;
+});
+
+test('a carried preferred language does not replace the source track found first', () => {
+  const { controller } = setup({ tracks: [EN, VI] });
+  controller.noteLoadedCaption(EN.baseUrl);
+  controller.noteLoadedCaption(VI.baseUrl);
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.activeCaptionLanguage, 'vi');
+});
+
+test('Shift+L does nothing when the video is already in the preferred language', async () => {
+  const { controller, calls } = setup({ tracks: [VI], translationLanguages: [] });
+  controller.loadedUrl = VI.baseUrl;
+  controller.noteLoadedCaption(VI.baseUrl);
+
+  await controller.toggleCaptionLanguage();
+  assert.equal(calls.length, 0);
+  assert.equal(controller.toasts[0], 'Captions: Tiếng Việt');
+});
+
+function menuRow(label, inMenu = true) {
+  const row = {
+    closest(selector) {
+      if (selector === '.ytp-menuitem') return row;
+      if (selector === '.ytp-settings-menu, .ytp-popup') return inMenu ? {} : null;
+      return null;
+    },
+    querySelector(selector) {
+      if (selector === '.ytp-menuitem-label') return { textContent: label };
+      return null;
+    },
+  };
+  return row;
+}
+
+test('only a trusted click on a caption row arms learning', () => {
+  const { controller } = setup({
+    tracks: [{ ...EN, name: { simpleText: 'English (auto-generated)' } }],
+    translationLanguages: [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }],
+  });
+  controller.onCaptionMenuEvent({ isTrusted: false, type: 'click', target: menuRow('Vietnamese') });
+  assert.equal(controller.captionChoiceAt, 0);
+  controller.onCaptionMenuEvent({ isTrusted: true, type: 'click', target: menuRow('1080p') });
+  assert.equal(controller.captionChoiceAt, 0);
+  controller.onCaptionMenuEvent({ isTrusted: true, type: 'click', target: menuRow('Vietnamese', false) });
+  assert.equal(controller.captionChoiceAt, 0);
+  controller.onCaptionMenuEvent({ isTrusted: true, type: 'click', target: menuRow('Vietnamese') });
+  assert.ok(controller.captionMenuArmed());
+});
+
+test('the latest caption-menu choice is learned, including the video\'s first language', async () => {
+  const { controller } = setup({
+    tracks: [{ ...EN, name: { simpleText: 'English (auto-generated)' } }],
+    translationLanguages: [
+      { languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } },
+      { languageCode: 'fr', languageName: { simpleText: 'French' } },
+    ],
+  });
   const reported = [];
   controller.reportManualLanguage = (language) => reported.push(language);
-  controller.defaultCaptionLanguage = 'en';
-  controller.activeCaptionLanguage = 'en';
+  controller.noteLoadedCaption(EN.baseUrl);
 
-  controller.learningReadyAt = Date.now() + 10000;
-  controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'en');
-  assert.equal(reported.length, 0, 'initial player preference grace period');
+  assert.equal(controller.armCaptionMenuChoice('Vietnamese'), true);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  assert.deepEqual(reported, ['vi']);
 
-  controller.learningReadyAt = 0;
+  assert.equal(controller.armCaptionMenuChoice('French'), true);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr`));
+  assert.deepEqual(reported, ['vi', 'fr'], 'a later choice on the same video wins');
+
+  assert.equal(controller.armCaptionMenuChoice('English (auto-generated)'), true);
+  await controller.onTap(tap(`${EN.baseUrl}&sig=2`));
+  assert.deepEqual(reported, ['vi', 'fr', 'en'], 'choosing the language the video started in counts');
+});
+
+test('player track changes are learned only after a caption-menu choice', () => {
+  const { controller } = setup({
+    translationLanguages: [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }],
+  });
+  const reported = [];
+  controller.reportManualLanguage = (language) => reported.push(language);
+  controller.watchPlayer();
+  const player = controller.provider.getPlayer();
+
+  player.setOption('captions', 'track', { languageCode: 'fr' });
+  assert.deepEqual(reported, [], 'an automatic player change is ignored');
+
+  assert.equal(controller.armCaptionMenuChoice('Vietnamese'), true);
+  player.setOption('captions', 'track', {
+    languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'vi' },
+  });
+  assert.deepEqual(reported, ['vi']);
+  player.setOption('captions', 'track', { languageCode: 'fr' });
+  assert.deepEqual(reported, ['vi'], 'one gesture learns one choice');
+});
+
+test('downloads without a caption-menu choice are not learned', async () => {
+  const { controller } = setup({
+    translationLanguages: [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }],
+  });
+  const reported = [];
+  controller.reportManualLanguage = (language) => reported.push(language);
+  controller.noteLoadedCaption(EN.baseUrl);
+
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  assert.deepEqual(reported, []);
+
+  controller.armCaptionMenuChoice('Vietnamese');
   controller.languageSwitching = true;
   controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'en');
-  assert.equal(reported.length, 0, 'extension-initiated switch');
-
-  controller.languageSwitching = false;
-  controller.learnManualSelection(tap(`${EN.baseUrl}&tlang=vi`), 'vi');
-  controller.learnManualSelection(tap(`${EN.baseUrl}&sig=2`), 'vi');
-  assert.equal(reported.length, 0, 'duplicate language and return to the default track');
+  assert.deepEqual(reported, [], 'a shortcut switch is not a manual choice');
 });

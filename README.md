@@ -106,11 +106,11 @@ Same keys as YouTube's own captions:
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 | `Shift+L` | Toggle between the video's original captions and your preferred language |
 
-The language shortcut starts with your browser language. The first manual non-default caption
-choice in YouTube becomes the preferred target immediately; later manual choices replace it.
-Automatic player changes, extension switches and repeated choices on one video are ignored.
-Only the latest language code and selection timestamp are stored (no video ID), in
-`storage.local`, and never leave the browser.
+The language shortcut starts with your browser language. Choosing a language in YouTube's
+subtitles menu replaces it immediately, including another choice on the same video and a
+choice of the language the video started in. Downloads the player makes on its own, and
+switches from this shortcut, are not learned. Only the latest language code and selection
+timestamp are stored (no video ID), in `storage.local`, and never leave the browser.
 
 The shortcut prefers an existing target-language track, otherwise it uses YouTube auto-translate
 when offered. It restores the original source track (including its manual/ASR choice and any

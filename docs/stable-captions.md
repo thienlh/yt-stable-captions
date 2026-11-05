@@ -7,7 +7,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 - **Two styles.** *Frosted* is a calm glass panel. *Short* is bold, punchy text. Pick one from the toolbar popup.
 - **Clean verbatim.** Hides fillers like *um* and *uh* and stumbles like *I I I think*. On by default.
 - **Seven text sizes** and adjustable background strength.
-- **Caption languages.** Follow any language you pick in the YouTube player, or press `Shift+L` to toggle between the video's original captions and your preferred language. It starts with your browser language and immediately learns your latest manual choice in YouTube. Existing tracks are preferred, with YouTube auto-translate as the fallback.
+- **Caption languages.** Follow any language you pick in the YouTube player, or press `Shift+L` to toggle between the video's original captions and your preferred language. It starts with your browser language. A language you pick in YouTube's subtitles menu replaces it, including on the same video. Existing tracks are preferred, with YouTube auto-translate as the fallback.
 - **Keyboard shortcuts** that match YouTube's own:
 
 | Key | Action |
