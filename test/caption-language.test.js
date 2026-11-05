@@ -289,6 +289,41 @@ test('a carried preferred language does not replace the source track found first
   assert.equal(controller.activeCaptionLanguage, 'vi');
 });
 
+test('a later menu language does not replace the video source', () => {
+  const FR = { languageCode: 'fr', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=fr' };
+  const { controller } = setup({ tracks: [EN, FR] });
+  controller.noteLoadedCaption(EN.baseUrl);
+  controller.noteLoadedCaption(FR.baseUrl);
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.activeCaptionLanguage, 'fr');
+});
+
+test('a preferred-language placeholder gives way to the source track', () => {
+  const { controller } = setup({ tracks: [EN, VI] });
+  controller.noteLoadedCaption(VI.baseUrl);
+  assert.equal(controller.originalSelection.track, VI);
+  controller.noteLoadedCaption(EN.baseUrl);
+  assert.equal(controller.originalSelection.track, EN);
+});
+
+test('Shift+L selects a different script instead of treating it as the original', async () => {
+  const HANT = { languageCode: 'zh-Hant', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=zh-Hant' };
+  const HANS = { languageCode: 'zh-Hans', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=zh-Hans' };
+  const { controller, calls } = setup({ tracks: [HANT, HANS], translationLanguages: [] });
+  controller.browserLanguage = () => 'zh-Hans';
+  controller.rememberTap(tap(HANT.baseUrl));
+  controller.rememberTap(tap(HANS.baseUrl));
+  controller.noteLoadedCaption(HANT.baseUrl);
+
+  const toHans = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'zh-Hans' }]);
+  await toHans;
+
+  const toHant = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'zh-Hant' }]);
+  await toHant;
+});
+
 test('Shift+L does nothing when the video is already in the preferred language', async () => {
   const { controller, calls } = setup({ tracks: [VI], translationLanguages: [] });
   controller.loadedUrl = VI.baseUrl;

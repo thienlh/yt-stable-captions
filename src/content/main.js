@@ -200,7 +200,7 @@
           (u.searchParams.get('kind') || '') === (selection.track.kind || '');
         const translated = u.searchParams.get('tlang');
         if (selection.translationLanguage) {
-          return sameSource && TrackProvider.languageMatches(translated, selection.translationLanguage);
+          return sameSource && TrackProvider.sameCaptionLanguage(translated, selection.translationLanguage);
         }
         return sameSource && !translated;
       } catch {
@@ -269,8 +269,11 @@
         preferred: this.preferredCaptionLanguage(),
       });
       if (!selection?.track) return;
+      // A source track, once known, stays the original. Later menu languages
+      // update the preference and must not replace it. A preferred-language
+      // placeholder can still give way to the real source.
       const prior = this.selectionVideoId === videoId ? this.originalSelection : null;
-      if (prior && !this.isPreferredSelection(prior) && this.isPreferredSelection(selection)) return;
+      if (prior && !this.isPreferredSelection(prior)) return;
       this.selectionVideoId = videoId;
       this.originalSelection = selection;
     }
@@ -278,7 +281,7 @@
     isPreferredSelection(selection) {
       if (!selection?.track) return false;
       const visible = selection.translationLanguage || selection.track.languageCode;
-      return globalThis.YTSC.TrackProvider.languageMatches(visible, this.preferredCaptionLanguage());
+      return globalThis.YTSC.TrackProvider.sameCaptionLanguage(visible, this.preferredCaptionLanguage());
     }
 
     /**
@@ -444,9 +447,22 @@
       return loaded;
     }
 
-    activeMatchesLanguage(language) {
+    /**
+     * True when the captions on screen are the resolved preferred selection.
+     * An exact track (zh-Hans) does not count as its sibling (zh-Hant). A base
+     * track still counts for a regional code when no exact track exists (en for en-US).
+     */
+    showingPreferred(selection) {
       const { TrackProvider } = globalThis.YTSC;
-      return TrackProvider.languageMatches(this.activeCaptionLanguage, language);
+      const visible = TrackProvider.normalizeLanguage(
+        selection?.translationLanguage || selection?.track?.languageCode
+      );
+      const active = TrackProvider.normalizeLanguage(this.activeCaptionLanguage);
+      if (!active || !visible) return false;
+      if (active === visible) return true;
+      const requested = TrackProvider.normalizeLanguage(this.preferredCaptionLanguage());
+      if (requested === visible) return false;
+      return TrackProvider.sameCaptionLanguage(active, visible);
     }
 
     /** The preferred-language selection, or an error toast string. */
@@ -475,7 +491,7 @@
       // URL is still the one we loaded. Trust the language we last asked for.
       const { TrackProvider } = globalThis.YTSC;
       const visible = TrackProvider.normalizeLanguage(selection.translationLanguage || selection.track.languageCode);
-      return !this.activeCaptionLanguage || TrackProvider.languageMatches(this.activeCaptionLanguage, visible);
+      return !this.activeCaptionLanguage || TrackProvider.sameCaptionLanguage(this.activeCaptionLanguage, visible);
     }
 
     async toggleCaptionLanguage() {
@@ -499,11 +515,9 @@
           this.showToast(preferred.error);
           return;
         }
-        // Follow the language on screen: preferred goes back to the video's
-        // original, anything else goes to preferred.
-        const selection = this.activeMatchesLanguage(this.preferredCaptionLanguage())
-          ? original
-          : preferred.selection;
+        // Follow the resolved selection on screen. A different script or region
+        // with its own track is not already the preferred language.
+        const selection = this.showingPreferred(preferred.selection) ? original : preferred.selection;
         if (this.showingSelection(selection)) {
           const name = this.languageName(selection.translationLanguage || selection.track.languageCode);
           this.showToast(`Captions: ${name}`);

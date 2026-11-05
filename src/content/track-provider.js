@@ -89,8 +89,8 @@
       if (!observed?.track) return null;
       const visible = observed.translationLanguage || observed.track.languageCode;
       if (observed.translationLanguage &&
-          TrackProvider.languageMatches(visible, preferred) &&
-          !TrackProvider.languageMatches(observed.track.languageCode, preferred)) {
+          TrackProvider.sameCaptionLanguage(visible, preferred) &&
+          !TrackProvider.sameCaptionLanguage(observed.track.languageCode, preferred)) {
         return { track: observed.track, translationLanguage: null };
       }
       return observed;
@@ -118,6 +118,20 @@
       const right = TrackProvider.normalizeLanguage(b);
       return Boolean(left && right) &&
         (left === right || left.split('-')[0] === right.split('-')[0]);
+    }
+
+    /**
+     * en matches en-US. zh-Hant does not match zh-Hans: a different subtag is a
+     * different caption track, while a bare base code still matches a region.
+     */
+    static sameCaptionLanguage(a, b) {
+      const left = TrackProvider.normalizeLanguage(a);
+      const right = TrackProvider.normalizeLanguage(b);
+      if (!left || !right) return false;
+      if (left === right) return true;
+      const [baseA, ...restA] = left.split('-');
+      const [baseB, ...restB] = right.split('-');
+      return baseA === baseB && (!restA.length || !restB.length);
     }
 
     /** The visible language: an auto-translation target, otherwise the source track. */

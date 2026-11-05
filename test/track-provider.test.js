@@ -50,6 +50,15 @@ test('language choice prefers an exact region and manual tracks over ASR', () =>
   assert.equal(p.pickLanguage(tracks, 'vi'), null);
 });
 
+test('a different script is a different caption language, a region is not', () => {
+  assert.equal(TrackProvider.sameCaptionLanguage('en', 'en-US'), true);
+  assert.equal(TrackProvider.sameCaptionLanguage('zh-Hant', 'zh-Hans'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('zh-Hans', 'zh-CN'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('pt-BR', 'pt-PT'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('vi', 'vi-VN'), true);
+  assert.equal(TrackProvider.languageMatches('zh-Hant', 'zh-Hans'), true);
+});
+
 test('translation languages match browser regional locales', () => {
   const p = new TrackProvider();
   const languages = [{ languageCode: 'en' }, { languageCode: 'vi' }];
