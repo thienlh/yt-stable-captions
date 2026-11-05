@@ -285,6 +285,21 @@ test('a carried translation to the offered fallback language toggles back to its
   await switching;
 });
 
+test('a zh-TW browser auto-translates to Traditional Chinese, and back to the source', async () => {
+  const { controller, calls } = setup({ translationLanguages: [{ languageCode: 'zh-Hans' }, { languageCode: 'zh-Hant' }] });
+  controller.browserLanguage = () => 'zh-TW';
+  controller.rememberTap(tap(EN.baseUrl));
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'zh-Hant' } }]);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=zh-Hant`));
+  await switching;
+
+  const back = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  await back;
+});
+
 test('a carried fallback-language track is a placeholder for the source track', () => {
   const HANT = { languageCode: 'zh-Hant', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=zh-Hant' };
   const { controller } = setup({ tracks: [EN, HANT], translationLanguages: [] });

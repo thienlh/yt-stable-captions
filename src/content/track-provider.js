@@ -171,18 +171,43 @@
       return String(label || '').trim().toLowerCase().replace(/\s+/g, ' ');
     }
 
-    /** Prefer an exact regional match, then another track in the same base language. */
+    /**
+     * The writing system a code implies: an explicit script subtag (zh-Hant), or
+     * the script a Chinese region uses (zh-TW is Traditional, zh-CN Simplified).
+     * Empty when the code does not say.
+     */
+    static scriptOf(language) {
+      const [base, ...subtags] = TrackProvider.normalizeLanguage(language).split('-');
+      const script = subtags.find((tag) => /^[a-z]{4}$/.test(tag));
+      if (script) return script;
+      const region = subtags.find((tag) => /^([a-z]{2}|\d{3})$/.test(tag));
+      return TrackProvider.REGION_SCRIPTS[base]?.[region] || '';
+    }
+
+    /** 0 exact, 1 same script, 2 same base language; null when the base differs. */
+    static languageRank(candidate, language) {
+      if (!TrackProvider.languageMatches(candidate, language)) return null;
+      if (TrackProvider.normalizeLanguage(candidate) === TrackProvider.normalizeLanguage(language)) return 0;
+      const script = TrackProvider.scriptOf(language);
+      return script && TrackProvider.scriptOf(candidate) === script ? 1 : 2;
+    }
+
+    /** The entries of the best rank for `language`, in their original order. */
+    static closestLanguages(entries, language) {
+      const ranked = entries
+        .map((entry) => ({ entry, rank: TrackProvider.languageRank(entry?.languageCode, language) }))
+        .filter(({ rank }) => rank !== null);
+      const best = Math.min(...ranked.map(({ rank }) => rank));
+      return ranked.filter(({ rank }) => rank === best).map(({ entry }) => entry);
+    }
+
+    /** Prefer an exact match, then the same script, then another track in the same base language. */
     pickLanguage(tracks, language) {
-      const matches = tracks.filter((t) => TrackProvider.languageMatches(t.languageCode, language));
-      const normalized = TrackProvider.normalizeLanguage(language);
-      const exact = matches.filter((t) => TrackProvider.normalizeLanguage(t.languageCode) === normalized);
-      return this.pickBest(exact.length ? exact : matches);
+      return this.pickBest(TrackProvider.closestLanguages(tracks, language));
     }
 
     findTranslationLanguage(languages, language) {
-      const normalized = TrackProvider.normalizeLanguage(language);
-      return languages.find((l) => TrackProvider.normalizeLanguage(l.languageCode) === normalized) ||
-        languages.find((l) => TrackProvider.languageMatches(l.languageCode, language)) || null;
+      return TrackProvider.closestLanguages(languages, language)[0] || null;
     }
 
     /** Recover the source track and optional translation from a timedtext URL. */
@@ -259,6 +284,11 @@
       }
     }
   }
+
+  /** Regions whose locale implies a script YouTube names separately (zh-Hant, zh-Hans). */
+  TrackProvider.REGION_SCRIPTS = {
+    zh: { tw: 'hant', hk: 'hant', mo: 'hant', cn: 'hans', sg: 'hans', my: 'hans' },
+  };
 
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, { TrackProvider });
 })();

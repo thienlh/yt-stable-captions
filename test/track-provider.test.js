@@ -59,6 +59,30 @@ test('a different script is a different caption language, a region is not', () =
   assert.equal(TrackProvider.languageMatches('zh-Hant', 'zh-Hans'), true);
 });
 
+test('a Chinese region picks the script it reads, whatever the list order', () => {
+  const p = new TrackProvider();
+  assert.equal(TrackProvider.scriptOf('zh-TW'), 'hant');
+  assert.equal(TrackProvider.scriptOf('zh_HK'), 'hant');
+  assert.equal(TrackProvider.scriptOf('zh-Hans-SG'), 'hans');
+  assert.equal(TrackProvider.scriptOf('zh'), '');
+  assert.equal(TrackProvider.scriptOf('pt-BR'), '');
+
+  const languages = [{ languageCode: 'zh-Hans' }, { languageCode: 'zh-Hant' }];
+  assert.equal(p.findTranslationLanguage(languages, 'zh-TW').languageCode, 'zh-Hant');
+  assert.equal(p.findTranslationLanguage(languages, 'zh-HK').languageCode, 'zh-Hant');
+  assert.equal(p.findTranslationLanguage([...languages].reverse(), 'zh-CN').languageCode, 'zh-Hans');
+  // Without its script, a region still falls back to the base language.
+  assert.equal(p.findTranslationLanguage([{ languageCode: 'zh-Hans' }], 'zh-TW').languageCode, 'zh-Hans');
+
+  const tracks = [
+    { languageCode: 'zh-CN', baseUrl: 'https://x/timedtext?lang=zh-CN' },
+    { languageCode: 'zh-TW', baseUrl: 'https://x/timedtext?lang=zh-TW' },
+  ];
+  assert.equal(p.pickLanguage(tracks, 'zh-HK').languageCode, 'zh-TW');
+  assert.equal(p.pickLanguage(tracks, 'zh-Hant').languageCode, 'zh-TW');
+  assert.equal(p.pickLanguage(tracks, 'zh-SG').languageCode, 'zh-CN');
+});
+
 test('translation languages match browser regional locales', () => {
   const p = new TrackProvider();
   const languages = [{ languageCode: 'en' }, { languageCode: 'vi' }];
