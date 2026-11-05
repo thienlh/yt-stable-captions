@@ -179,6 +179,7 @@ Open directly in Chromium (no build step); both run the real `src/core` code:
 - `playground/caption-styles.html` — compare caption styles, chunk sizes, highlight modes
 - `playground/speaker-marks.html` — ways to handle YouTube's `>>` speaker-change marks
 - `playground/popup-ui.html` — popup designs; A2 is what shipped
+- `playground/popup-wabi.html` — popup in a wabi.ai direction: squircle style tiles, glass-bubble icons, live caption preview
 - `playground/disfluency.html` — verbatim vs dimmed vs cleaned fillers/repeats, both styles
 
 Inter is bundled from https://rsms.me/inter (SIL OFL 1.1, see `fonts/Inter-LICENSE.txt`); the popup title uses

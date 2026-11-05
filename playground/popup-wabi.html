@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en" data-mode="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Popup — wabi direction</title>
+<style>
+  /* A popup mockup after wabi.ai, matching the Paper artboard "Stable Captions — Popup
+     (wabi)": style choices as squircle "app" tiles, settings as list rows with
+     glass-bubble icons. Interactive: the video preview beside it follows every setting. */
+
+  @font-face {
+    font-family: "Inter Fallback";
+    src: url("../fonts/InterVariable.woff2") format("woff2");
+    font-weight: 100 900;
+  }
+
+  :root {
+    --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro", "Inter Fallback", system-ui, sans-serif;
+    --blue: #0a84ff;
+    --ink: #111114;
+    --dim: #86868c;
+    --surface: #f7f7f8;
+    --canvas: #e6e6e9;
+    --key: rgba(0, 0, 0, 0.06);
+    --capsule: rgba(255, 255, 255, 0.82);
+    --capsule-edge: rgba(0, 0, 0, 0.07);
+    --track-off: rgba(120, 120, 128, 0.16);
+    --dot-off: #d9d9de;
+  }
+  :root[data-mode="dark"] {
+    --ink: #f2f2f5;
+    --dim: #9a9aa2;
+    --surface: #1c1c1f;
+    --canvas: #0e0e10;
+    --key: rgba(255, 255, 255, 0.1);
+    --capsule: rgba(255, 255, 255, 0.1);
+    --capsule-edge: rgba(255, 255, 255, 0.08);
+    --track-off: rgba(120, 120, 128, 0.36);
+    --dot-off: rgba(255, 255, 255, 0.2);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--canvas);
+    font-family: var(--sans);
+    -webkit-font-smoothing: antialiased;
+    display: grid;
+    place-items: center;
+    min-height: 100vh;
+    padding: 32px;
+  }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+  button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+  /* ================= Stage: the popup, with a video preview beside it ================= */
+  .stage { display: flex; align-items: flex-start; gap: 56px; }
+  .mode {
+    position: fixed; top: 16px; right: 16px;
+    height: 30px; padding: 0 12px; border-radius: 15px;
+    background: var(--key); color: var(--dim); font-size: 12px; font-weight: 500;
+  }
+  .preview { display: grid; gap: 10px; width: 560px; }
+  .preview-label { font-size: 13px; font-weight: 500; color: var(--dim); }
+  .video {
+    position: relative; height: 315px; border-radius: 14px; overflow: hidden;
+    background:
+      radial-gradient(circle at 22% 28%, #e8b27a 0%, transparent 45%),
+      radial-gradient(circle at 78% 30%, #6fa0c8 0%, transparent 50%),
+      radial-gradient(circle at 60% 85%, #c2557a 0%, transparent 45%),
+      linear-gradient(160deg, #3b4b63 0%, #1b2130 100%);
+    display: flex; align-items: flex-end; justify-content: center; padding-bottom: 28px;
+  }
+
+  /* The caption on the video, drawn per style */
+  .cap { --size: 20px; font-size: var(--size); line-height: 1.3; text-align: center; transition: font-size 160ms; }
+  .cap[data-off] { opacity: 0; }
+  .cap .w { transition: color 120ms; }
+  .cap[data-style="frosted"] {
+    padding: 0.4em 0.8em; border-radius: 0.8em;
+    background: var(--win); backdrop-filter: blur(18px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.24);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.3), 0 6px 20px rgba(0, 0, 0, 0.18);
+    color: rgba(255, 255, 255, 0.78); font-weight: 500;
+  }
+  .cap[data-style="frosted"] .w.on { color: #fff; font-weight: 700; }
+  .cap[data-style="tiktok"] {
+    padding: 0.15em 0.4em; border-radius: 0.3em; background: var(--win);
+    color: #fff; font-weight: 900; letter-spacing: -0.01em;
+    text-shadow: 0 2px 0 rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.35);
+    font-size: calc(var(--size) * 1.3);
+  }
+  .cap[data-style="tiktok"] .w.on { color: #ffe45c; }
+  .cap[data-style="boring"] { display: grid; justify-items: center; gap: 0; color: #fff; font-weight: 500; }
+  .cap[data-style="boring"] .line { background: var(--win); padding: 0.05em 0.3em; }
+  .cap[data-style="boring"] .w.on { color: #ffe45c; }
+
+  /* ================= The popup (Paper artboard: 340 wide, 26px corners) ================= */
+  .popup {
+    width: 340px; flex-shrink: 0;
+    padding: 20px 16px 18px;
+    display: grid; gap: 22px;
+    border-radius: 26px;
+    background: var(--surface);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05), 0 16px 48px rgba(0, 0, 0, 0.08);
+    color: var(--ink);
+  }
+
+  /* Header: wordmark + status bubble (wabi's avatar spot) */
+  .head { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+  .wordmark { display: flex; align-items: center; gap: 8px; font-size: 22px; font-weight: 700; letter-spacing: -0.03em; }
+  .wordmark svg { fill: currentColor; }
+
+  /* Style tiles */
+  .tiles { display: flex; gap: 10px; }
+  .tile { width: 96px; display: grid; justify-items: center; gap: 8px; }
+  .tile .face {
+    position: relative; width: 86px; height: 86px; margin: 5px; border-radius: 23px; overflow: hidden;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    transition: transform 240ms cubic-bezier(.34, 1.56, .64, 1), outline-color 160ms;
+    outline: 3px solid transparent; outline-offset: 3px;
+  }
+  .tile:hover .face { transform: scale(1.04); }
+  .tile:active .face { transform: scale(0.96); }
+  .tile[aria-pressed="true"] .face { outline-color: var(--blue); }
+  .tile b { font-size: 14px; font-weight: 600; line-height: 18px; }
+  .tile small { display: block; margin-top: -7px; font-size: 12px; line-height: 15px; color: var(--dim); white-space: nowrap; }
+
+  .face.frosted {
+    justify-content: flex-end; padding-bottom: 11px;
+    background:
+      radial-gradient(circle at 25% 20%, #9db3c9 0%, transparent 55%),
+      radial-gradient(circle at 85% 90%, #c79a6e 0%, transparent 50%),
+      linear-gradient(170deg, #5e7387 0%, #2e3946 100%);
+    box-shadow: 0 6px 14px rgba(30, 40, 60, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  }
+  .face.frosted span {
+    padding: 3px 8px; border-radius: 9px; font-size: 11px; line-height: 14px; color: rgba(255, 255, 255, 0.75);
+    background: rgba(255, 255, 255, 0.18); border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35); backdrop-filter: blur(6px);
+  }
+  .face.frosted span b { font-size: inherit; color: #fff; font-weight: 700; }
+  .face.short {
+    background:
+      radial-gradient(circle at 30% 18%, #ffb3d6 0%, transparent 60%),
+      linear-gradient(170deg, #f27bb5 0%, #e0458f 100%);
+    box-shadow: 0 6px 14px rgba(224, 69, 143, 0.3), inset 0 1.5px 1px rgba(255, 255, 255, 0.55), inset 0 -3px 6px rgba(150, 20, 80, 0.25);
+    font-size: 17px; line-height: 18px; font-weight: 900; letter-spacing: -0.02em; color: #fff;
+    text-shadow: 0 2px 0 rgba(120, 10, 60, 0.45);
+  }
+  .face.short em { font-style: normal; color: #ffe45c; }
+  .face.boring {
+    justify-content: flex-end; padding-bottom: 12px; gap: 2px;
+    background: linear-gradient(175deg, #fff 0%, #f1f1f3 100%);
+    box-shadow: 0 6px 14px rgba(0, 0, 0, 0.08), 0 0 0 0.5px rgba(0, 0, 0, 0.06), inset 0 1px 1px #fff;
+  }
+  .face.boring::before {
+    content: "CC"; position: absolute; top: 14px;
+    font-size: 7px; font-weight: 600; letter-spacing: 0.22em; color: #9a9aa0;
+  }
+  .face.boring span { padding: 1px 4px; background: rgba(8, 8, 8, 0.82); color: #fff; font-size: 9px; line-height: 12px; font-weight: 500; white-space: nowrap; }
+
+  /* Settings rows (wabi's chat list) */
+  .rows { display: grid; gap: 2px; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 8px 2px; }
+  .row .text { flex: 1; min-width: 0; }
+  .row .name { display: flex; align-items: center; gap: 6px; font-size: 15px; line-height: 19px; font-weight: 600; }
+  .row .hint { font-size: 14px; line-height: 18px; color: var(--dim); }
+  kbd {
+    padding: 0 5px; border-radius: 5px; background: var(--key);
+    font: 500 11px/16px var(--sans); color: var(--dim);
+  }
+
+  .capsule {
+    flex-shrink: 0; height: 32px; border-radius: 16px; display: flex; align-items: center;
+    background: var(--capsule);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.07), 0 0 0 0.5px var(--capsule-edge), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+    backdrop-filter: blur(12px);
+  }
+  .stepper button { width: 40px; height: 32px; font-size: 18px; font-weight: 500; display: grid; place-items: center; }
+  .stepper button:disabled { opacity: 0.3; cursor: default; }
+  .stepper i { width: 1px; height: 14px; background: var(--capsule-edge); }
+  .levels { gap: 6px; padding: 0 10px; }
+  .levels button { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-off); transition: background 160ms, box-shadow 160ms; }
+  .levels button.fill { background: var(--blue); }
+  .levels button.cur { box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.22); }
+
+  .switch {
+    flex-shrink: 0; width: 48px; height: 28px; border-radius: 14px; padding: 2px;
+    background: var(--track-off); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.08);
+    transition: background 200ms;
+  }
+  .switch::after {
+    content: ""; display: block; width: 32px; height: 24px; border-radius: 12px; background: #fff;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2), inset 0 -1px 1px rgba(0, 0, 0, 0.05);
+    transition: transform 280ms cubic-bezier(.34, 1.56, .64, 1);
+  }
+  .switch[aria-checked="true"] { background: var(--blue); }
+  .switch[aria-checked="true"]::after { transform: translateX(12px); }
+
+  .keys { display: flex; justify-content: center; gap: 18px; font-size: 13px; line-height: 16px; color: var(--dim); }
+  .keys span { display: flex; align-items: center; gap: 6px; }
+
+  /* ================= Glass bubbles (wabi's icons) =================
+     A see-through sphere with a tiny scene inside: deep tint at the top, milky light
+     pooling at the bottom over the scene, a bright fresnel rim, a soft highlight and
+     a halo in the bubble's own color. Per bubble: --top --mid --deep --milk --glow. */
+  .bubble {
+    --size: 44px;
+    position: relative; flex-shrink: 0; width: var(--size); height: var(--size);
+    border-radius: 50%; overflow: hidden; isolation: isolate;
+    background: radial-gradient(ellipse 95% 80% at 50% 18%, var(--top) 0%, var(--mid) 55%, var(--deep) 100%);
+    box-shadow: 0 5px 14px var(--glow), 0 0 0 0.5px rgba(0, 0, 0, 0.08);
+  }
+  .bubble svg { position: absolute; inset: 0; width: 100%; height: 100%; filter: blur(0.25px); }
+  .bubble::before { /* milk at the bottom + the rim, over the scene */
+    content: ""; position: absolute; inset: 0; border-radius: 50%; z-index: 1;
+    background:
+      radial-gradient(circle at 50% 50%, transparent 64%, rgba(255, 255, 255, 0.5) 100%),
+      radial-gradient(ellipse 115% 58% at 50% 108%, var(--milk) 0%, color-mix(in srgb, var(--milk) 55%, transparent) 42%, transparent 75%);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.7), inset 0 0 6px 1px rgba(255, 255, 255, 0.45);
+  }
+  .bubble::after { /* soft highlight, never a hard cap */
+    content: ""; position: absolute; z-index: 2;
+    left: 22%; top: 8%; width: 40%; height: 18%; border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5); filter: blur(2.5px);
+  }
+  .b-size   { --top: #4a4fe0; --mid: #2a289f; --deep: #1b1972; --milk: #f1eeff; --glow: rgba(90, 80, 230, 0.32); }
+  .b-panel  { --top: #8fc7c0; --mid: #5f9c8a; --deep: #3d6e5f; --milk: #f3fbe9; --glow: rgba(90, 160, 130, 0.32); }
+  .b-mark   { --top: #f59a7a; --mid: #e0705a; --deep: #b24a3d; --milk: #fff1e6; --glow: rgba(230, 110, 80, 0.32); }
+  .b-clean  { --top: #6cc4f5; --mid: #3a97e0; --deep: #2266b8; --milk: #eef9ff; --glow: rgba(60, 150, 230, 0.32); }
+  .b-status { --size: 34px; --top: #8b8cf0; --mid: #5b55d6; --deep: #3a31a8; --milk: #f3efff; --glow: rgba(110, 90, 230, 0.35); }
+  .b-status[data-state="off"] { --top: #9a9aa6; --mid: #6c6c78; --deep: #4a4a55; --milk: #f2f2f5; --glow: rgba(0, 0, 0, 0.18); }
+</style>
+</head>
+<body>
+<button class="mode" id="mode">Dark</button>
+<div class="stage">
+  <main class="popup">
+    <header class="head">
+      <div class="wordmark">
+        <svg width="22" height="18" viewBox="0 0 22 18" aria-hidden="true"><rect width="13" height="7.5" rx="3.75"/><rect y="10.5" width="22" height="7.5" rx="3.75"/><rect x="15" width="7" height="7.5" rx="3.75"/></svg>
+        stable captions
+      </div>
+      <button class="bubble b-status" id="status" data-state="on" title="Captions on (C)" aria-label="Captions on">
+        <svg viewBox="0 0 44 44" aria-hidden="true">
+          <rect x="11" y="13" width="22" height="15" rx="4" fill="rgba(255,255,255,0.22)" stroke="#fff" stroke-opacity="0.85" stroke-width="1.6"/>
+          <rect class="lit" x="15" y="22" width="9" height="2.6" rx="1.3" fill="#fff"/>
+          <rect class="lit" x="25.5" y="22" width="4" height="2.6" rx="1.3" fill="#fff" fill-opacity="0.7"/>
+          <path d="M18 32h8" stroke="#fff" stroke-opacity="0.8" stroke-width="1.6" stroke-linecap="round"/>
+        </svg>
+      </button>
+    </header>
+
+    <section class="tiles" aria-label="Caption style">
+      <button class="tile" data-style="frosted" aria-pressed="true">
+        <div class="face frosted"><span>feel <b>calm</b></span></div>
+        <b>Frosted</b><small>calm</small>
+      </button>
+      <button class="tile" data-style="tiktok" aria-pressed="false">
+        <div class="face short">I think<em>captions</em></div>
+        <b>Short</b><small>fun</small>
+      </button>
+      <button class="tile" data-style="boring" aria-pressed="false">
+        <div class="face boring"><span>Captions should</span><span>feel calm, right?</span></div>
+        <b>Boring</b><small>for accessibility</small>
+      </button>
+    </section>
+
+    <section class="rows">
+      <div class="row">
+        <div class="bubble b-size">
+          <svg viewBox="0 0 44 44" aria-hidden="true">
+            <text x="22" y="27.5" text-anchor="middle" fill="#fff" font-family="-apple-system, system-ui, sans-serif" font-weight="600" font-size="17" letter-spacing="-0.4" style="filter: drop-shadow(0 0 4px rgba(200,200,255,.8))">A<tspan font-size="12.5">a</tspan></text>
+          </svg>
+        </div>
+        <div class="text">
+          <div class="name">Text size <kbd>− +</kbd></div>
+          <div class="hint" id="size-label"></div>
+        </div>
+        <div class="capsule stepper">
+          <button data-step="-1" aria-label="Smaller text">−</button><i></i><button data-step="1" aria-label="Larger text">+</button>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="bubble b-panel">
+          <svg viewBox="0 0 44 44" aria-hidden="true">
+            <circle cx="30" cy="15" r="5" fill="#ffe2a8"/>
+            <path d="M0 30 C8 22 14 21 22 26 S36 24 44 20 V44 H0Z" fill="#2f5d4c" fill-opacity="0.85"/>
+            <path d="M0 33 C10 28 20 30 28 31 S40 29 44 28 V44 H0Z" fill="#244a3d"/>
+            <rect x="10" y="27" width="24" height="8" rx="4" fill="rgba(255,255,255,0.35)" stroke="#fff" stroke-opacity="0.75"/>
+            <rect x="14.5" y="30" width="9" height="2" rx="1" fill="#fff"/>
+            <rect x="25" y="30" width="5" height="2" rx="1" fill="#fff" fill-opacity="0.7"/>
+          </svg>
+        </div>
+        <div class="text">
+          <div class="name"><span id="window-title"></span> <kbd>W</kbd></div>
+          <div class="hint" id="window-label"></div>
+        </div>
+        <div class="capsule levels" id="levels" role="group"></div>
+      </div>
+
+      <div class="row">
+        <div class="bubble b-mark">
+          <svg viewBox="0 0 44 44" aria-hidden="true">
+            <rect x="9" y="15" width="11" height="4" rx="2" fill="#fff" fill-opacity="0.75"/>
+            <rect x="22" y="15" width="13" height="4" rx="2" fill="#fff" fill-opacity="0.75"/>
+            <rect x="8" y="22.5" width="9" height="4" rx="2" fill="#fff" fill-opacity="0.75"/>
+            <rect x="19" y="21.5" width="17" height="6" rx="3" fill="#ffe45c" style="filter: drop-shadow(0 0 3px rgba(255,228,92,.9))"/>
+          </svg>
+        </div>
+        <div class="text">
+          <div class="name" id="highlight-label">Highlight words <kbd>H</kbd></div>
+          <div class="hint">Mark the word being spoken</div>
+        </div>
+        <button class="switch" id="highlight" role="switch" aria-labelledby="highlight-label"></button>
+      </div>
+
+      <div class="row">
+        <div class="bubble b-clean">
+          <svg viewBox="0 0 44 44" aria-hidden="true">
+            <circle cx="17" cy="21" r="7.5" fill="rgba(255,255,255,0.18)" stroke="#fff" stroke-opacity="0.8" stroke-width="1.2"/>
+            <path d="M13 18.5a5 5 0 0 1 3.2-2.6" stroke="#fff" stroke-width="1.2" stroke-linecap="round" fill="none"/>
+            <circle cx="28.5" cy="15.5" r="4" fill="rgba(255,255,255,0.18)" stroke="#fff" stroke-opacity="0.8" stroke-width="1.1"/>
+            <circle cx="28" cy="27" r="2.6" fill="rgba(255,255,255,0.18)" stroke="#fff" stroke-opacity="0.8"/>
+            <path d="M33 21.5c.3 1.9 1.1 2.7 3 3-1.9.3-2.7 1.1-3 3-.3-1.9-1.1-2.7-3-3 1.9-.3 2.7-1.1 3-3Z" fill="#fff"/>
+          </svg>
+        </div>
+        <div class="text">
+          <div class="name" id="clean-label">Clean verbatim <kbd>⇧C</kbd></div>
+          <div class="hint">Hide um, uh and stumbles</div>
+        </div>
+        <button class="switch" id="clean" role="switch" aria-labelledby="clean-label"></button>
+      </div>
+    </section>
+
+    <footer class="keys">
+      <span><kbd>C</kbd> captions on/off</span>
+      <span><kbd>⌥C</kbd> switch style</span>
+    </footer>
+  </main>
+
+  <div class="preview">
+    <div class="preview-label">On the video</div>
+    <div class="video"><div class="cap" id="cap"></div></div>
+  </div>
+</div>
+
+<script>
+  // Same vocabulary as src/core/settings.js, trimmed to what the mockup needs.
+  const SIZES = ['Tiny', 'Extra small', 'Small', 'Medium', 'Large', 'Extra large', 'XXL'];
+  const SIZE_PX = [14, 16, 18, 20, 23, 26, 29];
+  const WINDOWS = {
+    frosted: { label: 'Frosted panel', levels: ['Clear', 'Light', 'Medium', 'Dark', 'Solid'],
+      bg: ['rgba(255,255,255,.04)', 'rgba(255,255,255,.12)', 'rgba(255,255,255,.18)', 'rgba(14,14,22,.38)', 'rgba(18,18,24,.86)'] },
+    tiktok: { label: 'Background', levels: ['Off', '25%', '50%', '75%', '100%'],
+      bg: ['transparent', 'rgba(0,0,0,.25)', 'rgba(0,0,0,.5)', 'rgba(0,0,0,.75)', '#000'] },
+    boring: { label: 'Background', levels: ['25%', '50%', '75%', '100%'],
+      bg: ['rgba(8,8,8,.25)', 'rgba(8,8,8,.5)', 'rgba(8,8,8,.75)', '#080808'] },
+  };
+  const LINES = {
+    frosted: [['So', 'I', 'think', 'captions', 'should']],
+    tiktok: [['I', 'think', 'captions']],
+    boring: [['So', 'I', 'think', 'captions', 'should'], ['feel', 'calm,', 'right?']],
+  };
+  const STUMBLE = { frosted: [['So,', 'um,', 'I', 'I', 'think']], tiktok: [['um,', 'I', 'I', 'think']],
+    boring: [['So,', 'um,', 'I', 'I', 'think', 'captions'], ['should,', 'uh,', 'feel', 'calm']] };
+
+  const state = {
+    on: true, style: 'frosted', size: 3, clean: false,
+    highlight: { frosted: true, tiktok: true, boring: false },
+    window: { frosted: 2, tiktok: 0, boring: 2 },
+  };
+  const $ = (s) => document.querySelector(s);
+  let tick = 0;
+
+  function renderCaption() {
+    const cap = $('#cap');
+    const lines = state.clean ? LINES[state.style] : STUMBLE[state.style];
+    const words = lines.flat();
+    const lit = state.highlight[state.style] ? tick % words.length : -1;
+    let i = 0;
+    cap.dataset.style = state.style;
+    cap.toggleAttribute('data-off', !state.on);
+    cap.style.setProperty('--size', `${SIZE_PX[state.size]}px`);
+    cap.style.setProperty('--win', WINDOWS[state.style].bg[state.window[state.style]]);
+    cap.innerHTML = lines.map((line) => `<div class="line">${line.map((w) =>
+      `<span class="w${i++ === lit ? ' on' : ''}">${w}</span>`).join(' ')}</div>`).join('');
+  }
+
+  function render() {
+    document.querySelectorAll('.tile').forEach((t) => t.setAttribute('aria-pressed', String(t.dataset.style === state.style)));
+    $('#size-label').textContent = SIZES[state.size];
+    document.querySelector('[data-step="-1"]').disabled = state.size === 0;
+    document.querySelector('[data-step="1"]').disabled = state.size === SIZES.length - 1;
+
+    const win = WINDOWS[state.style];
+    const cur = state.window[state.style];
+    $('#window-title').textContent = win.label;
+    $('#window-label').textContent = win.levels[cur];
+    $('#levels').setAttribute('aria-label', win.label);
+    $('#levels').innerHTML = win.levels.map((name, i) =>
+      `<button class="${i <= cur ? 'fill' : ''} ${i === cur ? 'cur' : ''}" data-level="${i}" aria-label="${name}" aria-pressed="${i === cur}"></button>`).join('');
+
+    $('#highlight').setAttribute('aria-checked', String(state.highlight[state.style]));
+    $('#clean').setAttribute('aria-checked', String(state.clean));
+    $('#status').dataset.state = state.on ? 'on' : 'off';
+    $('#status').setAttribute('aria-label', state.on ? 'Captions on' : 'Captions off');
+    renderCaption();
+  }
+
+  const act = {
+    style: (s) => { state.style = s; },
+    nextStyle: () => { const all = Object.keys(WINDOWS); state.style = all[(all.indexOf(state.style) + 1) % all.length]; },
+    size: (d) => { state.size = Math.max(0, Math.min(SIZES.length - 1, state.size + d)); },
+    level: (i) => { state.window[state.style] = i; },
+    nextLevel: () => { state.window[state.style] = (state.window[state.style] + 1) % WINDOWS[state.style].levels.length; },
+    highlight: () => { state.highlight[state.style] = !state.highlight[state.style]; },
+    clean: () => { state.clean = !state.clean; },
+    power: () => { state.on = !state.on; },
+  };
+  const run = (fn, ...args) => { fn(...args); render(); };
+
+  document.addEventListener('click', (e) => {
+    const t = e.target.closest('button');
+    if (!t) return;
+    if (t.dataset.style) run(act.style, t.dataset.style);
+    else if (t.dataset.step) run(act.size, Number(t.dataset.step));
+    else if (t.dataset.level) run(act.level, Number(t.dataset.level));
+    else if (t.id === 'highlight') run(act.highlight);
+    else if (t.id === 'clean') run(act.clean);
+    else if (t.id === 'status') run(act.power);
+    else if (t.id === 'mode') {
+      const dark = document.documentElement.dataset.mode !== 'dark';
+      document.documentElement.dataset.mode = dark ? 'dark' : 'light';
+      t.textContent = dark ? 'Light' : 'Dark';
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.metaKey || e.ctrlKey) return;
+    if (e.code === 'KeyC' && e.altKey) run(act.nextStyle);
+    else if (e.code === 'KeyC' && e.shiftKey) run(act.clean);
+    else if (e.code === 'KeyC') run(act.power);
+    else if (e.code === 'KeyW') run(act.nextLevel);
+    else if (e.code === 'KeyH') run(act.highlight);
+    else if (e.key === '-' || e.key === '_') run(act.size, -1);
+    else if (e.key === '+' || e.key === '=') run(act.size, 1);
+    else return;
+    e.preventDefault();
+  });
+
+  if (location.hash === '#dark') $('#mode').click();
+  setInterval(() => { tick++; renderCaption(); }, 420);
+  render();
+</script>
+</body>
+</html>
