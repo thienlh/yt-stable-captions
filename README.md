@@ -113,8 +113,9 @@ switches from this shortcut, are not learned. Only the latest language code and 
 timestamp are stored (no video ID), in `storage.local`, and never leave the browser.
 
 The shortcut prefers an existing target-language track, otherwise it uses YouTube auto-translate
-when offered. It restores the original source track (including its manual/ASR choice and any
-original translation) on the next press. Every switch goes through YouTube's own player, like
+when offered. The next press restores the video's own caption track: the player's default track
+when YouTube reports one, otherwise the source track behind a translation carried over from the
+previous video. Every switch goes through YouTube's own player, like
 its subtitles menu, so a later caption download (CC toggled off and on) keeps the language.
 
 Setting keys are taken over only while the stable captions are visible (otherwise they reach

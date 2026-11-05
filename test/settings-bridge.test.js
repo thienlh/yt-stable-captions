@@ -6,6 +6,7 @@ const vm = require('node:vm');
 
 const source = [
   fs.readFileSync(path.join(__dirname, '../src/core/settings.js'), 'utf8'),
+  fs.readFileSync(path.join(__dirname, '../src/core/language-preference.js'), 'utf8'),
   fs.readFileSync(path.join(__dirname, '../src/content/settings-bridge.js'), 'utf8'),
 ].join('\n');
 
@@ -25,6 +26,7 @@ function load({ root, fetch: fetchImpl, stored = {} }) {
     document: {
       documentElement,
       createElement(tag) { return { tagName: tag, textContent: '' }; },
+      addEventListener() {},
     },
     fetch(url) {
       calls.push(url);
@@ -36,6 +38,11 @@ function load({ root, fetch: fetchImpl, stored = {} }) {
       storage: {
         sync: {
           get() { return Promise.resolve(stored); },
+          set() { return Promise.resolve(); },
+        },
+        // The learned caption language lives here, never in sync.
+        local: {
+          get(defaults) { return Promise.resolve(defaults); },
           set() { return Promise.resolve(); },
         },
         onChanged: { addListener() {} },

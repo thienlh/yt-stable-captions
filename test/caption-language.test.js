@@ -269,6 +269,32 @@ test('a later video that opens already translated toggles back to its source tra
   assert.equal(controller.activeCaptionLanguage, 'en');
 });
 
+test('a carried translation to the offered fallback language toggles back to its source track', async () => {
+  // A pt-PT browser with only pt-BR auto-translation: Shift+L picks pt-BR,
+  // and YouTube carries that onto the next video.
+  const { controller, calls } = setup({ translationLanguages: [{ languageCode: 'pt-BR' }] });
+  controller.browserLanguage = () => 'pt-PT';
+  controller.rememberTap(tap(EN.baseUrl));
+  controller.loadedUrl = `${EN.baseUrl}&tlang=pt-BR`;
+  controller.noteLoadedCaption(controller.loadedUrl);
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.originalSelection.translationLanguage, null);
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
+  await switching;
+});
+
+test('a carried fallback-language track is a placeholder for the source track', () => {
+  const HANT = { languageCode: 'zh-Hant', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=zh-Hant' };
+  const { controller } = setup({ tracks: [EN, HANT], translationLanguages: [] });
+  controller.browserLanguage = () => 'zh-TW';
+  controller.noteLoadedCaption(HANT.baseUrl);
+  assert.equal(controller.originalSelection.track, HANT);
+  controller.noteLoadedCaption(EN.baseUrl);
+  assert.equal(controller.originalSelection.track, EN);
+});
+
 test('the player default track stays original when the preferred language is already selected', async () => {
   const { controller, calls } = setup({ tracks: [EN, VI], defaultTrack: EN });
   controller.rememberTap(tap(EN.baseUrl));

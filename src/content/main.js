@@ -264,24 +264,25 @@
       }
       const observed = (url && TrackProvider.selectionFromUrl(url, tracks)) ||
         (this.selectionVideoId === videoId ? this.originalSelection : null);
-      const selection = TrackProvider.videoOriginal({
-        observed,
-        preferred: this.preferredCaptionLanguage(),
-      });
+      // Compare with the language Shift+L would show, not the raw request:
+      // a carried pt-BR translation is the preference of a pt-PT browser when
+      // pt-BR is the auto-translation YouTube offers.
+      const preferred = this.resolvePreferred(found).language;
+      const selection = TrackProvider.videoOriginal({ observed, preferred });
       if (!selection?.track) return;
       // A source track, once known, stays the original. Later menu languages
       // update the preference and must not replace it. A preferred-language
       // placeholder can still give way to the real source.
       const prior = this.selectionVideoId === videoId ? this.originalSelection : null;
-      if (prior && !this.isPreferredSelection(prior)) return;
+      if (prior && !this.isPreferredSelection(prior, preferred)) return;
       this.selectionVideoId = videoId;
       this.originalSelection = selection;
     }
 
-    isPreferredSelection(selection) {
+    isPreferredSelection(selection, preferred) {
       if (!selection?.track) return false;
       const visible = selection.translationLanguage || selection.track.languageCode;
-      return globalThis.YTSC.TrackProvider.sameCaptionLanguage(visible, this.preferredCaptionLanguage());
+      return globalThis.YTSC.TrackProvider.sameCaptionLanguage(visible, preferred);
     }
 
     /**
@@ -465,14 +466,26 @@
       return TrackProvider.sameCaptionLanguage(active, visible);
     }
 
+    /**
+     * What the preferred language becomes on this video: a matching track, else
+     * the auto-translate language YouTube offers for it (pt-PT can become
+     * pt-BR). `language` is that visible code, or the request when nothing matches.
+     */
+    resolvePreferred(found) {
+      const requested = this.preferredCaptionLanguage();
+      if (!requested) return { requested, direct: null, supported: null, languages: [], language: '' };
+      const direct = this.provider.pickLanguage(found.tracks || [], requested);
+      const languages = found.translationLanguages || [];
+      const supported = direct ? null : this.provider.findTranslationLanguage(languages, requested);
+      const language = direct?.languageCode || supported?.languageCode || requested;
+      return { requested, direct, supported, languages, language };
+    }
+
     /** The preferred-language selection, or an error toast string. */
     preferredSelection(found, original) {
-      const requested = this.preferredCaptionLanguage();
+      const { requested, direct, supported, languages } = this.resolvePreferred(found);
       if (!requested) return { error: 'Caption language unavailable' };
-      const direct = this.provider.pickLanguage(found.tracks, requested);
       if (direct) return { selection: { track: direct, translationLanguage: null } };
-      const languages = found.translationLanguages || [];
-      const supported = this.provider.findTranslationLanguage(languages, requested);
       if (languages.length && !supported) {
         return { error: `${this.languageName(requested)} captions unavailable` };
       }
