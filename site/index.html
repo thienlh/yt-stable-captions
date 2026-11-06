@@ -34,9 +34,9 @@
     font-weight: 500;
     font-display: swap;
   }
-  @font-face { /* subset to the stickers' letters only: "beta!" and "free!" */
+  @font-face { /* subset to the stickers' letters only: "new!" and "free!" */
     font-family: "Stable Hand";
-    src: url("fonts/Caveat-Bold-beta-free.woff2") format("woff2");
+    src: url("fonts/Caveat-Bold-new-free.woff2") format("woff2");
     font-weight: 700;
     font-display: block;
   }
@@ -231,7 +231,7 @@
     transition: background-size 180ms ease, max-width 480ms var(--fold) 220ms, margin-right 480ms var(--fold) 220ms, opacity 320ms ease 300ms;
   }
 
-  /* The popup's "picked!" sticker, slapped on the Safari beta links. */
+  /* The popup's "picked!" sticker, slapped on the install links. */
   .sticker {
     display: inline-block;
     padding: 1px 8px 2px;
@@ -625,7 +625,7 @@
               <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
               <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
               <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
-              <a href="https://testflight.apple.com/join/htQvssyM">Safari <small>beta</small></a>
+              <a href="https://apps.apple.com/app/stable-captions/id6823212176">Safari</a>
             </nav>
           </details>
         </div>
@@ -675,13 +675,12 @@
     <footer id="get">
       <div class="stores">
         <span>Get it</span>
-        <a href="https://testflight.apple.com/join/htQvssyM">Safari<span class="sticker">beta!</span></a>
+        <a href="https://apps.apple.com/app/stable-captions/id6823212176">Safari<span class="sticker">new!</span></a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
         <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
         <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
       </div>
-      <p>The Safari version is in beta. Join it on TestFlight to help test it on your Mac before it reaches the App Store.</p>
       <p>Stable Captions collects nothing. It runs only on youtube.com, and your settings stay in the browser. After installing, turn it on and allow it on youtube.com.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
     </footer>
@@ -696,9 +695,9 @@
       label.textContent = 'Add to Edge';
     } else if (/Macintosh/.test(navigator.userAgent) && /Version\/[\d.]+.*Safari\//.test(navigator.userAgent) && navigator.maxTouchPoints < 2) {
       // Safari on a Mac. Chrome and Edge also say "Safari/" but not "Version/"; iPads say "Macintosh" but have touch.
-      install.href = 'https://testflight.apple.com/join/htQvssyM';
-      label.textContent = 'Help test in Safari';
-      install.querySelector('.sticker').textContent = 'beta!';
+      install.href = 'https://apps.apple.com/app/stable-captions/id6823212176';
+      label.textContent = 'Add to Safari';
+      install.querySelector('.sticker').textContent = 'new!';
     }
     // One span per word so hover can light them up in turn.
     label.replaceChildren(...label.textContent.split(' ').flatMap((text, i) => {
