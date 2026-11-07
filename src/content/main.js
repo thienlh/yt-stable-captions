@@ -11,9 +11,10 @@
    *   timeline  the whole caption track is known; painted from video time
    *   live      stabilizing the native caption DOM as it changes
    *   none      nothing to show for this video (native captions untouched)
-   * Every async step (navigation, track polling, fetches) runs under a
-   * generation number and gives up if a newer step has started since, so a
-   * slow answer for an old video or an old source never replaces a newer one.
+   * Async steps can finish out of order, so each checks it is still wanted:
+   *  - `gen` counts navigations; anything started for an earlier page is dropped.
+   *  - The player's own download (a tap) outranks our fetch: our fetch never
+   *    replaces a tapped timeline, and among taps only the newest one installs.
    */
   class StableCaptionsController {
     constructor({
@@ -36,7 +37,9 @@
       this.log = log;
       this.pollMs = pollMs;
       this.mode = 'idle';
-      this.gen = 0; // bumped by each navigation and each newly installed timeline
+      this.gen = 0; // bumped by each navigation
+      this.tapSeq = 0; // bumped by each tap, so an older tap refetch loses
+      this.source = null; // 'tap' | 'fetch': where the installed timeline came from
       this.live = null;
       this.cues = []; // caption chunks
       this.words = []; // timed words of the loaded track (re-chunked when settings change)
@@ -114,10 +117,12 @@
      */
     async onTap(entry) {
       if (!entry || entry.videoId !== this.currentVideoId() || entry.url === this.loadedUrl) return;
-      await this.loadFromTap(entry, this.gen);
+      await this.loadFromTap(entry);
     }
 
-    async loadFromTap(entry, gen) {
+    async loadFromTap(entry) {
+      const gen = this.gen;
+      const seq = ++this.tapSeq;
       let payload = null;
       try {
         payload = JSON.parse(entry.body);
@@ -129,21 +134,25 @@
           this.log(`[ytsc] tap refetch failed: ${err?.message || err}`);
           return false;
         }
-        if (gen !== this.gen) return false; // navigated, or a newer timeline arrived
+        if (gen !== this.gen || seq !== this.tapSeq) return false; // navigated, or a newer tap
       }
-      if (!this.useTimeline(payload, entry.url, `tap lang=${entry.lang}`)) return false;
+      if (!this.useTimeline(payload, entry.url, `tap lang=${entry.lang}`, 'tap')) return false;
       this.videoId = entry.videoId;
       return true;
     }
 
-    /** Installs a timeline; anything still loading for the old state is dropped. */
-    useTimeline(payload, url, label) {
+    /** Our own fetch is no longer wanted: the page changed, or the player's download is showing. */
+    superseded(gen) {
+      return gen !== this.gen || this.source === 'tap';
+    }
+
+    useTimeline(payload, url, label, source) {
       const words = this.parser.parseWords(payload);
       const chunks = this.buildChunks(words);
       if (!words.length) return false;
       this.stop();
-      this.gen++;
       this.mode = 'timeline';
+      this.source = source;
       this.words = words;
       this.cues = chunks;
       this.loadedUrl = url;
@@ -163,6 +172,7 @@
 
     async reload() {
       const gen = ++this.gen; // supersedes any older reload, load or tap refetch
+      // A tap may already have installed this video's timeline (checked below).
       const id = this.currentVideoId();
       if (!id || location.pathname !== '/watch') {
         // Also the mini player: leave its native captions alone.
@@ -176,7 +186,7 @@
           : { tracks: this.provider.getTracks() };
         if (found.tracks.length) break;
         await new Promise((r) => setTimeout(r, this.pollMs));
-        if (gen !== this.gen) return; // navigated again, or a tap installed a timeline
+        if (gen !== this.gen) return; // navigated again
       }
       if (gen !== this.gen || this.currentVideoId() !== id) return;
       if (id === this.videoId && this.mode === 'timeline') {
@@ -209,15 +219,15 @@
           return;
         }
         const tapped = this.tapFor(videoId);
-        if (tapped && (await this.loadFromTap(tapped, gen))) return;
-        if (gen !== this.gen) return;
+        if (tapped && (await this.loadFromTap(tapped))) return;
+        if (this.superseded(gen)) return;
         this.log(`[ytsc] loading track ${best.languageCode} kind=${best.kind || 'manual'} source=${found.source} (${tracks.length} tracks)`);
         try {
           const payload = await this.provider.fetchJson3(best);
-          if (gen !== this.gen) return; // navigated, or the player's own download won
-          if (!this.useTimeline(payload, best.baseUrl, 'fetch mode')) throw new Error('no words in payload');
+          if (this.superseded(gen)) return; // navigated, or the player's own download is showing
+          if (!this.useTimeline(payload, best.baseUrl, 'fetch mode', 'fetch')) throw new Error('no words in payload');
         } catch (err) {
-          if (gen !== this.gen) return;
+          if (this.superseded(gen)) return;
           // Timedtext is increasingly gated (empty body). Live DOM until the player's
           // own download is tapped (turn CC on), then onTap switches to timeline mode.
           this.log(`[ytsc] fetch failed, live mode: ${err?.message || err}`);
@@ -312,6 +322,7 @@
       this.cues = [];
       this.words = [];
       this.loadedUrl = null;
+      this.source = null;
       this.video = null;
       clearTimeout(this.liveHold);
       this.live?.stop();

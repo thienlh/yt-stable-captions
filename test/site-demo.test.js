@@ -112,23 +112,26 @@ test('once the visitor stops, the tour restarts from its first step', () => {
   assert.equal(demo.screen.dataset.ytscSize, 'large', 'the tour runs again');
 });
 
-test('the clip keeps looping after a player call throws once', () => {
+test('the clip starts playing again after a player call throws at the clip end', () => {
   const demo = loadDemo();
-  let seeks = 0;
+  let time = 200; // past the clip end
+  let playerState = PlayerState.ENDED;
   let stateCalls = 0;
   const player = {
-    getCurrentTime: () => 200, // past the clip end
+    getCurrentTime: () => time,
     getPlayerState() {
       stateCalls++;
       if (stateCalls === 1) throw new Error('player not ready');
-      return PlayerState.PLAYING;
+      return playerState;
     },
-    seekTo() { seeks++; },
-    playVideo() {},
+    seekTo(seconds) { time = seconds; }, // the clock follows the seek, as on YouTube
+    playVideo() { playerState = PlayerState.PLAYING; },
     getOptions: () => [],
   };
   demo.sandbox.YT = { Player: function Player() { return player; }, PlayerState };
   demo.sandbox.onYouTubeIframeAPIReady();
   demo.tick(300);
-  assert.ok(seeks >= 2, `the clip end keeps sending the player back (seeks: ${seeks})`);
+  assert.ok(stateCalls >= 1, 'the failing call was made');
+  assert.equal(time, 13, 'back at the clip start');
+  assert.equal(playerState, PlayerState.PLAYING, 'and playing, not left stopped');
 });

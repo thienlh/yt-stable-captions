@@ -31,6 +31,8 @@ globalThis.document = {
   addEventListener() {},
 };
 globalThis.requestAnimationFrame = () => 1;
+// The json3 rewrite of a tapped URL (the real one lives in track-provider.js).
+globalThis.YTSC.TrackProvider = { withJson3: (url) => `${url}&fmt=json3` };
 globalThis.cancelAnimationFrame = () => {};
 
 const watch = (id) => {
@@ -50,9 +52,13 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 5));
 
 const payload = (label) => ({ words: [{ text: label, startMs: 0, endMs: 100 }] });
 
-/** A controller with fakes; `fetches` holds one deferred per fetchJson3 call. */
+/**
+ * A controller with fakes. `fetches` holds one deferred per fetchJson3 call (our
+ * own track fetch), `refetches` one per fetchUrl call (a tap refetched as json3).
+ */
 function makeController({ tracksAfter = 0 } = {}) {
   const fetches = [];
+  const refetches = [];
   let trackPolls = 0;
   const overlay = {
     calls: [],
@@ -73,7 +79,11 @@ function makeController({ tracksAfter = 0 } = {}) {
       fetches.push({ url: track.baseUrl, ...d });
       return d.promise;
     },
-    fetchUrl() { return Promise.reject(new Error('no refetch in tests')); },
+    fetchUrl(url) {
+      const d = deferred();
+      refetches.push({ url, ...d });
+      return d.promise;
+    },
   };
   const controller = new StableCaptionsController({
     provider,
@@ -84,7 +94,7 @@ function makeController({ tracksAfter = 0 } = {}) {
     overlay,
     pollMs: 1,
   });
-  return { controller, fetches, overlay };
+  return { controller, fetches, refetches, overlay };
 }
 
 const shown = (controller) => controller.cues.map((c) => c.text).join(' ');
@@ -165,6 +175,54 @@ test("the player's caption download wins over our fetch that finishes later", as
   fetches[0].resolve(payload('best-track-en'));
   await settle();
   assert.equal(shown(controller), 'tapped-de', 'keeps the language the player picked');
+});
+
+// The player downloaded another format (not JSON), so the tap is refetched as json3.
+const xmlTap = (lang) => ({ ...tap(lang), body: '<timedtext/>' });
+
+test("the player's download still wins when its json3 refetch finishes after our fetch", async () => {
+  const { controller, fetches, refetches } = makeController();
+  controller.reload();
+  await settle();
+  const tapping = controller.onTap(xmlTap('de'));
+  fetches[0].resolve(payload('best-track-en'));
+  await settle();
+  refetches[0].resolve(payload('tapped-de'));
+  await tapping;
+  assert.equal(shown(controller), 'tapped-de', 'keeps the language the player picked');
+});
+
+test('the newest caption download wins when two refetches overlap', async () => {
+  for (const order of [[0, 1], [1, 0]]) {
+    const { controller, fetches, refetches } = makeController();
+    controller.reload();
+    await settle();
+    fetches[0].resolve(payload('best-track-en'));
+    await settle();
+    const taps = [controller.onTap(xmlTap('de')), controller.onTap(xmlTap('fr'))];
+    const results = [payload('tapped-de'), payload('tapped-fr')];
+    for (const i of order) {
+      refetches[i].resolve(results[i]);
+      await settle();
+    }
+    await Promise.all(taps);
+    assert.equal(shown(controller), 'tapped-fr', `refetches finishing in order ${order}`);
+  }
+});
+
+test('a tap refetch for a video the viewer has left is dropped', async () => {
+  const { controller, fetches, refetches } = makeController();
+  controller.reload();
+  await settle();
+  const tapping = controller.onTap(xmlTap('de'));
+  watch('B');
+  controller.reload();
+  await settle();
+  fetches[1].resolve(payload('captions-B'));
+  await settle();
+  refetches[0].resolve(payload('tapped-de'));
+  await tapping;
+  assert.equal(shown(controller), 'captions-B');
 });
 
 test("our fetch failing after the player's download does not throw it away for live mode", async () => {

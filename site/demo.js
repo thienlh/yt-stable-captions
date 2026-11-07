@@ -440,12 +440,23 @@
     } catch { /* Player not ready. */ }
   };
 
+  // Each call is tried on its own: once the seek lands, no later frame is past
+  // the clip end to try again, so a failed state check must still lead to play.
   const replay = () => {
     if (!player || typeof player.seekTo !== 'function') return;
     try {
       player.seekTo(CLIP_START, true);
-      if (player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
-    } catch { /* Player not ready. The next frame past the clip end tries again. */ }
+    } catch {
+      return; // Player not ready. The next frame past the clip end tries again.
+    }
+    let playing = false;
+    try {
+      playing = player.getPlayerState() === YT.PlayerState.PLAYING;
+    } catch { /* Unknown: play anyway (a no-op if it is playing). */ }
+    if (playing) return;
+    try {
+      player.playVideo();
+    } catch { /* Nothing more to try. */ }
   };
 
   const frame = () => {
