@@ -31,10 +31,10 @@ function setup({ tracks = [EN], translationLanguages = [{ languageCode: 'vi' }],
   controller.browserLanguage = () => 'vi-VN';
   controller.loadedUrl = tracks[0]?.baseUrl || null;
   controller.loaded = [];
-  controller.useTimeline = (payload, url) => {
+  controller.useTimeline = (payload, url, label, source) => {
     controller.loaded.push(url);
     controller.loadedUrl = url;
-    controller.noteLoadedCaption(url);
+    controller.noteLoadedCaption(url, source);
     return true;
   };
   controller.live = 0;
@@ -229,6 +229,54 @@ test('a slow download from an earlier switch does not replace newer captions', a
   assert.equal(controller.loaded.length, 1);
 });
 
+test('a late download of another language cannot interrupt the requested one', async (t) => {
+  globalThis.location = new URL('https://www.youtube.com/watch?v=abc'); // withJson3 resolves against it
+  t.after(() => { delete globalThis.location; });
+  const { controller } = setup();
+  controller.rememberTap(tap(EN.baseUrl));
+  let finishRequested;
+  controller.provider.fetchUrl = () => new Promise((resolve) => { finishRequested = resolve; });
+
+  // The requested translation is not JSON, so it is downloaded again.
+  const switching = controller.toggleCaptionLanguage();
+  void controller.onTap({ ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' });
+  // An older English download arrives while that is in flight.
+  await controller.onTap(tap(`${EN.baseUrl}&sig=2`));
+  assert.deepEqual(controller.loaded, [], 'the wrong language is not shown');
+
+  finishRequested({});
+  await switching;
+  assert.deepEqual(controller.loaded, [`${EN.baseUrl}&tlang=vi`]);
+  assert.match(controller.toasts[0], /auto-translated/);
+});
+
+test('a caption-menu choice discards the shortcut download still in flight', async (t) => {
+  globalThis.location = new URL('https://www.youtube.com/watch?v=abc'); // withJson3 resolves against it
+  t.after(() => { delete globalThis.location; });
+  const FR = { languageCode: 'fr', name: { simpleText: 'French' }, baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=fr' };
+  const { controller } = setup({
+    tracks: [EN, FR],
+    translationLanguages: [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }],
+  });
+  controller.reportManualLanguage = () => {};
+  let finishStale;
+  controller.provider.fetchUrl = () => new Promise((resolve) => { finishStale = resolve; });
+
+  const switching = controller.toggleCaptionLanguage();
+  void controller.onTap({ ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' });
+  controller.onCaptionMenuEvent({ isTrusted: true, type: 'click', target: menuRow('French') });
+  controller.provider.getPlayer().setOption('captions', 'track', { languageCode: 'fr' });
+  await switching;
+
+  // The Vietnamese download finishes after the user picked French.
+  finishStale({});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(controller.loaded, [], 'the abandoned language is not shown');
+
+  await controller.onTap(tap(FR.baseUrl));
+  assert.deepEqual(controller.loaded, [FR.baseUrl]);
+});
+
 test('a learned language overrides the browser fallback on Shift+L', async () => {
   const { controller, calls } = setup({ translationLanguages: [{ languageCode: 'fr' }] });
   controller.browserLanguage = () => 'en-GB';
@@ -337,6 +385,47 @@ test('the player default track stays original when the preferred language is alr
   const switching = controller.toggleCaptionLanguage();
   assert.deepEqual(calls[0], ['captions', 'track', { languageCode: 'en', kind: 'asr' }]);
   await switching;
+});
+
+test('a video that starts translated restores that translation, not the default track', async () => {
+  const { controller, calls } = setup({ translationLanguages: [{ languageCode: 'vi' }, { languageCode: 'fr' }], defaultTrack: EN });
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr`)); // the player's first download
+  assert.equal(controller.originalSelection.track, EN);
+  assert.equal(controller.originalSelection.translationLanguage, 'fr');
+
+  const there = controller.toggleCaptionLanguage();
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  await there;
+  const back = controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'en', kind: 'asr', translationLanguage: { languageCode: 'fr' } }]);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=fr&sig=2`));
+  await back;
+  assert.equal(controller.originalSelection.translationLanguage, 'fr');
+});
+
+test('a video that starts on a manual track restores it, not the default ASR track', async () => {
+  const MANUAL = { languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=en' };
+  const { controller, calls } = setup({ tracks: [EN, MANUAL], defaultTrack: EN });
+  await controller.onTap(tap(MANUAL.baseUrl));
+  assert.equal(controller.originalSelection.track, MANUAL);
+
+  const there = controller.toggleCaptionLanguage();
+  await controller.onTap(tap(`${MANUAL.baseUrl}&tlang=vi`));
+  await there;
+  void controller.toggleCaptionLanguage();
+  assert.deepEqual(calls[1], ['captions', 'track', { languageCode: 'en' }]);
+});
+
+test('the player\'s first download replaces our own fetch as the original', () => {
+  const MANUAL = { languageCode: 'en', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=en' };
+  const { controller } = setup({ tracks: [EN, MANUAL], defaultTrack: EN });
+  controller.noteLoadedCaption(EN.baseUrl, 'fetch');
+  assert.equal(controller.originalSelection.track, EN);
+  controller.noteLoadedCaption(MANUAL.baseUrl, 'tap');
+  assert.equal(controller.originalSelection.track, MANUAL);
+  // Later player downloads are choices, not the start.
+  controller.noteLoadedCaption(`${EN.baseUrl}&tlang=fr`, 'tap');
+  assert.equal(controller.originalSelection.track, MANUAL);
 });
 
 test('a carried preferred language does not replace the source track found first', () => {

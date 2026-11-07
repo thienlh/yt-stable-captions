@@ -49,6 +49,7 @@
       this.video = null;
       this.originalSelection = null;
       this.selectionVideoId = null;
+      this.startSeenFor = null; // video whose starting captions are already known or left behind
       this.languageSwitching = false;
       this.pendingSelection = null;
       this.selectionTimeoutMs = 10000;
@@ -138,14 +139,17 @@
       this.rememberTap(entry);
       if (entry.url === this.loadedUrl) return;
       const pending = this.pendingSelection;
-      if (!pending?.awaitingTap) {
+      if (!pending) {
         const previousLanguage = this.activeCaptionLanguage;
         const loaded = await this.loadFromTap(entry);
         if (loaded) this.learnManualSelection(entry, previousLanguage);
         return;
       }
-      // While a shortcut switch waits for its download, only the requested language may load.
-      if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
+      // Until a shortcut switch ends, only its requested download may load: a
+      // late download of another language would show it and discard the
+      // requested one. Once that download is loading, it settles the switch.
+      if (!pending.awaitingTap || pending.videoId !== entry.videoId ||
+        !this.entryMatchesSelection(entry, pending.selection)) return;
       pending.awaitingTap = false;
       // The timeout keeps running: a non-JSON tap is downloaded again, which can stall.
       let loaded = false;
@@ -219,7 +223,7 @@
       this.source = source;
       this.words = words;
       this.cues = chunks;
-      this.noteLoadedCaption(url);
+      this.noteLoadedCaption(url, source);
       this.loadedUrl = url;
       this.log(`[ytsc] ${chunks.length} chunks (${label})`);
       this.overlay.mount();
@@ -274,18 +278,20 @@
       this.activeCaptionLanguage = language;
     }
 
-    noteLoadedCaption(url) {
+    noteLoadedCaption(url, source = null) {
       this.noteCaptionLanguage(globalThis.YTSC.TrackProvider.languageFromUrl(url));
-      this.freezeOriginal(url);
+      this.freezeOriginal(url, source);
     }
 
     /**
-     * Original means the video's own captions. YouTube opens the next video in
-     * the language you just picked, so that first download must not become the
-     * track Shift+L restores. A preferred-language placeholder is replaced once
-     * the real source is known.
+     * Original means the captions the video started with, translation and
+     * manual/ASR track included. YouTube opens the next video in the language
+     * you just picked, so a first download in the preferred language must not
+     * become the track Shift+L restores: the player's default track, or the
+     * source behind a carried translation, stands in for it. A
+     * preferred-language placeholder is replaced once the real source is known.
      */
-    freezeOriginal(url) {
+    freezeOriginal(url, source = null) {
       const { TrackProvider } = globalThis.YTSC;
       const videoId = this.currentVideoId();
       if (!videoId) return;
@@ -295,24 +301,31 @@
       const tracks = found.tracks || [];
       let defaultTrack = found.defaultTrack || null;
       if (defaultTrack && !TrackProvider.sameVideo(defaultTrack, videoId)) defaultTrack = null;
-      if (defaultTrack) {
-        this.selectionVideoId = videoId;
-        this.originalSelection = { track: defaultTrack, translationLanguage: null };
-        return;
-      }
-      const observed = (url && TrackProvider.selectionFromUrl(url, tracks)) ||
-        (this.selectionVideoId === videoId ? this.originalSelection : null);
       // Compare with the language Shift+L would show, not the raw request:
       // a carried pt-BR translation is the preference of a pt-PT browser when
       // pt-BR is the auto-translation YouTube offers.
       const preferred = this.resolvePreferred(found).language;
-      const selection = TrackProvider.videoOriginal({ observed, preferred });
-      if (!selection?.track) return;
-      // A source track, once known, stays the original. Later menu languages
-      // update the preference and must not replace it. A preferred-language
-      // placeholder can still give way to the real source.
       const prior = this.selectionVideoId === videoId ? this.originalSelection : null;
-      if (prior && !this.isPreferredSelection(prior, preferred)) return;
+      const observed = (url && TrackProvider.selectionFromUrl(url, tracks)) || null;
+      const videoOwn = (seen) => (defaultTrack
+        ? { track: defaultTrack, translationLanguage: null }
+        : TrackProvider.videoOriginal({ observed: seen, preferred }));
+      // The player's first download of this video is how it started. Our own
+      // fetch is only a guess, and a Shift+L switch or menu choice is not a start.
+      const starting = Boolean(observed) && source === 'tap' && this.startSeenFor !== videoId &&
+        !this.pendingSelection && !this.captionMenuArmed();
+      let selection;
+      if (starting) {
+        this.startSeenFor = videoId;
+        selection = this.isPreferredSelection(observed, preferred) ? videoOwn(observed) : observed;
+      } else {
+        // A source track, once known, stays the original. Later menu languages
+        // update the preference and must not replace it. A preferred-language
+        // placeholder can still give way to the real source.
+        if (prior && !this.isPreferredSelection(prior, preferred)) return;
+        selection = videoOwn(observed || prior);
+      }
+      if (!selection?.track) return;
       this.selectionVideoId = videoId;
       this.originalSelection = selection;
     }
@@ -383,9 +396,15 @@
       );
       if (!language) return;
       this.captionChoiceAt = 0;
+      // Downloads after a menu choice show that choice, not how the video started.
+      this.startSeenFor = this.currentVideoId();
       // A menu choice made while Shift+L waits wins: stop waiting so its download
-      // loads like any other, and learn it now.
-      this.settlePending('cancelled');
+      // loads like any other, and learn it now. A download of the shortcut's
+      // language still in flight must not land after it.
+      if (this.pendingSelection) {
+        this.tapSeq++;
+        this.settlePending('cancelled');
+      }
       this.reportManualLanguage(language);
     }
 
@@ -421,6 +440,8 @@
       const videoId = this.currentVideoId();
       const tapped = this.tapFor(videoId);
       this.freezeOriginal(this.loadedUrl || tapped?.url);
+      // Downloads after this press come from the shortcut, not from how the video started.
+      this.startSeenFor = videoId;
       if (this.selectionVideoId === videoId && this.originalSelection) return this.originalSelection;
       let selection = globalThis.YTSC.TrackProvider.selectionFromUrl(this.loadedUrl || tapped?.url, tracks);
       if (!selection) {
@@ -661,6 +682,7 @@
       if (this.videoId !== videoId) {
         this.originalSelection = null;
         this.selectionVideoId = null;
+        this.startSeenFor = null;
         this.activeCaptionLanguage = null;
         this.captionChoiceAt = 0;
         this.settlePending(false);
