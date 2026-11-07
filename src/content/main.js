@@ -145,18 +145,26 @@
         if (loaded) this.learnManualSelection(entry, previousLanguage);
         return;
       }
-      // Until a shortcut switch ends, only its requested download may load: a
+      // Until a shortcut switch ends, only its requested language may load: a
       // late download of another language would show it and discard the
-      // requested one. Once that download is loading, it settles the switch.
-      if (!pending.awaitingTap || pending.videoId !== entry.videoId ||
-        !this.entryMatchesSelection(entry, pending.selection)) return;
-      pending.awaitingTap = false;
-      // The timeout keeps running: a non-JSON tap is downloaded again, which can stall.
+      // requested one.
+      if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
+      await this.loadForSwitch(pending, entry);
+    }
+
+    /**
+     * Loads a download of the language a shortcut switch asked for. A newer one
+     * (a fresh download while a cached one is fetched again) takes over, so only
+     * the latest attempt may end the switch as failed. The timeout keeps running:
+     * a non-JSON download is fetched again, which can stall.
+     */
+    async loadForSwitch(pending, entry) {
+      const attempt = pending.attempts = (pending.attempts || 0) + 1;
       let loaded = false;
       try {
         loaded = await this.loadFromTap(entry);
       } finally {
-        this.settleSwitch(pending, loaded);
+        if (loaded || pending.attempts === attempt) this.settleSwitch(pending, loaded);
       }
     }
 
@@ -481,7 +489,7 @@
       if (selection.translationLanguage) track.translationLanguage = { languageCode: selection.translationLanguage };
       // The player may answer a track it loaded before from its cache, without a download.
       const cached = this.cachedTap(selection);
-      const pending = { selection, videoId: this.currentVideoId(), awaitingTap: !cached };
+      const pending = { selection, videoId: this.currentVideoId() };
       const loaded = new Promise((resolve) => { pending.resolve = resolve; });
       this.settlePending(false);
       this.pendingSelection = pending;
@@ -502,15 +510,15 @@
       // Fires while waiting for the tap or while loading it, cached or not: a cached
       // non-JSON tap is downloaded again too, which can stall.
       pending.timer = setTimeout(() => this.settleSwitch(pending, false), this.selectionTimeoutMs);
+      // A cached JSON download shows at once. Otherwise YouTube's request is
+      // captured by timedtext-tap, or the cached one is fetched again as json3:
+      // live captions in the new language bridge the gap, and stay if it stalls.
       if (cached) {
-        this.loadFromTap(cached).then(
-          (ok) => this.settleSwitch(pending, ok),
-          () => this.settleSwitch(pending, false),
-        );
-      } else {
-        // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
-        this.startLiveMode();
+        this.loadForSwitch(pending, cached).catch((err) => {
+          this.log(`[ytsc] cached caption load failed: ${err?.message || err}`);
+        });
       }
+      if (!cached || this.loadedUrl !== cached.url) this.startLiveMode();
       return loaded;
     }
 

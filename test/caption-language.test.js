@@ -184,7 +184,7 @@ test('a stalled reload of a cached tap ends the switch at the timeout', async ()
   controller.loadFromTap = () => new Promise(() => {}); // e.g. a json3 re-download that never answers
 
   await controller.toggleCaptionLanguage();
-  assert.equal(controller.live, 0, 'a cached track does not wait in live mode');
+  assert.equal(controller.live, 1, 'live captions show the new language while the cached one reloads');
   assert.equal(controller.toasts[0], 'Tiếng Việt captions did not load');
   assert.equal(controller.languageSwitching, false);
   assert.equal(controller.pendingSelection, null);
@@ -192,6 +192,36 @@ test('a stalled reload of a cached tap ends the switch at the timeout', async ()
   // The shortcut keeps working afterwards.
   void controller.toggleCaptionLanguage();
   assert.equal(calls.length, 2);
+});
+
+test('a cached JSON download shows at once, without live captions', async () => {
+  const { controller } = setup();
+  controller.rememberTap(tap(`${EN.baseUrl}&tlang=vi`));
+
+  await controller.toggleCaptionLanguage();
+  assert.equal(controller.live, 0);
+  assert.deepEqual(controller.loaded, [`${EN.baseUrl}&tlang=vi`]);
+  assert.match(controller.toasts[0], /auto-translated/);
+});
+
+test('a fresh download finishes the switch while a cached one reloads', async (t) => {
+  globalThis.location = new URL('https://www.youtube.com/watch?v=abc'); // withJson3 resolves against it
+  t.after(() => { delete globalThis.location; });
+  const { controller } = setup();
+  controller.rememberTap({ ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' });
+  let finishCached;
+  controller.provider.fetchUrl = () => new Promise((resolve) => { finishCached = resolve; });
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.equal(controller.live, 1);
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi&sig=2`));
+  await switching;
+  assert.deepEqual(controller.loaded, [`${EN.baseUrl}&tlang=vi&sig=2`]);
+  assert.match(controller.toasts[0], /auto-translated/, 'the superseded reload does not report a failure');
+
+  finishCached({});
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(controller.loaded, [`${EN.baseUrl}&tlang=vi&sig=2`]);
 });
 
 test('a failing load of the requested tap ends the switch', async () => {
