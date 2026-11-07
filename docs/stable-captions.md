@@ -20,7 +20,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 
 ## Get it
 
-- **Safari** (Mac): [beta on TestFlight](https://testflight.apple.com/join/htQvssyM). Help test it before it reaches the Mac App Store.
+- **Safari** (Mac): [Mac App Store](https://apps.apple.com/app/stable-captions/id6823212176)
 - **Chrome**: [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd), free
 - **Firefox**: [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/), free
 

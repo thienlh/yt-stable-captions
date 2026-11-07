@@ -8,9 +8,9 @@ subtle emphasis on the word being spoken. A bold, playful **Short** style and a
 words, for legibility;
 its word highlight starts off) are available from the toolbar popup.
 
-Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd)
-or on Firefox from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/).
-The Safari version is in beta: [join it on TestFlight](https://testflight.apple.com/join/htQvssyM) to help test it on your Mac.
+Install on Chrome from the [Chrome Web Store](https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd),
+on Firefox from [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/stable-captions/)
+or on Safari (Mac) from the [Mac App Store](https://apps.apple.com/app/stable-captions/id6823212176).
 If it is useful, [tip on Ko-fi](https://ko-fi.com/stablecaptions).
 
 ## What it does
@@ -168,8 +168,10 @@ Chrome and Firefox keep the colour icon. The zip is for App Store Connect's pack
 Safari notes:
 - The page-world scripts rely on `"world": "MAIN"`; YouTube's CSP blocks injecting
   extension scripts with `<script src>` in Safari, so there is no fallback
-- `styles.css` is also linked from `settings-bridge.js`: Safari can stop applying
-  manifest CSS until restarted, which left the overlay unstyled behind the video
+- `styles.css` is also applied from `settings-bridge.js`: Safari can stop applying
+  manifest CSS until restarted, which left the overlay unstyled behind the video.
+  Safari loads it with a `<link>`; Chrome and Firefox inline it, because a `<link>`
+  to `chrome-extension://` is blocked
 - The font is registered at runtime with the browser's own extension URL; on Safari the
   caption uses the real system font (SF Pro) via `@supports (font: -apple-system-body)`
 - Settings use `storage.sync` when available, else `storage.local` (per-Mac)
