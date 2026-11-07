@@ -554,7 +554,6 @@
   footer a:hover { color: #fff; text-decoration: underline; }
   .stores { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
   .stores > span { color: rgba(251, 250, 248, 0.5); }
-  .stores .tip-btn { margin-left: 8px; }
 
   @media (max-width: 980px) {
     .page { padding: 24px 24px 56px; }
@@ -590,13 +589,12 @@
     #ytsc-toast { gap: 6px; padding: 5px 10px 5px 5px; font-size: 12px; line-height: 16px; }
     #ytsc-toast kbd { min-width: 20px; height: 20px; padding: 0 5px; font-size: 11px; }
   }
-  /* Phones: keep one row when it fits; tip stays in the footer. */
+  /* Phones: keep one row when it fits. */
   @media (max-width: 480px) {
-    header { flex-wrap: wrap; }
+    header { flex-wrap: wrap; row-gap: 14px; }
     .nav-end { margin-left: auto; }
-    header .tip-btn { display: none; }
     .ytsc-toast-hint { display: none; }
-    .lockup { gap: 8px; font-size: 22px; }
+    .lockup { gap: 8px; font-size: 22px; white-space: nowrap; }
     .lockup img { width: 30px; height: 30px; }
     .install { padding: 8px 10px 8px 14px; font-size: 13px; }
     .browser-picker summary { padding: 0 12px 0 9px; }
@@ -679,7 +677,6 @@
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Chrome</a>
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
         <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
-        <a class="tip-btn" href="https://ko-fi.com/stablecaptions"><span class="um" aria-hidden="true">um,</span>tip?</a>
       </div>
       <p>Stable Captions collects nothing. It runs only on youtube.com, and your settings stay in the browser. After installing, turn it on and allow it on youtube.com.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
@@ -719,9 +716,9 @@
     browserPicker.querySelectorAll('a').forEach((link) => {
       link.addEventListener('click', () => { browserPicker.open = false; });
     });
-    // Without hover, fold the footer tip's "um," once it scrolls into view.
+    // Without hover, fold the tip's "um," once it's in view.
     if (matchMedia('(hover: none)').matches && 'IntersectionObserver' in window) {
-      const tip = document.querySelector('#get .tip-btn');
+      const tip = document.querySelector('header .tip-btn');
       new IntersectionObserver((entries, observer) => {
         if (!entries[0].isIntersecting) return;
         observer.disconnect();
