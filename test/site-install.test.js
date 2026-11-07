@@ -8,7 +8,7 @@ const html = fs.readFileSync(path.join(__dirname, '../site/index.html'), 'utf8')
 const script = html.match(/<script>([\s\S]*?)<\/script>/)[1];
 const chromeStore = 'https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd';
 const firefoxStore = 'https://addons.mozilla.org/firefox/addon/stable-captions/';
-const safariBeta = 'https://testflight.apple.com/join/htQvssyM';
+const safariStore = 'https://apps.apple.com/app/stable-captions/id6823212176';
 const mac = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)';
 const chrome = `${mac} AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36`;
 const safari = `${mac} AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15`;
@@ -61,7 +61,7 @@ for (const [name, ua, touch, label, href] of [
   ['Chrome', chrome, 0, 'Add to Chrome', chromeStore],
   ['Edge', `${chrome} Edg/130.0.0.0`, 0, 'Add to Edge', chromeStore],
   ['Firefox', `${mac} Gecko/20100101 Firefox/132.0`, 0, 'Add to Firefox', firefoxStore],
-  ['Mac Safari', safari, 0, 'Help test in Safari', safariBeta],
+  ['Mac Safari', safari, 0, 'Add to Safari', safariStore],
   ['iPad desktop UA', safari, 5, 'Add to Chrome', chromeStore],
   ['unknown browser', '', 0, 'Add to Chrome', chromeStore],
 ]) {
@@ -69,25 +69,25 @@ for (const [name, ua, touch, label, href] of [
     const result = setup(ua, touch);
     assert.equal(result.install.href, href);
     assert.equal(result.label.textContent, label);
-    assert.equal(result.sticker.textContent, href === safariBeta ? 'beta!' : 'free!');
+    assert.equal(result.sticker.textContent, href === safariStore ? 'new!' : 'free!');
   });
 }
 
 test('install label is split into one word span per word, in order', () => {
   const { label } = setup(safari);
-  assert.deepEqual(label.words.map((word) => word.textContent), ['Help', 'test', 'in', 'Safari']);
-  assert.deepEqual(label.words.map((word) => word.className), ['word', 'word', 'word', 'word']);
-  assert.deepEqual(label.words.map((word) => word.style['--i']), [0, 1, 2, 3]);
+  assert.deepEqual(label.words.map((word) => word.textContent), ['Add', 'to', 'Safari']);
+  assert.deepEqual(label.words.map((word) => word.className), ['word', 'word', 'word']);
+  assert.deepEqual(label.words.map((word) => word.style['--i']), [0, 1, 2]);
 });
 
 test('arrow picker beside the install link exposes all browsers without JavaScript', () => {
   assert.match(html, /<details class="browser-picker">\s*<summary aria-label="Other browsers"[^>]*><\/summary>/);
   assert.doesNotMatch(html, /class="browser-links"/, 'hero no longer repeats the footer store links');
   const nav = html.match(/<nav class="browser-options"[^>]*>([\s\S]*?)<\/nav>/)[1];
-  for (const [browser, href] of [['Chrome', chromeStore], ['Edge', chromeStore], ['Firefox', firefoxStore], ['Safari', safariBeta]]) {
+  for (const [browser, href] of [['Chrome', chromeStore], ['Edge', chromeStore], ['Firefox', firefoxStore], ['Safari', safariStore]]) {
     assert.ok(nav.includes(`<a href="${href}">${browser}`), `picker links to ${browser}`);
   }
-  assert.match(nav, /Safari[\s\S]*beta/);
+  assert.doesNotMatch(html, /testflight|beta/i, 'Safari is out of beta');
 });
 
 test('Escape closes the picker and restores focus to its summary', () => {
