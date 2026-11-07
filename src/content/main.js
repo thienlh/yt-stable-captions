@@ -4,6 +4,17 @@
   /**
    * Composition root: wires provider/tap -> parser -> chunker -> lookup -> overlay.
    * Depends on abstractions (constructor injection) so tests can fake the player.
+   *
+   * `mode` is where the controller is:
+   *   idle      not on a watch page (native captions untouched)
+   *   loading   finding and fetching this video's captions
+   *   timeline  the whole caption track is known; painted from video time
+   *   live      stabilizing the native caption DOM as it changes
+   *   none      nothing to show for this video (native captions untouched)
+   * Async steps can finish out of order, so each checks it is still wanted:
+   *  - `gen` counts navigations; anything started for an earlier page is dropped.
+   *  - The player's own download (a tap) outranks our fetch: our fetch never
+   *    replaces a tapped timeline, and among taps only the newest one installs.
    */
   class StableCaptionsController {
     constructor({
@@ -14,6 +25,7 @@
       lookup,
       overlay,
       log = () => {},
+      pollMs = 250,
     } = {}) {
       const NS = globalThis.YTSC || {};
       this.provider = provider || new NS.TrackProvider();
@@ -23,6 +35,12 @@
       this.lookup = lookup || new NS.CueLookup();
       this.overlay = overlay || new NS.CaptionOverlay();
       this.log = log;
+      this.pollMs = pollMs;
+      this.mode = 'idle';
+      this.gen = 0; // bumped by each navigation
+      this.tapSeq = 0; // bumped by each tap, so an older tap refetch loses
+      this.source = null; // 'tap' | 'fetch': where the installed timeline came from
+      this.live = null;
       this.cues = []; // caption chunks
       this.words = []; // timed words of the loaded track (re-chunked when settings change)
       this.loadedUrl = null;
@@ -60,7 +78,7 @@
 
     onMediaEvent(e) {
       if (!e.target.matches?.('video.html5-main-video')) return;
-      if (!this.cues.length && !this.live) return;
+      if (this.mode !== 'timeline' && this.mode !== 'live') return;
       this.video = e.target;
       this.overlay.mount(); // re-homes the overlay if YouTube rebuilt the player
       this.live?.observe();
@@ -93,12 +111,18 @@
       return entry && entry.videoId === videoId ? entry : null;
     }
 
+    /**
+     * The player's own caption download. It is signed and in the language the
+     * viewer picked, so it replaces whatever is showing or still loading.
+     */
     async onTap(entry) {
       if (!entry || entry.videoId !== this.currentVideoId() || entry.url === this.loadedUrl) return;
       await this.loadFromTap(entry);
     }
 
     async loadFromTap(entry) {
+      const gen = this.gen;
+      const seq = ++this.tapSeq;
       let payload = null;
       try {
         payload = JSON.parse(entry.body);
@@ -110,15 +134,25 @@
           this.log(`[ytsc] tap refetch failed: ${err?.message || err}`);
           return false;
         }
+        if (gen !== this.gen || seq !== this.tapSeq) return false; // navigated, or a newer tap
       }
-      return this.useTimeline(payload, entry.url, `tap lang=${entry.lang}`);
+      if (!this.useTimeline(payload, entry.url, `tap lang=${entry.lang}`, 'tap')) return false;
+      this.videoId = entry.videoId;
+      return true;
     }
 
-    useTimeline(payload, url, label) {
+    /** Our own fetch is no longer wanted: the page changed, or the player's download is showing. */
+    superseded(gen) {
+      return gen !== this.gen || this.source === 'tap';
+    }
+
+    useTimeline(payload, url, label, source) {
       const words = this.parser.parseWords(payload);
       const chunks = this.buildChunks(words);
       if (!words.length) return false;
       this.stop();
+      this.mode = 'timeline';
+      this.source = source;
       this.words = words;
       this.cues = chunks;
       this.loadedUrl = url;
@@ -137,34 +171,34 @@
     }
 
     async reload() {
+      const gen = ++this.gen; // supersedes any older reload, load or tap refetch
+      // A tap may already have installed this video's timeline (checked below).
       const id = this.currentVideoId();
       if (!id || location.pathname !== '/watch') {
-        this.stop();
+        // Also the mini player: leave its native captions alone.
+        this.release('idle');
         return;
       }
       // Wait for the player to expose captions (SPA navigation is async).
-      let source = 'none';
       for (let i = 0; i < 40; i++) {
         const found = this.provider.getTracksWithSource
           ? this.provider.getTracksWithSource()
-          : { tracks: this.provider.getTracks(), source: 'legacy' };
-        if (found.tracks.length) {
-          source = found.source;
-          break;
-        }
-        await new Promise((r) => setTimeout(r, 250));
+          : { tracks: this.provider.getTracks() };
+        if (found.tracks.length) break;
+        await new Promise((r) => setTimeout(r, this.pollMs));
+        if (gen !== this.gen) return; // navigated again
       }
-      this._lastSource = source;
-      if (this.currentVideoId() !== id) return; // user navigated away
-      if (id === this.videoId && this.cues.length) {
+      if (gen !== this.gen || this.currentVideoId() !== id) return;
+      if (id === this.videoId && this.mode === 'timeline') {
         this.attachVideo();
         return;
       }
-      await this.load(id);
+      await this.load(id, gen);
     }
 
-    async load(videoId) {
+    async load(videoId, gen = ++this.gen) {
       this.stop();
+      this.mode = 'loading';
       this.videoId = videoId;
       try {
         const found = this.provider.getTracksWithSource
@@ -181,15 +215,19 @@
             if (resp?.captions) hint += ` captions-keys=${Object.keys(resp.captions).join(',')}`;
           } catch (e) { hint = `err=${e?.message}`; }
           this.log(`[ytsc] no caption tracks (source=${found.source}, ${hint}, init=${window.ytInitialPlayerResponse ? 'yes' : 'no'})`);
+          this.release('none');
           return;
         }
         const tapped = this.tapFor(videoId);
         if (tapped && (await this.loadFromTap(tapped))) return;
+        if (this.superseded(gen)) return;
         this.log(`[ytsc] loading track ${best.languageCode} kind=${best.kind || 'manual'} source=${found.source} (${tracks.length} tracks)`);
         try {
           const payload = await this.provider.fetchJson3(best);
-          if (!this.useTimeline(payload, best.baseUrl, 'fetch mode')) throw new Error('no words in payload');
+          if (this.superseded(gen)) return; // navigated, or the player's own download is showing
+          if (!this.useTimeline(payload, best.baseUrl, 'fetch mode', 'fetch')) throw new Error('no words in payload');
         } catch (err) {
+          if (this.superseded(gen)) return;
           // Timedtext is increasingly gated (empty body). Live DOM until the player's
           // own download is tapped (turn CC on), then onTap switches to timeline mode.
           this.log(`[ytsc] fetch failed, live mode: ${err?.message || err}`);
@@ -197,6 +235,7 @@
         }
       } catch (err) {
         this.log(`[ytsc] load failed: ${err?.message || err}`);
+        if (gen === this.gen) this.release('none');
       }
     }
 
@@ -219,7 +258,12 @@
     renderNow() {
       cancelAnimationFrame(this.raf);
       this.raf = 0;
-      if (!this.cues.length) return; // live mode paints from its own source
+      if (this.mode === 'live') {
+        // Live mode paints from its own source; CC off takes its caption down now.
+        if (!this.captionsEnabled()) this.hideLiveChunk();
+        return;
+      }
+      if (!this.cues.length) return;
       const tick = () => {
         this.raf = 0;
         if (!this.video?.isConnected) this.video = document.querySelector('video.html5-main-video');
@@ -235,19 +279,23 @@
 
     startLiveMode() {
       const NS = globalThis.YTSC || {};
-      this.stop();
-      this.liveMode = true;
-      this.overlay.mount();
-      this.log('[ytsc] live mode: stabilizing native captions (enable CC in player)');
       const DomSource = NS.LiveDomSource;
       if (!DomSource || !NS.LiveChunker) {
         this.log('[ytsc] live mode unavailable (missing live-source.js), reload extension');
+        this.release('none');
         return;
       }
+      this.stop();
+      this.mode = 'live';
+      this.overlay.mount();
+      this.log('[ytsc] live mode: stabilizing native captions (enable CC in player)');
       this.live = new DomSource({
         chunker: new NS.LiveChunker({ style: document.documentElement.dataset.ytscStyle }),
         onChunk: (chunk) => {
-          if (!this.captionsEnabled()) return;
+          if (!this.captionsEnabled()) {
+            this.hideLiveChunk();
+            return;
+          }
           // Live chunks are cleaned one at a time (repeats spanning two chunks stay).
           if (this.cleanEnabled()) {
             const words = this.disfluency.clean(chunk.words);
@@ -262,18 +310,32 @@
       this.live.start();
     }
 
+    hideLiveChunk() {
+      clearTimeout(this.liveHold);
+      this.overlay.render(null);
+    }
+
+    /** Tears down what is showing. Native captions stay hidden (a load may follow). */
     stop() {
       cancelAnimationFrame(this.raf);
       this.raf = 0;
       this.cues = [];
       this.words = [];
       this.loadedUrl = null;
+      this.source = null;
       this.video = null;
       clearTimeout(this.liveHold);
       this.live?.stop();
       this.live = null;
-      this.liveMode = false;
+      this.mode = 'idle';
       this.overlay.clear();
+    }
+
+    /** Nothing of ours to show: remove the overlay and give native captions back. */
+    release(mode) {
+      this.stop();
+      this.mode = mode;
+      this.overlay.destroy();
     }
   }
 
