@@ -16,7 +16,7 @@ const page = {
 globalThis.location = {
   get search() { return page.search; },
   get pathname() { return page.pathname; },
-  href: 'https://www.youtube.com/watch',
+  get href() { return `https://www.youtube.com${page.pathname}${page.search}`; },
 };
 globalThis.window = globalThis;
 globalThis.document = {
