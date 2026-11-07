@@ -117,22 +117,21 @@
       this.rememberTap(entry);
       if (entry.url === this.loadedUrl) return;
       const pending = this.pendingSelection;
-      if (!pending) {
+      if (!pending?.awaitingTap) {
         const previousLanguage = this.activeCaptionLanguage;
         const loaded = await this.loadFromTap(entry);
         if (loaded) this.learnManualSelection(entry, previousLanguage);
         return;
       }
-      // While a shortcut switch is in flight, only the requested language may load.
+      // While a shortcut switch waits for its download, only the requested language may load.
       if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
-      this.pendingSelection = null;
+      pending.awaitingTap = false;
       // The timeout keeps running: a non-JSON tap is downloaded again, which can stall.
       let loaded = false;
       try {
         loaded = await this.loadFromTap(entry);
       } finally {
-        clearTimeout(pending.timer);
-        pending.resolve?.(loaded);
+        this.settleSwitch(pending, loaded);
       }
     }
 
@@ -147,12 +146,20 @@
       return this.taps.findLast((t) => t.videoId === videoId && this.entryMatchesSelection(t, selection)) || null;
     }
 
-    settlePending(loaded) {
-      const pending = this.pendingSelection;
-      this.pendingSelection = null;
-      if (!pending) return;
+    settlePending(result) {
+      this.settleSwitch(this.pendingSelection, result);
+    }
+
+    /**
+     * Ends a shortcut switch once: its captions loaded (true), did not (false),
+     * or a caption-menu choice took over ('cancelled').
+     */
+    settleSwitch(pending, result) {
+      if (!pending || pending.settled) return;
+      pending.settled = true;
+      if (this.pendingSelection === pending) this.pendingSelection = null;
       clearTimeout(pending.timer);
-      pending.resolve?.(loaded);
+      pending.resolve?.(result);
     }
 
     async loadFromTap(entry) {
@@ -339,12 +346,15 @@
     }
 
     notePlayerTrackChoice(track) {
-      if (this.applyingPlayerTrack || this.languageSwitching || !this.captionMenuArmed()) return;
+      if (this.applyingPlayerTrack || !this.captionMenuArmed()) return;
       const language = globalThis.YTSC.TrackProvider.normalizeLanguage(
         track?.translationLanguage?.languageCode || track?.languageCode
       );
       if (!language) return;
       this.captionChoiceAt = 0;
+      // A menu choice made while Shift+L waits wins: stop waiting so its download
+      // loads like any other, and learn it now.
+      this.settlePending('cancelled');
       this.reportManualLanguage(language);
     }
 
@@ -419,8 +429,8 @@
       if (selection.translationLanguage) track.translationLanguage = { languageCode: selection.translationLanguage };
       // The player may answer a track it loaded before from its cache, without a download.
       const cached = this.cachedTap(selection);
-      const pending = cached ? null : { selection, videoId: this.currentVideoId() };
-      const loaded = pending && new Promise((resolve) => { pending.resolve = resolve; });
+      const pending = { selection, videoId: this.currentVideoId(), awaitingTap: !cached };
+      const loaded = new Promise((resolve) => { pending.resolve = resolve; });
       this.settlePending(false);
       this.pendingSelection = pending;
       this.loadGeneration++;
@@ -437,14 +447,18 @@
       }
       // The player is on this track now, even if its download has not arrived.
       this.noteCaptionLanguage(selection.translationLanguage || selection.track.languageCode);
-      if (cached) return this.loadFromTap(cached);
-      // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
-      this.startLiveMode();
-      // Fires while waiting for the tap or while loading it; a promise settles only once.
-      pending.timer = setTimeout(() => {
-        if (this.pendingSelection === pending) this.pendingSelection = null;
-        pending.resolve(false);
-      }, this.selectionTimeoutMs);
+      // Fires while waiting for the tap or while loading it, cached or not: a cached
+      // non-JSON tap is downloaded again too, which can stall.
+      pending.timer = setTimeout(() => this.settleSwitch(pending, false), this.selectionTimeoutMs);
+      if (cached) {
+        this.loadFromTap(cached).then(
+          (ok) => this.settleSwitch(pending, ok),
+          () => this.settleSwitch(pending, false),
+        );
+      } else {
+        // YouTube's request is captured by timedtext-tap; live captions bridge the gap.
+        this.startLiveMode();
+      }
       return loaded;
     }
 
@@ -542,7 +556,8 @@
           return;
         }
         const loaded = await loading;
-        if (videoId !== this.currentVideoId()) return;
+        // A caption-menu choice replaced this switch; YouTube shows its own selection.
+        if (loaded === 'cancelled' || videoId !== this.currentVideoId()) return;
         const name = this.languageName(selection.translationLanguage || selection.track.languageCode);
         const autoTranslated = Boolean(selection.translationLanguage);
         this.showToast(loaded

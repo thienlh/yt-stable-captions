@@ -177,6 +177,23 @@ test('a stalled load of the requested tap still ends the switch at the timeout',
   assert.equal(controller.languageSwitching, false);
 });
 
+test('a stalled reload of a cached tap ends the switch at the timeout', async () => {
+  const { controller, calls } = setup();
+  controller.selectionTimeoutMs = 5;
+  controller.rememberTap(tap(`${EN.baseUrl}&tlang=vi`)); // the player answers this from cache
+  controller.loadFromTap = () => new Promise(() => {}); // e.g. a json3 re-download that never answers
+
+  await controller.toggleCaptionLanguage();
+  assert.equal(controller.live, 0, 'a cached track does not wait in live mode');
+  assert.equal(controller.toasts[0], 'Tiếng Việt captions did not load');
+  assert.equal(controller.languageSwitching, false);
+  assert.equal(controller.pendingSelection, null);
+
+  // The shortcut keeps working afterwards.
+  void controller.toggleCaptionLanguage();
+  assert.equal(calls.length, 2);
+});
+
 test('a failing load of the requested tap ends the switch', async () => {
   const { controller } = setup();
   controller.loadFromTap = async () => { throw new Error('bad payload'); };
@@ -449,6 +466,34 @@ test('player track changes are learned only after a caption-menu choice', () => 
   assert.deepEqual(reported, ['vi']);
   player.setOption('captions', 'track', { languageCode: 'fr' });
   assert.deepEqual(reported, ['vi'], 'one gesture learns one choice');
+});
+
+test('a caption-menu choice during Shift+L wins over the pending switch', async () => {
+  const FR = { languageCode: 'fr', name: { simpleText: 'French' }, baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=fr' };
+  const { controller } = setup({
+    tracks: [EN, FR],
+    translationLanguages: [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }],
+  });
+  controller.selectionTimeoutMs = 50;
+  const reported = [];
+  controller.reportManualLanguage = (language) => reported.push(language);
+
+  const switching = controller.toggleCaptionLanguage();
+  assert.ok(controller.pendingSelection, 'the shortcut is waiting for the Vietnamese download');
+
+  controller.onCaptionMenuEvent({ isTrusted: true, type: 'click', target: menuRow('French') });
+  assert.ok(controller.captionMenuArmed());
+  controller.provider.getPlayer().setOption('captions', 'track', { languageCode: 'fr' });
+  assert.deepEqual(reported, ['fr'], 'the menu choice is learned while the shortcut waits');
+  assert.equal(controller.pendingSelection, null);
+
+  await switching;
+  assert.deepEqual(controller.toasts, [], 'no "did not load" toast for the replaced switch');
+  assert.equal(controller.languageSwitching, false);
+
+  await controller.onTap(tap(FR.baseUrl));
+  assert.equal(controller.loaded.at(-1), FR.baseUrl, 'the menu choice\'s download loads');
+  assert.deepEqual(reported, ['fr'], 'one gesture learns one choice');
 });
 
 test('downloads without a caption-menu choice are not learned', async () => {
