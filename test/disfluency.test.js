@@ -57,6 +57,11 @@ test('repairs capitals and sentence punctuation', () => {
   assert.equal(cleanText('Um, hello'), 'Hello');
 });
 
+test('a ♪ between a dropped sentence start and the next word keeps the capital for that word', () => {
+  assert.equal(cleanText('Um [Music] so we start.'), '♪ So we start.');
+  assert.equal(cleanText('Done. Uh, [Music] and then'), 'Done. ♪ And then');
+});
+
 test('absorbs dropped time into the previous word', () => {
   const words = [
     { text: 'So,', startMs: 0, endMs: 200 },

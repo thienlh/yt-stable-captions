@@ -170,14 +170,10 @@
         const texts = eventWords.map((w) => w.text);
         const overlap = this.merger.overlapSize(prevTexts, texts);
         const hasOffsets = this._hasWordOffsets(event);
-        const windowGrew =
-          prevTexts.length > 0 &&
-          overlap === prevTexts.length &&
-          texts.length > prevTexts.length;
         const rolling =
           formatted || hasOffsets
             ? overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length))
-            : windowGrew;
+            : this._windowGrew(prevTexts, texts, overlap);
         if (rolling && startMs <= prevEndMs + 1000) eventWords = eventWords.slice(overlap);
         // Lyric lines have no per-word times and no authored wrap. Keep each
         // cue together, including a one-word cue. Highlight still follows the
@@ -218,15 +214,19 @@
       let prevTexts = [];
       for (const event of events) {
         if (this.text.isRollupBreak(event)) continue;
-        const texts = this.text.splitWords(this.text.rawEventText(event));
+        // Tokenized exactly as parseWords does, so both agree on what a window is.
+        const texts = this._eventWords(event, 0, 0).map((w) => w.text);
         if (!texts.length) continue;
-        const overlap = prevTexts.length ? this.merger.overlapSize(prevTexts, texts) : 0;
-        const grew =
-          prevTexts.length > 0 && overlap === prevTexts.length && texts.length > prevTexts.length;
+        const grew = this._windowGrew(prevTexts, texts, this.merger.overlapSize(prevTexts, texts));
         prevTexts = texts;
         if (!grew && texts.length >= 2) lyricLines++;
       }
       return lyricLines > 0;
+    }
+
+    /** An untimed rolling window: the new line is the previous one plus more words ("Was" → "Was bedeutet"). */
+    _windowGrew(prevTexts, texts, overlap) {
+      return prevTexts.length > 0 && overlap === prevTexts.length && texts.length > prevTexts.length;
     }
 
     /** True when cues already wrap themselves (more with a newline than without). */

@@ -43,6 +43,9 @@
   const HOLD_CLEAN = reduceMotion ? 800 : 1600;
   const TOAST_MS = 2400;
   const TOUR_LOOP = 92;
+  // A visitor trying keys keeps their changes; the tour starts over once
+  // they have left the keys alone this long (and the loop has ended).
+  const RESUME_IDLE_MS = 20000;
 
   const screen = document.querySelector('.screen');
   const overlay = document.getElementById('ytsc-overlay');
@@ -117,10 +120,11 @@
   let chunk = null;
   let spans = [];
   let active = -1;
-  let looping = false;
   let demoOn = false;
   let demoStarted = 0;
   let manual = false;
+  let lastKeyAt = -Infinity;
+  let restartDue = false; // the loop ended; start over when the visitor is idle
   const laters = [];
 
   const clearLaters = () => {
@@ -277,6 +281,11 @@
 
   const restartTour = () => {
     manual = false;
+    restartDue = false;
+    // From its first step: a restart held for the visitor would otherwise
+    // resume mid-loop and fire every step it skipped at once.
+    origin = performance.now();
+    lastT = 0;
     rewind();
     clearTimeout(toastTimer);
     quietIndicator();
@@ -292,10 +301,16 @@
     fired.clear();
   };
 
+  const visitorActive = () => manual && performance.now() - lastKeyAt < RESUME_IDLE_MS;
+
   const advanceTour = () => {
     const t = localT();
-    if (lastT >= 0 && t < lastT - 0.4) restartTour();
-    lastT = localT();
+    if (lastT >= 0 && t < lastT - 0.4) restartDue = true;
+    lastT = t;
+    if (restartDue && !visitorActive()) {
+      restartTour();
+      return;
+    }
     if (manual) return;
     for (const beat of BEATS) {
       if (t >= beat.at && !fired.has(beat)) {
@@ -346,6 +361,7 @@
     if (!delta && !cleanKey && !windowKey && !highlightKey && !styleKey && !captionKey) return;
     e.preventDefault();
     e.stopPropagation();
+    lastKeyAt = performance.now();
 
     if (cleanKey) {
       manual = true;
@@ -425,11 +441,11 @@
   };
 
   const replay = () => {
-    if (!player || looping || typeof player.seekTo !== 'function') return;
-    looping = true;
-    player.seekTo(CLIP_START, true);
-    if (player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
-    looping = false;
+    if (!player || typeof player.seekTo !== 'function') return;
+    try {
+      player.seekTo(CLIP_START, true);
+      if (player.getPlayerState() !== YT.PlayerState.PLAYING) player.playVideo();
+    } catch { /* Player not ready. The next frame past the clip end tries again. */ }
   };
 
   const frame = () => {
