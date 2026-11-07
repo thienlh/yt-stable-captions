@@ -35,3 +35,115 @@ test('pickBest prefers manual over ASR, and English first', () => {
   const autoOnly = tracks.slice(0, 2);
   assert.equal(p.pickBest(autoOnly).baseUrl, 'https://x/timedtext?a=2');
 });
+
+test('language choice prefers an exact region and manual tracks over ASR', () => {
+  const p = new TrackProvider();
+  const tracks = [
+    { languageCode: 'en', kind: 'asr', baseUrl: 'https://x/timedtext?lang=en&kind=asr' },
+    { languageCode: 'en', baseUrl: 'https://x/timedtext?lang=en' },
+    { languageCode: 'pt', baseUrl: 'https://x/timedtext?lang=pt' },
+    { languageCode: 'pt-BR', baseUrl: 'https://x/timedtext?lang=pt-BR' },
+  ];
+  assert.equal(p.pickLanguage(tracks, 'en-US').kind, undefined);
+  assert.equal(p.pickLanguage(tracks, 'pt-BR').languageCode, 'pt-BR');
+  assert.equal(p.pickLanguage(tracks, 'pt-PT').languageCode, 'pt');
+  assert.equal(p.pickLanguage(tracks, 'vi'), null);
+});
+
+test('a different script is a different caption language, a region is not', () => {
+  assert.equal(TrackProvider.sameCaptionLanguage('en', 'en-US'), true);
+  assert.equal(TrackProvider.sameCaptionLanguage('zh-Hant', 'zh-Hans'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('zh-Hans', 'zh-CN'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('pt-BR', 'pt-PT'), false);
+  assert.equal(TrackProvider.sameCaptionLanguage('vi', 'vi-VN'), true);
+  assert.equal(TrackProvider.languageMatches('zh-Hant', 'zh-Hans'), true);
+});
+
+test('a Chinese region picks the script it reads, whatever the list order', () => {
+  const p = new TrackProvider();
+  assert.equal(TrackProvider.scriptOf('zh-TW'), 'hant');
+  assert.equal(TrackProvider.scriptOf('zh_HK'), 'hant');
+  assert.equal(TrackProvider.scriptOf('zh-Hans-SG'), 'hans');
+  assert.equal(TrackProvider.scriptOf('zh'), '');
+  assert.equal(TrackProvider.scriptOf('pt-BR'), '');
+
+  const languages = [{ languageCode: 'zh-Hans' }, { languageCode: 'zh-Hant' }];
+  assert.equal(p.findTranslationLanguage(languages, 'zh-TW').languageCode, 'zh-Hant');
+  assert.equal(p.findTranslationLanguage(languages, 'zh-HK').languageCode, 'zh-Hant');
+  assert.equal(p.findTranslationLanguage([...languages].reverse(), 'zh-CN').languageCode, 'zh-Hans');
+  // Without its script, a region still falls back to the base language.
+  assert.equal(p.findTranslationLanguage([{ languageCode: 'zh-Hans' }], 'zh-TW').languageCode, 'zh-Hans');
+
+  const tracks = [
+    { languageCode: 'zh-CN', baseUrl: 'https://x/timedtext?lang=zh-CN' },
+    { languageCode: 'zh-TW', baseUrl: 'https://x/timedtext?lang=zh-TW' },
+  ];
+  assert.equal(p.pickLanguage(tracks, 'zh-HK').languageCode, 'zh-TW');
+  assert.equal(p.pickLanguage(tracks, 'zh-Hant').languageCode, 'zh-TW');
+  assert.equal(p.pickLanguage(tracks, 'zh-SG').languageCode, 'zh-CN');
+});
+
+test('translation languages match browser regional locales', () => {
+  const p = new TrackProvider();
+  const languages = [{ languageCode: 'en' }, { languageCode: 'vi' }];
+  assert.equal(p.findTranslationLanguage(languages, 'vi-VN').languageCode, 'vi');
+  assert.equal(p.findTranslationLanguage(languages, 'fr'), null);
+  const resp = { captions: { playerCaptionsTracklistRenderer: { translationLanguages: languages } } };
+  assert.deepEqual(TrackProvider.translationLanguagesFromResponse(resp), languages);
+});
+
+test('the default caption track is the audio track index, not the selected translation', () => {
+  const english = { languageCode: 'en', kind: 'asr', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=en&kind=asr' };
+  const vietnamese = { languageCode: 'vi', baseUrl: 'https://www.youtube.com/api/timedtext?v=abc&lang=vi' };
+  const resp = {
+    captions: {
+      playerCaptionsTracklistRenderer: {
+        captionTracks: [english, vietnamese],
+        audioTracks: [{ defaultCaptionTrackIndex: 0, hasDefaultTrack: true }],
+      },
+    },
+  };
+  assert.equal(TrackProvider.defaultTrackFromResponse(resp), english);
+  assert.equal(TrackProvider.defaultTrackFromResponse({}), null);
+  assert.equal(TrackProvider.sameVideo(english, 'abc'), true);
+  assert.equal(TrackProvider.sameVideo(english, 'other'), false);
+
+  const carried = TrackProvider.videoOriginal({
+    observed: { track: english, translationLanguage: 'vi' },
+    preferred: 'vi-VN',
+  });
+  assert.equal(carried.track, english);
+  assert.equal(carried.translationLanguage, null);
+  const byIndex = TrackProvider.videoOriginal({
+    defaultTrack: english,
+    observed: { track: vietnamese, translationLanguage: null },
+    preferred: 'vi',
+  });
+  assert.equal(byIndex.track, english);
+  assert.equal(byIndex.translationLanguage, null);
+});
+
+test('a settings label matches caption tracks and not quality rows', () => {
+  const tracks = [{ languageCode: 'en', kind: 'asr', name: { simpleText: 'English (auto-generated)' } }];
+  const translations = [{ languageCode: 'vi', languageName: { simpleText: 'Vietnamese' } }];
+  assert.equal(TrackProvider.matchesCaptionLabel('English (auto-generated)', tracks, translations), true);
+  assert.equal(TrackProvider.matchesCaptionLabel('English', tracks, translations), true);
+  assert.equal(TrackProvider.matchesCaptionLabel('Vietnamese', tracks, translations), true);
+  assert.equal(TrackProvider.matchesCaptionLabel('1080p', tracks, translations), false);
+  assert.equal(TrackProvider.matchesCaptionLabel('Normal', tracks, translations), false);
+  assert.equal(TrackProvider.matchesCaptionLabel('', tracks, translations), false);
+});
+
+test('selectionFromUrl restores the source track and translation', () => {
+  const manual = { languageCode: 'en', baseUrl: 'https://x/timedtext?lang=en' };
+  const asr = { languageCode: 'en', kind: 'asr', baseUrl: 'https://x/timedtext?lang=en&kind=asr' };
+  const selection = TrackProvider.selectionFromUrl(
+    'https://www.youtube.com/api/timedtext?v=abc&lang=en&kind=asr&tlang=vi',
+    [manual, asr]
+  );
+  assert.equal(selection.track, asr);
+  assert.equal(selection.translationLanguage, 'vi');
+  assert.equal(TrackProvider.languageFromUrl(asr.baseUrl), 'en');
+  assert.equal(TrackProvider.languageFromUrl(`${asr.baseUrl}&tlang=vi-VN`), 'vi-vn');
+  assert.equal(TrackProvider.languageFromUrl('not a url'), null);
+});

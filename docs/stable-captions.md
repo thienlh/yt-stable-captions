@@ -8,6 +8,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 - **Clean verbatim.** Hides fillers like *um* and *uh* and stumbles like *I I I think*. On by default.
 - **Seven text sizes** and adjustable background strength.
 - **Works on YouTube and HackerTube**, with any caption language you pick in the player.
+- **Caption languages.** Press `Shift+L` to toggle between the video's original captions and your preferred language. It starts with your browser language. A language you pick in YouTube's subtitles menu replaces it, including on the same video. Existing tracks are preferred, with YouTube auto-translate as the fallback.
 - **Keyboard shortcuts** that match YouTube's own:
 
 | Key | Action |
@@ -15,8 +16,10 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 | `c` | Captions on/off |
 | `+` / `-` | Bigger / smaller text |
 | `w` | Change the background |
+| `h` | Word highlight on/off |
 | `⌥C` / `Alt+C` | Switch style |
 | `Shift+C` | Clean verbatim on/off |
+| `Shift+L` | Original captions ↔ preferred language (auto-translate when needed) |
 
 ## Get it
 
@@ -28,7 +31,7 @@ After installing, turn it on and allow it on YouTube and HackerTube. Then play a
 
 ## Privacy
 
-Stable Captions collects nothing. There are no analytics, no accounts and no servers. It runs only on YouTube, its privacy-enhanced embedded player and HackerTube, and your settings stay in your browser's extension storage. Nothing is sent anywhere.
+Stable Captions collects nothing. There are no analytics, no accounts and no servers. It runs only on YouTube, its privacy-enhanced embedded player and HackerTube, and your settings stay in your browser's extension storage. Caption-language learning keeps only the latest language code and selection timestamp in local storage—no video ID or watch history. Nothing is sent anywhere.
 
 ## Support
 

@@ -25,23 +25,75 @@
           try { resp = JSON.parse(resp); } catch { /* keep string */ }
         }
         const tracks = TrackProvider.tracksFromResponse(resp);
-        if (tracks.length) return { tracks, source: 'movie_player.getPlayerResponse' };
+        if (tracks.length) {
+          return {
+            tracks,
+            translationLanguages: TrackProvider.translationLanguagesFromResponse(resp),
+            defaultTrack: TrackProvider.defaultTrackFromResponse(resp),
+            source: 'movie_player.getPlayerResponse',
+          };
+        }
       } catch { /* fall through */ }
 
       // 2. Initial page data (populated before the player API is ready).
       try {
         const init = window.ytInitialPlayerResponse;
         const tracks = TrackProvider.tracksFromResponse(init);
-        if (tracks.length) return { tracks, source: 'ytInitialPlayerResponse' };
+        if (tracks.length) {
+          return {
+            tracks,
+            translationLanguages: TrackProvider.translationLanguagesFromResponse(init),
+            defaultTrack: TrackProvider.defaultTrackFromResponse(init),
+            source: 'ytInitialPlayerResponse',
+          };
+        }
       } catch { /* fall through */ }
 
       // 3. Embedded JSON in the page (works even when the API is gated).
       try {
         const tracks = this.getTracksFromEmbeddedJson();
-        if (tracks.length) return { tracks, source: 'embedded-json' };
+        if (tracks.length) return { tracks, defaultTrack: null, source: 'embedded-json' };
       } catch { /* fall through */ }
 
-      return { tracks: [], source: 'none' };
+      return { tracks: [], translationLanguages: [], defaultTrack: null, source: 'none' };
+    }
+
+    /** The video's own caption track, from the audio track's default index. */
+    static defaultTrackFromResponse(resp) {
+      const renderer = resp?.captions?.playerCaptionsTracklistRenderer;
+      const raw = Array.isArray(renderer?.captionTracks) ? renderer.captionTracks : [];
+      const audio = Array.isArray(renderer?.audioTracks) ? renderer.audioTracks : [];
+      const indexed = audio.find((item) => Number.isInteger(item?.defaultCaptionTrackIndex));
+      const index = indexed?.defaultCaptionTrackIndex ?? renderer?.defaultCaptionTrackIndex;
+      const track = Number.isInteger(index) ? raw[index] : null;
+      return typeof track?.baseUrl === 'string' && track.baseUrl ? track : null;
+    }
+
+    static sameVideo(track, videoId) {
+      if (!videoId || !track?.baseUrl) return true;
+      try {
+        const id = new URL(track.baseUrl, 'https://www.youtube.com/').searchParams.get('v');
+        return !id || id === videoId;
+      } catch {
+        return true;
+      }
+    }
+
+    /**
+     * The track Shift+L restores. YouTube carries the last caption language onto
+     * the next video, so the first download may already be that language. Prefer
+     * the player's default track, otherwise the source behind a carried translation.
+     */
+    static videoOriginal({ defaultTrack = null, observed = null, preferred = '' } = {}) {
+      if (defaultTrack) return { track: defaultTrack, translationLanguage: null };
+      if (!observed?.track) return null;
+      const visible = observed.translationLanguage || observed.track.languageCode;
+      if (observed.translationLanguage &&
+          TrackProvider.sameCaptionLanguage(visible, preferred) &&
+          !TrackProvider.sameCaptionLanguage(observed.track.languageCode, preferred)) {
+        return { track: observed.track, translationLanguage: null };
+      }
+      return observed;
     }
 
     static tracksFromResponse(resp) {
@@ -50,6 +102,128 @@
       // NOTE: do not filter on 'timedtext' substring — some locales serve
       // translated baseUrls without it. Any non-empty baseUrl is fetchable.
       return arr.filter((t) => typeof t?.baseUrl === 'string' && t.baseUrl.length > 0);
+    }
+
+    static translationLanguagesFromResponse(resp) {
+      const languages = resp?.captions?.playerCaptionsTracklistRenderer?.translationLanguages;
+      return Array.isArray(languages) ? languages : [];
+    }
+
+    static normalizeLanguage(language) {
+      return String(language || '').trim().replaceAll('_', '-').toLowerCase();
+    }
+
+    static languageMatches(a, b) {
+      const left = TrackProvider.normalizeLanguage(a);
+      const right = TrackProvider.normalizeLanguage(b);
+      return Boolean(left && right) &&
+        (left === right || left.split('-')[0] === right.split('-')[0]);
+    }
+
+    /**
+     * en matches en-US. zh-Hant does not match zh-Hans: a different subtag is a
+     * different caption track, while a bare base code still matches a region.
+     */
+    static sameCaptionLanguage(a, b) {
+      const left = TrackProvider.normalizeLanguage(a);
+      const right = TrackProvider.normalizeLanguage(b);
+      if (!left || !right) return false;
+      if (left === right) return true;
+      const [baseA, ...restA] = left.split('-');
+      const [baseB, ...restB] = right.split('-');
+      return baseA === baseB && (!restA.length || !restB.length);
+    }
+
+    /** The visible language: an auto-translation target, otherwise the source track. */
+    static languageFromUrl(url) {
+      try {
+        const u = new URL(url, globalThis.location?.href || 'https://www.youtube.com/');
+        return TrackProvider.normalizeLanguage(u.searchParams.get('tlang') || u.searchParams.get('lang')) || null;
+      } catch {
+        return null;
+      }
+    }
+
+    /**
+     * True when a settings-menu label is one of the player's caption tracks or
+     * translation languages. Quality and speed rows do not match.
+     */
+    static matchesCaptionLabel(label, tracks = [], translationLanguages = []) {
+      const text = TrackProvider.normalizeLabel(label);
+      if (!text) return false;
+      const names = [...tracks, ...translationLanguages]
+        .map((entity) => TrackProvider.normalizeLabel(TrackProvider.trackLabel(entity)))
+        .filter(Boolean);
+      return names.some((name) => text === name || text.startsWith(`${name} `) || text.startsWith(`${name}(`) ||
+        name.startsWith(`${text} `) || name.startsWith(`${text}(`));
+    }
+
+    static trackLabel(entity) {
+      const name = entity?.name || entity?.languageName;
+      if (!name) return '';
+      if (typeof name === 'string') return name;
+      if (typeof name.simpleText === 'string') return name.simpleText;
+      if (Array.isArray(name.runs)) return name.runs.map((run) => run?.text || '').join('');
+      return '';
+    }
+
+    static normalizeLabel(label) {
+      return String(label || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    }
+
+    /**
+     * The writing system a code implies: an explicit script subtag (zh-Hant), or
+     * the script a Chinese region uses (zh-TW is Traditional, zh-CN Simplified).
+     * Empty when the code does not say.
+     */
+    static scriptOf(language) {
+      const [base, ...subtags] = TrackProvider.normalizeLanguage(language).split('-');
+      const script = subtags.find((tag) => /^[a-z]{4}$/.test(tag));
+      if (script) return script;
+      const region = subtags.find((tag) => /^([a-z]{2}|\d{3})$/.test(tag));
+      return TrackProvider.REGION_SCRIPTS[base]?.[region] || '';
+    }
+
+    /** 0 exact, 1 same script, 2 same base language; null when the base differs. */
+    static languageRank(candidate, language) {
+      if (!TrackProvider.languageMatches(candidate, language)) return null;
+      if (TrackProvider.normalizeLanguage(candidate) === TrackProvider.normalizeLanguage(language)) return 0;
+      const script = TrackProvider.scriptOf(language);
+      return script && TrackProvider.scriptOf(candidate) === script ? 1 : 2;
+    }
+
+    /** The entries of the best rank for `language`, in their original order. */
+    static closestLanguages(entries, language) {
+      const ranked = entries
+        .map((entry) => ({ entry, rank: TrackProvider.languageRank(entry?.languageCode, language) }))
+        .filter(({ rank }) => rank !== null);
+      const best = Math.min(...ranked.map(({ rank }) => rank));
+      return ranked.filter(({ rank }) => rank === best).map(({ entry }) => entry);
+    }
+
+    /** Prefer an exact match, then the same script, then another track in the same base language. */
+    pickLanguage(tracks, language) {
+      return this.pickBest(TrackProvider.closestLanguages(tracks, language));
+    }
+
+    findTranslationLanguage(languages, language) {
+      return TrackProvider.closestLanguages(languages, language)[0] || null;
+    }
+
+    /** Recover the source track and optional translation from a timedtext URL. */
+    static selectionFromUrl(url, tracks) {
+      if (!url) return null;
+      try {
+        const u = new URL(url, globalThis.location?.href || 'https://www.youtube.com/');
+        const language = u.searchParams.get('lang');
+        const kind = u.searchParams.get('kind');
+        const candidates = tracks.filter((t) =>
+          TrackProvider.normalizeLanguage(t.languageCode) === TrackProvider.normalizeLanguage(language));
+        const track = candidates.find((t) => (t.kind || '') === (kind || '')) || candidates[0];
+        return track ? { track, translationLanguage: u.searchParams.get('tlang') || null } : null;
+      } catch {
+        return null;
+      }
     }
 
     getTracksFromEmbeddedJson() {
@@ -110,6 +284,11 @@
       }
     }
   }
+
+  /** Regions whose locale implies a script YouTube names separately (zh-Hant, zh-Hans). */
+  TrackProvider.REGION_SCRIPTS = {
+    zh: { tw: 'hant', hk: 'hant', mo: 'hant', cn: 'hans', sg: 'hans', my: 'hans' },
+  };
 
   globalThis.YTSC = Object.assign(globalThis.YTSC || {}, { TrackProvider });
 })();

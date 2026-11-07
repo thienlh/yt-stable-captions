@@ -49,6 +49,7 @@
       "all_frames": true,
       "js": [
         "src/core/settings.js",
+        "src/core/language-preference.js",
         "src/content/settings-bridge.js"
       ],
       "run_at": "document_start"

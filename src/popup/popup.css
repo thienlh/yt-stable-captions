@@ -341,9 +341,9 @@ kbd {
 .switch[aria-checked="true"] { background: var(--accent); }
 .switch[aria-checked="true"]::after { transform: translateX(14px); }
 
-/* ---------- The two keys that have no row of their own ---------- */
+/* ---------- Shortcut-only controls that have no settings row ---------- */
 .keys {
-  display: flex; justify-content: space-between;
+  display: flex; flex-wrap: wrap; gap: 8px 16px;
   padding: 0 12px 2px;
   color: var(--dim); font-size: 12px;
 }

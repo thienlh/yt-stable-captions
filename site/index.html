@@ -518,7 +518,7 @@
 
   .facts {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 32px;
     margin-top: 72px;
     padding-top: 28px;
@@ -555,6 +555,9 @@
   .stores { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 22px; }
   .stores > span { color: rgba(251, 250, 248, 0.5); }
 
+  @media (max-width: 1180px) {
+    .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
   @media (max-width: 980px) {
     .page { padding: 24px 24px 56px; }
     .hero {
@@ -641,6 +644,7 @@
           <li class="key" data-shortcut="highlight"><kbd data-kbd="H">H</kbd> word highlight</li>
           <li class="key" data-shortcut="clean"><kbd data-kbd="⇧C">⇧C</kbd> clean verbatim</li>
           <li class="key" data-shortcut="style"><kbd data-kbd="⌥C">⌥C</kbd> switch style</li>
+          <li class="key" data-shortcut="language" title="Starts with your browser language. A language you pick in YouTube's subtitles menu replaces it."><kbd data-kbd="⇧L">⇧L</kbd> original ↔ preferred language</li>
         </ul>
       </div>
       <div class="watch">
@@ -668,6 +672,10 @@
         <small>03 &nbsp; CLEAN VERBATIM</small>
         <p>um, uh, and stumbles gone.</p>
       </div>
+      <div class="fact">
+        <small>04 &nbsp; YOUR LANGUAGE</small>
+        <p>Learns your language.</p>
+      </div>
     </section>
 
     <footer id="get">
@@ -678,7 +686,7 @@
         <a href="https://chromewebstore.google.com/detail/stable-captions/pnbjnjdceehalphkhaibplklhjoboodd">Edge</a>
         <a href="https://addons.mozilla.org/firefox/addon/stable-captions/">Firefox</a>
       </div>
-      <p>Stable Captions collects nothing. It runs only on YouTube and HackerTube, and your settings stay in the browser. After installing, turn it on and allow it on both sites.</p>
+      <p>Stable Captions collects nothing. It runs only on YouTube and HackerTube, and your settings and local caption-language learning stay in the browser. After installing, turn it on and allow it on both sites.</p>
       <p><a href="https://github.com/thienlh/yt-stable-captions/issues">Open an issue</a> · <a href="mailto:hey@thien.fun">hey@thien.fun</a> · <a href="https://github.com/thienlh/yt-stable-captions">Source, GPL-3.0</a></p>
     </footer>
   </div>

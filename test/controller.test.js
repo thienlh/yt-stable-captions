@@ -2,9 +2,10 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 
 // Loaded before `window` exists, so main.js does not auto-start.
+require('../src/content/track-provider.js');
 require('../src/content/main.js');
 
-const { StableCaptionsController } = globalThis.YTSC;
+const { StableCaptionsController, TrackProvider } = globalThis.YTSC;
 
 // ---- A fake page: just enough of window/document/location for the controller ----
 
@@ -31,8 +32,6 @@ globalThis.document = {
   addEventListener() {},
 };
 globalThis.requestAnimationFrame = () => 1;
-// The json3 rewrite of a tapped URL (the real one lives in track-provider.js).
-globalThis.YTSC.TrackProvider = { withJson3: (url) => `${url}&fmt=json3` };
 globalThis.cancelAnimationFrame = () => {};
 
 const watch = (id) => {
@@ -67,7 +66,8 @@ function makeController({ tracksAfter = 0 } = {}) {
     clear() { this.calls.push('clear'); },
     destroy() { this.calls.push('destroy'); },
   };
-  const provider = {
+  // The real provider's language helpers, with the player and network faked.
+  const provider = Object.assign(new TrackProvider(), {
     getTracksWithSource() {
       trackPolls++;
       if (trackPolls <= tracksAfter) return { tracks: [], source: 'none' };
@@ -84,7 +84,7 @@ function makeController({ tracksAfter = 0 } = {}) {
       refetches.push({ url, ...d });
       return d.promise;
     },
-  };
+  });
   const controller = new StableCaptionsController({
     provider,
     parser: { parseWords: (p) => p.words || [] },
