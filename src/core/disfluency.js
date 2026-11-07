@@ -125,7 +125,8 @@
       words.forEach((word, i) => {
         if (!this.drop.has(kinds[i])) {
           let { text } = word;
-          if (capitalizeNext) {
+          // A ♪ cue is not a word: the capital waits for the word after it.
+          if (capitalizeNext && !word.standalone) {
             text = text.charAt(0).toLocaleUpperCase() + text.slice(1);
             capitalizeNext = false;
           }
