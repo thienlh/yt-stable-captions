@@ -619,7 +619,11 @@
 
     currentVideoId() {
       try {
-        return new URLSearchParams(location.search).get('v');
+        const url = new URL(location.href);
+        if (url.pathname === '/watch') return url.searchParams.get('v');
+        // HackerTube uses YouTube's privacy-enhanced /embed/<id> player.
+        // This method runs in that iframe, not on HackerTube's own watch page.
+        return url.pathname.match(/^\/embed\/([\w-]+)\/?$/)?.[1] || null;
       } catch {
         return null;
       }
@@ -629,7 +633,7 @@
       const gen = ++this.gen; // supersedes any older reload, load or tap refetch
       // A tap may already have installed this video's timeline (checked below).
       const id = this.currentVideoId();
-      if (!id || location.pathname !== '/watch') {
+      if (!id) {
         // Also the mini player: leave its native captions alone.
         this.release('idle');
         return;

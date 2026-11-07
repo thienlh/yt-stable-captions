@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Stable Captions",
   "version": "1.0.0",
-  "description": "Replace flowing YouTube auto-captions with calm, stable caption chunks.",
+  "description": "Replace flowing YouTube and HackerTube auto-captions with calm, stable caption chunks.",
   "minimum_chrome_version": "111",
   "icons": {
     "16": "icons/icon-16.png",
@@ -27,7 +27,9 @@
     "storage"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*"
+    "https://www.youtube.com/*",
+    "https://www.youtube-nocookie.com/*",
+    "https://hackertube.org/*"
   ],
   "action": {
     "default_title": "Stable Captions",
@@ -41,8 +43,10 @@
   "content_scripts": [
     {
       "matches": [
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://www.youtube-nocookie.com/embed/*"
       ],
+      "all_frames": true,
       "js": [
         "src/core/settings.js",
         "src/core/language-preference.js",
@@ -52,8 +56,10 @@
     },
     {
       "matches": [
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://www.youtube-nocookie.com/embed/*"
       ],
+      "all_frames": true,
       "world": "MAIN",
       "js": [
         "src/content/timedtext-tap.js"
@@ -62,8 +68,10 @@
     },
     {
       "matches": [
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://www.youtube-nocookie.com/embed/*"
       ],
+      "all_frames": true,
       "world": "MAIN",
       "js": [
         "src/core/text-utils.js",
@@ -90,7 +98,8 @@
         "src/content/styles.css"
       ],
       "matches": [
-        "https://www.youtube.com/*"
+        "https://www.youtube.com/*",
+        "https://www.youtube-nocookie.com/*"
       ]
     }
   ]

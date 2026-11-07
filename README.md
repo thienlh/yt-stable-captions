@@ -1,7 +1,8 @@
 # Stable Captions
 
-Replaces YouTube's flowing auto-captions with short, stable caption chunks
-(≤6 words, shown whole) on a frosted, visionOS-inspired panel, with a
+Replaces flowing auto-captions on YouTube and [HackerTube](https://hackertube.org/)
+with short, stable caption chunks (≤6 words, shown whole) on a frosted,
+visionOS-inspired panel, with a
 subtle emphasis on the word being spoken. A bold, playful **Short** style and a
 **Boring** one (YouTube's white on black in your system font, a full line of up to 7
 words, for legibility;
@@ -23,6 +24,7 @@ If it is useful, [tip on Ko-fi](https://ko-fi.com/stablecaptions).
 - De-dupes rolling ASR windows (`Was` → `Was bedeutet` → `Was bedeutet das?`)
 - Cuts words into chunks at max words/chars, sentence ends, commas and pauses
 - Hides `.ytp-caption-window-container`, renders its own frosted overlay (bundled Inter font)
+- Runs in YouTube's privacy-enhanced embedded player, which powers HackerTube
 - Syncs via `requestAnimationFrame` against `video.currentTime` while playing (idle when paused)
 
 Live mode can't see the future, so it shows each chunk once it is complete
@@ -64,7 +66,7 @@ npm test
 1. Open `chrome://extensions`
 2. Enable **Developer mode** (top right)
 3. **Load unpacked** → select this folder (`yt-stable-captions`)
-4. Open a YouTube watch page with captions, e.g. any video with auto-subs
+4. Open a YouTube or HackerTube video with captions, e.g. any video with auto-subs
 5. Turn **CC on** in the player (the player's download is what gets tapped)
 6. DevTools console → filter `[ytsc]` (enable *Verbose* level) → expect `N chunks (tap lang=…)`
 7. Native captions disappear; short chunks appear on a translucent frosted panel
@@ -86,8 +88,8 @@ Known rough edge: legitimate doubles (*that that*).
 Both styles play side by side as live previews (the extension's own chunker and cleaner), so
 choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
 style's background level, word highlight, and clean verbatim. The little TV says whether the active
-tab is a YouTube video (readable via the youtube.com host permission; no `tabs` permission); when that
-permission is missing (Firefox can withhold it), an **Allow on YouTube** button requests it. The same
+tab is a YouTube or HackerTube video (readable via host permissions; no `tabs` permission); when
+permission is missing (Firefox can withhold it), an **Allow video sites** button requests it. The same
 setting shortcuts work inside the popup (except `c`, which belongs to YouTube, and `Shift+L`,
 which controls the video). Kanagawa blue accent; follows the system light/dark mode.
 

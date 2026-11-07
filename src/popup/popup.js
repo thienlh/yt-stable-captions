@@ -3,9 +3,9 @@
 
   /**
    * Popup: shows both caption styles playing live, edits the settings, and
-   * says whether the active tab is a YouTube video (or asks for youtube.com
-   * access when it is missing). Settings are written to
-   * storage; settings-bridge.js applies them to open YouTube tabs.
+   * says whether the active tab is a YouTube or HackerTube video (or asks for
+   * site access when it is missing). Settings are written to storage;
+   * settings-bridge.js applies them to open video tabs.
    */
   const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
   const { DEFAULTS, STYLES, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel, sizeMigration, highlightSetting } = Settings;
@@ -214,16 +214,22 @@
     if (Object.keys(patch).length) update(patch, { persist: false });
   });
 
-  // ---------- "On YouTube" status ----------
-  // Host permission for youtube.com is enough to see a YouTube tab's URL; no `tabs` permission needed.
+  // ---------- Video-site status ----------
+  // Host permissions are enough to see supported tabs' URLs; no `tabs` permission needed.
 
   // Firefox lets the user withhold or revoke host access (MV3 host permissions
   // are opt-in there); without it no content script runs, so offer to grant it.
-  const YOUTUBE = { origins: ['https://www.youtube.com/*'] };
+  const VIDEO_SITES = {
+    origins: [
+      'https://www.youtube.com/*',
+      'https://www.youtube-nocookie.com/*',
+      'https://hackertube.org/*',
+    ],
+  };
 
-  async function hasAccess() {
+  async function hasAccess(sites = VIDEO_SITES) {
     try {
-      return await api.permissions.contains(YOUTUBE);
+      return await api.permissions.contains(sites);
     } catch {
       return true; // no permissions API: assume the install granted it
     }
@@ -232,31 +238,39 @@
   $('grant').addEventListener('click', async () => {
     let granted = false;
     try {
-      granted = await api.permissions.request(YOUTUBE); // needs this click as the user gesture
+      granted = await api.permissions.request(VIDEO_SITES); // needs this click as the user gesture
     } catch { /* request refused */ }
     if (!granted) return;
     $('grant').hidden = true;
     $('status').hidden = false;
     $('status').dataset.state = 'standby';
-    $('status-text').textContent = 'reload YouTube';
+    $('status-text').textContent = 'reload page';
   });
 
   async function showStatus() {
-    if (!(await hasAccess())) {
-      $('status').hidden = true;
-      $('grant').hidden = false;
-      return;
-    }
     let url = '';
     try {
       const [tab] = await api.tabs.query({ active: true, currentWindow: true });
       url = tab?.url || '';
-    } catch { /* no tab info: treat as not on YouTube */ }
-    const onVideo = /^https:\/\/www\.youtube\.com\/watch\b/.test(url);
-    const onYouTube = /^https:\/\/www\.youtube\.com\//.test(url);
+    } catch { /* no tab info: treat as an unsupported page */ }
+    const host = /^https:\/\/(www\.youtube\.com|www\.youtube-nocookie\.com|hackertube\.org)\//.exec(url)?.[1];
+    // Access to an unrelated video site is not required for this page to work.
+    // HackerTube also needs access to its youtube-nocookie caption iframe.
+    const origins = host ? [`https://${host}/*`] : VIDEO_SITES.origins;
+    if (host === 'hackertube.org') origins.push('https://www.youtube-nocookie.com/*');
+    if (!(await hasAccess({ origins }))) {
+      $('status').hidden = true;
+      $('grant').hidden = false;
+      return;
+    }
+    const onYouTube = host === 'www.youtube.com' || host === 'www.youtube-nocookie.com';
+    const onHackerTube = host === 'hackertube.org';
+    const onVideo = /^https:\/\/www\.youtube\.com\/watch\b/.test(url)
+      || /^https:\/\/www\.youtube-nocookie\.com\/embed\/[^/?#]+/.test(url)
+      || /^https:\/\/hackertube\.org\/watch\/[^/?#]+/.test(url);
     // The little TV in the header: lit with a caption on a video, warm on other
-    // YouTube pages, dark elsewhere.
-    const state = onVideo ? 'on' : onYouTube ? 'standby' : 'off';
+    // supported pages, dark elsewhere.
+    const state = onVideo ? 'on' : onYouTube || onHackerTube ? 'standby' : 'off';
     $('status').dataset.state = state;
     $('status-text').textContent = { on: 'on the tube', standby: 'pick a video', off: "tube's off" }[state];
   }
