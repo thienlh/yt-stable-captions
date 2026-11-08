@@ -9,7 +9,8 @@
 #ytsc-overlay {
   /* Font size = player height × --ytsc-size (popup setting, see below). */
   --ytsc-size: 0.03;
-  --ytsc-font: max(14px, calc(var(--ytsc-player-h, 500px) * var(--ytsc-size)));
+  --ytsc-font-floor: 14px;
+  --ytsc-font: max(var(--ytsc-font-floor), calc(var(--ytsc-player-h, 500px) * var(--ytsc-size)));
   position: absolute;
   left: 50%;
   bottom: 8%;
@@ -124,6 +125,9 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 html[data-ytsc-style="tiktok"] #ytsc-overlay,
 html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
   bottom: 14%;
+  /* Lower floor than Frosted's 14px: heavy outlined text at that floor swamps a small
+     (browser-zoomed) player and wraps to many lines. */
+  --ytsc-font-floor: 10px;
   max-width: min(80%, 14em);
   font-family: "Montserrat", "YTSC Inter", "Helvetica Neue", Arial, sans-serif;
   font-size: calc(var(--ytsc-font) * 1.1);
