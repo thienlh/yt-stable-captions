@@ -7,7 +7,7 @@ const { execFileSync } = require('child_process');
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'dist', 'chrome');
 const SKIP = new Set([
-  '.git', '.github', '.conductor', 'safari', '.gitignore', 'dist', 'node_modules',
+  '.git', '.github', '.conductor', '.context', 'safari', '.gitignore', 'dist', 'node_modules',
   '_site', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md',
 ]);
 
