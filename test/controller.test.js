@@ -177,6 +177,25 @@ test("the player's caption download wins over our fetch that finishes later", as
   assert.equal(shown(controller), 'tapped-de', 'keeps the language the player picked');
 });
 
+test('the raw tap cache is bounded by entries and total characters', () => {
+  const { controller } = makeController();
+  for (let i = 0; i < 5; i++) {
+    controller.rememberTap({ ...tap(`lang-${i}`), url: `https://yt/api/timedtext?v=A&signature=${i}`, body: 'x'.repeat(10) });
+  }
+  assert.equal(controller.taps.length, 4, 'keeps only the four newest entries');
+
+  controller.tapCacheCharLimit = 25;
+  controller.rememberTap({ ...tap('latest'), url: 'https://yt/api/timedtext?v=A&signature=latest', body: 'y'.repeat(10) });
+  assert.equal(controller.taps.length, 2);
+  assert.equal(controller.taps.reduce((sum, entry) => sum + entry.body.length, 0), 20);
+
+  const oversized = { ...tap('huge'), url: 'https://yt/api/timedtext?v=A&signature=huge', body: 'z'.repeat(100) };
+  globalThis.__ytscTimedtext = oversized;
+  controller.rememberTap(oversized);
+  assert.equal(controller.taps.length, 0, 'an over-budget body is not retained');
+  assert.equal(globalThis.__ytscTimedtext, undefined, 'the global bridge does not retain it either');
+});
+
 // The player downloaded another format (not JSON), so the tap is refetched as json3.
 const xmlTap = (lang) => ({ ...tap(lang), body: '<timedtext/>' });
 
@@ -225,6 +244,25 @@ test('a tap refetch for a video the viewer has left is dropped', async () => {
   assert.equal(shown(controller), 'captions-B');
 });
 
+test('a fetch-only video does not retain the previous video\'s raw taps', async () => {
+  const { controller, fetches } = makeController();
+  controller.reload();
+  await settle();
+  const first = tap('de');
+  globalThis.__ytscTimedtext = first;
+  await controller.onTap(first);
+  assert.equal(controller.taps.length, 1);
+
+  watch('B');
+  controller.reload();
+  await settle();
+  fetches[1].resolve(payload('captions-B'));
+  await settle();
+  assert.equal(shown(controller), 'captions-B');
+  assert.equal(controller.taps.length, 0);
+  assert.equal(globalThis.__ytscTimedtext, undefined);
+});
+
 test("our fetch failing after the player's download does not throw it away for live mode", async () => {
   const { controller, fetches } = makeController();
   controller.reload();
@@ -251,17 +289,32 @@ test('a tapped video is not reloaded from scratch when the same video navigates 
 
 // ---- Native captions come back when we have nothing to show ----
 
+test('a mini-player tap is not retained on a non-watch page', async () => {
+  const { controller } = makeController();
+  page.pathname = '/';
+  page.search = '';
+  const miniPlayerTap = tap('de');
+  globalThis.__ytscTimedtext = miniPlayerTap;
+  await controller.onTap(miniPlayerTap);
+  assert.equal(controller.taps.length, 0);
+  assert.equal(globalThis.__ytscTimedtext, undefined);
+});
+
 test('leaving the watch page (e.g. to the mini player) gives native captions back', async () => {
   const { controller, fetches, overlay } = makeController();
   controller.reload();
   await settle();
   fetches[0].resolve(payload('captions-A'));
   await settle();
+  controller.rememberTap(tap('de'));
+  globalThis.__ytscTimedtext = tap('de');
   page.pathname = '/';
   page.search = '';
   overlay.calls.length = 0;
   await controller.reload();
   assert.equal(controller.mode, 'idle');
+  assert.equal(controller.taps.length, 0, 'leaving the video releases raw caption bodies');
+  assert.equal(globalThis.__ytscTimedtext, undefined);
   assert.ok(overlay.calls.includes('destroy'), 'removes the overlay and the native-caption hider');
 });
 

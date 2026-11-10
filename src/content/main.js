@@ -53,7 +53,10 @@
       this.languageSwitching = false;
       this.pendingSelection = null;
       this.selectionTimeoutMs = 10000;
+      this.cacheMissRefetchMs = 250; // let a normal player download win before refetching
       this.taps = []; // this video's tapped downloads, reused when the player answers from its cache
+      this.tapCacheLimit = 4;
+      this.tapCacheCharLimit = 1000000; // total UTF-16 code units, not eight unbounded bodies
       this.activeCaptionLanguage = null;
       this.captionChoiceAt = 0; // last trusted click on a caption row in YouTube's menu
       this.captionChoiceMs = 5000;
@@ -135,7 +138,13 @@
      * viewer picked, so it replaces whatever is showing or still loading.
      */
     async onTap(entry) {
-      if (!entry || entry.videoId !== this.currentVideoId()) return;
+      if (!entry) return;
+      if (entry.videoId !== this.currentVideoId()) {
+        // The tap bridge publishes before the controller sees the event. Do not
+        // let an unwanted mini-player/other-video response linger in that global.
+        if (globalThis.window?.__ytscTimedtext === entry) delete globalThis.window.__ytscTimedtext;
+        return;
+      }
       this.rememberTap(entry);
       if (entry.url === this.loadedUrl) return;
       const pending = this.pendingSelection;
@@ -149,6 +158,9 @@
       // late download of another language would show it and discard the
       // requested one.
       if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
+      // A matching tap is now the preferred load attempt. Do not let the delayed
+      // cache-miss fallback supersede its in-flight JSON3 refetch.
+      clearTimeout(pending.refetchTimer);
       await this.loadForSwitch(pending, entry);
     }
 
@@ -158,20 +170,59 @@
      * the latest attempt may end the switch as failed. The timeout keeps running:
      * a non-JSON download is fetched again, which can stall.
      */
-    async loadForSwitch(pending, entry) {
+    async loadForSwitch(pending, entry, payloadPromise = null) {
       const attempt = pending.attempts = (pending.attempts || 0) + 1;
       let loaded = false;
       try {
-        loaded = await this.loadFromTap(entry);
+        loaded = await this.loadFromTap(entry, payloadPromise);
       } finally {
         if (loaded || pending.attempts === attempt) this.settleSwitch(pending, loaded);
       }
     }
 
+    /** An evicted track may not produce a player download when it comes from YouTube's cache. */
+    refetchForSwitch(pending) {
+      const { TrackProvider } = globalThis.YTSC;
+      const selection = pending.selection;
+      const url = new URL(selection.track.baseUrl, globalThis.location?.href || 'https://www.youtube.com/');
+      if (selection.translationLanguage) url.searchParams.set('tlang', selection.translationLanguage);
+      else url.searchParams.delete('tlang');
+      const requestUrl = TrackProvider.withJson3(url.toString());
+      const entry = {
+        url: requestUrl,
+        body: '',
+        videoId: pending.videoId,
+        lang: selection.translationLanguage || selection.track.languageCode,
+        at: Date.now(),
+      };
+      return this.loadForSwitch(pending, entry, this.provider.fetchUrl(requestUrl));
+    }
+
     rememberTap(entry) {
       this.taps = this.taps.filter((t) => t.videoId === entry.videoId && t.url !== entry.url);
       this.taps.push(entry);
-      if (this.taps.length > 8) this.taps.shift();
+      this.pruneTapCache(entry.videoId);
+      // An oversized/evicted response still loads through onTap's local reference,
+      // but must not stay alive through the tap bridge's latest-entry global.
+      if (globalThis.window?.__ytscTimedtext === entry && !this.taps.includes(entry)) {
+        delete globalThis.window.__ytscTimedtext;
+      }
+    }
+
+    pruneTapCache(videoId) {
+      this.taps = this.taps.filter((entry) => entry.videoId === videoId);
+      let chars = this.taps.reduce((sum, entry) => sum + (entry.body?.length || 0), 0);
+      while (this.taps.length > this.tapCacheLimit || chars > this.tapCacheCharLimit) {
+        chars -= this.taps[0].body?.length || 0;
+        this.taps.shift();
+      }
+      const latest = globalThis.window?.__ytscTimedtext;
+      if (latest && latest.videoId !== videoId) delete globalThis.window.__ytscTimedtext;
+    }
+
+    clearTapCache() {
+      this.taps = [];
+      if (globalThis.window?.__ytscTimedtext) delete globalThis.window.__ytscTimedtext;
     }
 
     cachedTap(selection) {
@@ -192,16 +243,26 @@
       pending.settled = true;
       if (this.pendingSelection === pending) this.pendingSelection = null;
       clearTimeout(pending.timer);
+      clearTimeout(pending.refetchTimer);
       pending.resolve?.(result);
     }
 
-    async loadFromTap(entry) {
+    async loadFromTap(entry, payloadPromise = null) {
       const gen = this.gen;
       const seq = ++this.tapSeq;
       let payload = null;
       try {
-        payload = JSON.parse(entry.body);
-      } catch {
+        if (payloadPromise) {
+          payload = await payloadPromise;
+          if (gen !== this.gen || seq !== this.tapSeq) return false;
+        } else {
+          payload = JSON.parse(entry.body);
+        }
+      } catch (error) {
+        if (payloadPromise) {
+          this.log(`[ytsc] cache-miss refetch failed: ${error?.message || error}`);
+          return false;
+        }
         // Player asked for another format; the same signed URL works as json3.
         try {
           payload = await this.provider.fetchUrl(globalThis.YTSC.TrackProvider.withJson3(entry.url));
@@ -517,6 +578,16 @@
         this.loadForSwitch(pending, cached).catch((err) => {
           this.log(`[ytsc] cached caption load failed: ${err?.message || err}`);
         });
+      } else {
+        // YouTube can answer from its own cache without a timedtext request. Give a
+        // normal player download a head start, then refetch an evicted/missing track
+        // ourselves instead of waiting for a tap forever or duplicating every request.
+        pending.refetchTimer = setTimeout(() => {
+          if (this.pendingSelection !== pending || pending.settled) return;
+          this.refetchForSwitch(pending).catch((err) => {
+            this.log(`[ytsc] cache-miss caption load failed: ${err?.message || err}`);
+          });
+        }, this.cacheMissRefetchMs);
       }
       if (!cached || this.loadedUrl !== cached.url) this.startLiveMode();
       return loaded;
@@ -694,6 +765,7 @@
         this.activeCaptionLanguage = null;
         this.captionChoiceAt = 0;
         this.settlePending(false);
+        this.pruneTapCache(videoId);
       }
       this.videoId = videoId;
       try {
@@ -831,6 +903,7 @@
     /** Nothing of ours to show: remove the overlay and give native captions back. */
     release(mode) {
       this.stop();
+      this.clearTapCache();
       this.mode = mode;
       this.overlay.destroy();
     }

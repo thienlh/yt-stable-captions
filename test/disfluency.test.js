@@ -116,3 +116,19 @@ test('handles empty and filler-only input', () => {
   assert.deepEqual(d.clean([]), []);
   assert.deepEqual(d.clean(timed('um uh')), []);
 });
+
+test('shares unchanged words and copies only words repaired during cleaning', () => {
+  const plain = timed('A completely ordinary caption.');
+  const plainOut = new Disfluency().clean(plain);
+  assert.deepEqual(plainOut, plain);
+  plainOut.forEach((word, index) => assert.equal(word, plain[index]));
+
+  const words = timed('So, um, we left.');
+  const snapshot = words.map((word) => ({ ...word }));
+  const out = new Disfluency().clean(words);
+  assert.deepEqual(out.map((word) => word.text), ['So', 'we', 'left.']);
+  assert.notEqual(out[0], words[0], 'text/timing repair does not mutate the source word');
+  assert.equal(out[1], words[2]);
+  assert.equal(out[2], words[3]);
+  assert.deepEqual(words, snapshot);
+});

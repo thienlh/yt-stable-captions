@@ -13,7 +13,8 @@ const tap = (url) => ({ videoId: 'abc', url, body: '{}' });
 function setup({ tracks = [EN], translationLanguages = [{ languageCode: 'vi' }], defaultTrack = null, player } = {}) {
   const provider = new TrackProvider();
   provider.getTracksWithSource = () => ({ tracks, translationLanguages, defaultTrack, source: 'test' });
-  provider.fetchJson3 = async () => { throw new Error('the shortcut must not fetch tracks itself'); };
+  provider.fetchJson3 = async () => { throw new Error('unexpected direct JSON3 track fetch'); };
+  provider.fetchUrl = () => new Promise(() => {}); // no player download unless the test supplies one
   const calls = [];
   // One player object: the shortcut and the menu hook must wrap the same setOption.
   const fallbackPlayer = { setOption: (...args) => calls.push(args) };
@@ -120,7 +121,11 @@ test('a switch whose captions never arrive says so and stops filtering taps', as
 test('during a switch, only the requested translated tap is accepted', async () => {
   const { controller } = setup();
   const loaded = [];
-  controller.loadFromTap = async (entry) => { loaded.push(entry.url); return true; };
+  controller.loadFromTap = async (entry, payloadPromise) => {
+    if (payloadPromise) return new Promise(() => {}); // cache-miss fetch stays pending; the player tap must win
+    loaded.push(entry.url);
+    return true;
+  };
   const switching = controller.toggleCaptionLanguage();
 
   await controller.onTap(tap(`${EN.baseUrl}&sig=2`));
@@ -202,6 +207,66 @@ test('a cached JSON download shows at once, without live captions', async () => 
   assert.equal(controller.live, 0);
   assert.deepEqual(controller.loaded, [`${EN.baseUrl}&tlang=vi`]);
   assert.match(controller.toasts[0], /auto-translated/);
+});
+
+test('an evicted selection is refetched when the player cache emits no download', async () => {
+  for (const translationLanguage of [null, 'vi']) {
+    const { controller } = setup();
+    controller.tapCacheCharLimit = 0;
+    controller.cacheMissRefetchMs = 0;
+    controller.rememberTap(tap(EN.baseUrl));
+    assert.equal(controller.taps.length, 0, 'the raw response was evicted');
+
+    const requests = [];
+    controller.provider.fetchUrl = async (url) => {
+      requests.push(url);
+      return { controlled: true };
+    };
+    const selection = { track: EN, translationLanguage };
+    const loaded = await controller.switchPlayerCaptions(selection);
+    assert.equal(loaded, true);
+    assert.equal(requests.length, 1);
+    const request = new URL(requests[0]);
+    assert.equal(request.searchParams.get('fmt'), 'json3');
+    assert.equal(request.searchParams.get('lang'), 'en');
+    assert.equal(request.searchParams.get('tlang'), translationLanguage);
+    assert.deepEqual(controller.loaded, [requests[0]]);
+  }
+});
+
+test('a prompt player tap cancels the cache-miss refetch', async () => {
+  const { controller } = setup();
+  controller.cacheMissRefetchMs = 10;
+  let refetches = 0;
+  controller.provider.fetchUrl = async () => { refetches++; return {}; };
+  const switching = controller.toggleCaptionLanguage();
+  await controller.onTap(tap(`${EN.baseUrl}&tlang=vi`));
+  await switching;
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(refetches, 0, 'does not duplicate a timely player download');
+});
+
+test('a matching non-JSON tap cancels the fallback before its refetch finishes', async () => {
+  const { controller } = setup();
+  controller.cacheMissRefetchMs = 5;
+  const refetches = [];
+  controller.provider.fetchUrl = (url) => {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    refetches.push({ url, resolve });
+    return promise;
+  };
+
+  const switching = controller.toggleCaptionLanguage();
+  const playerTap = { ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' };
+  const tapping = controller.onTap(playerTap);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(refetches.length, 1, 'the cache-miss fallback does not supersede the player refetch');
+
+  refetches[0].resolve({ controlled: true });
+  await tapping;
+  await switching;
+  assert.deepEqual(controller.loaded, [playerTap.url]);
 });
 
 test('a fresh download finishes the switch while a cached one reloads', async (t) => {

@@ -61,6 +61,24 @@ cd yt-stable-captions
 npm test
 ```
 
+## Memory benchmarks
+
+See [the memory optimization project](docs/memory-optimization.md) for the measured
+baseline, current results, and optimization backlog. Run the real controller and
+caption pipeline against a JSON3 fixture with:
+
+```bash
+npm run memory -- --fixture /path/to/captions.json3 --runs 5
+```
+
+On macOS with Google Chrome installed, an isolated extension-off/on browser run is
+also available (it uses disposable profiles, not your normal Chrome session):
+
+```bash
+npm run chrome:build
+npm run memory:chrome -- --fixture /path/to/captions.json3 --runs 3
+```
+
 ## Try in Chromium
 
 1. Open `chrome://extensions`

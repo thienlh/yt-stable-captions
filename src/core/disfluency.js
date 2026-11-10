@@ -112,15 +112,18 @@
     }
 
     /**
-     * Returns new words without fillers and repeats, kept well-formed:
+     * Returns a new word list without fillers and repeats, kept well-formed:
      * a dropped word's terminal punctuation moves to the previous word, a
      * dropped sentence-initial capital passes to the next word, and the
      * previous word absorbs the dropped time (so no fake pause splits chunks).
+     * Unchanged words are shared with the input; repaired words are cloned on
+     * demand so a typical clean track does not duplicate every word object.
      */
     clean(words) {
       words = this.replaceMusicTags(words);
       const kinds = this.detect(words);
       const out = [];
+      const owned = new WeakSet(); // clones made here; safe to repair again later
       let capitalizeNext = false;
       words.forEach((word, i) => {
         if (!this.drop.has(kinds[i])) {
@@ -130,13 +133,23 @@
             text = text.charAt(0).toLocaleUpperCase() + text.slice(1);
             capitalizeNext = false;
           }
-          out.push({ ...word, text });
+          if (text === word.text) out.push(word);
+          else {
+            const clone = { ...word, text };
+            owned.add(clone);
+            out.push(clone);
+          }
           return;
         }
-        const prev = out[out.length - 1];
+        let prev = out[out.length - 1];
         const startsSentence = !prev || this.text.sentenceIsComplete(prev.text);
         if (startsSentence && /^\p{Lu}/u.test(word.text)) capitalizeNext = true;
         if (!prev || prev.standalone) return; // the ♪ cue takes no punctuation or extra time
+        if (!owned.has(prev)) {
+          prev = { ...prev };
+          owned.add(prev);
+          out[out.length - 1] = prev;
+        }
         const terminal = word.text.match(/[.!?…]+$/u)?.[0];
         if (terminal) {
           // "And, um." → "And." (replace the filler's comma, don't drop the stop).

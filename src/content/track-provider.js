@@ -264,7 +264,7 @@
 
     /** Same signed URL, forced to json3 (the player may request another format). */
     static withJson3(url) {
-      const u = new URL(url, location.href);
+      const u = new URL(url, globalThis.location?.href || 'https://www.youtube.com/');
       u.searchParams.set('fmt', 'json3');
       return u.toString();
     }
