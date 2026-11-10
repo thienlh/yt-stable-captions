@@ -296,8 +296,8 @@ async function launchAndMeasure(options, mode, run) {
           throw new Error('Fixture produced no timeline');
         }
         const entry = { url, body: ${JSON.stringify(body)}, videoId: controller.currentVideoId(), lang: 'en', at: Date.now() };
-        controller.rememberTap(entry);
         window.__ytscTimedtext = entry;
+        controller.rememberTap(entry);
         return { mode: controller.mode, words: controller.words.length, cues: controller.cues.length };
       })()`);
       if (installed.mode !== 'timeline' || !installed.words) throw new Error(`Fixture installation failed: ${JSON.stringify(installed)}`);
@@ -328,6 +328,7 @@ async function launchAndMeasure(options, mode, run) {
           words: window.__ytscController.words.length,
           cues: window.__ytscController.cues.length,
           taps: window.__ytscController.taps.length,
+          cacheCharLimit: window.__ytscController.tapCacheCharLimit,
           cachedTapChars: window.__ytscController.taps.reduce((sum, tap) => sum + tap.body.length, 0),
         } : null,
       };
@@ -344,9 +345,10 @@ async function launchAndMeasure(options, mode, run) {
     }
     if (options.fixture && enabled) {
       const controller = state.controller;
-      const expectedChars = fs.readFileSync(options.fixture, 'utf8').length;
+      const fixtureChars = fs.readFileSync(options.fixture, 'utf8').length;
+      const expectedCachedChars = fixtureChars <= controller?.cacheCharLimit ? fixtureChars : 0;
       if (controller?.mode !== 'timeline' || !controller.words || !controller.cues ||
-          controller.taps < 1 || controller.cachedTapChars !== expectedChars) {
+          controller.cachedTapChars !== expectedCachedChars || state.tapChars !== expectedCachedChars) {
         throw new Error(`Controlled timeline precondition failed: ${JSON.stringify(state)}`);
       }
     }

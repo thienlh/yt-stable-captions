@@ -158,6 +158,9 @@
       // late download of another language would show it and discard the
       // requested one.
       if (pending.videoId !== entry.videoId || !this.entryMatchesSelection(entry, pending.selection)) return;
+      // A matching tap is now the preferred load attempt. Do not let the delayed
+      // cache-miss fallback supersede its in-flight JSON3 refetch.
+      clearTimeout(pending.refetchTimer);
       await this.loadForSwitch(pending, entry);
     }
 

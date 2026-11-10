@@ -4,7 +4,7 @@
 
 First measurement and optimization pass: 2026-11-10, macOS 27.2, Safari/JSC
 27.2, Node 26.8.2, Chrome 157. The copy-on-write and bounded-cache changes below are
-implemented and covered by 159 passing tests. Whole-tab Safari A/B validation is
+implemented and covered by 160 passing tests. Whole-tab Safari A/B validation is
 still pending; macOS blocked Safari UI, Apple Events JavaScript, and preference
 automation in the initial environment.
 

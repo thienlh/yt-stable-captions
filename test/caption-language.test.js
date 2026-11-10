@@ -246,6 +246,29 @@ test('a prompt player tap cancels the cache-miss refetch', async () => {
   assert.equal(refetches, 0, 'does not duplicate a timely player download');
 });
 
+test('a matching non-JSON tap cancels the fallback before its refetch finishes', async () => {
+  const { controller } = setup();
+  controller.cacheMissRefetchMs = 5;
+  const refetches = [];
+  controller.provider.fetchUrl = (url) => {
+    let resolve;
+    const promise = new Promise((res) => { resolve = res; });
+    refetches.push({ url, resolve });
+    return promise;
+  };
+
+  const switching = controller.toggleCaptionLanguage();
+  const playerTap = { ...tap(`${EN.baseUrl}&tlang=vi`), body: '<timedtext/>' };
+  const tapping = controller.onTap(playerTap);
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  assert.equal(refetches.length, 1, 'the cache-miss fallback does not supersede the player refetch');
+
+  refetches[0].resolve({ controlled: true });
+  await tapping;
+  await switching;
+  assert.deepEqual(controller.loaded, [playerTap.url]);
+});
+
 test('a fresh download finishes the switch while a cached one reloads', async (t) => {
   globalThis.location = new URL('https://www.youtube.com/watch?v=abc'); // withJson3 resolves against it
   t.after(() => { delete globalThis.location; });

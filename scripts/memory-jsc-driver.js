@@ -81,8 +81,8 @@ function makeTimeline(body, clean) {
     throw new Error('Fixture produced no caption words');
   }
   var entry = { url: url, body: body, videoId: 'benchmark', lang: 'en', at: Date.now() };
+  window.__ytscTimedtext = entry; // the real tap bridge publishes before rememberTap
   controller.rememberTap(entry);
-  window.__ytscTimedtext = entry;
   return controller;
 }
 
@@ -127,6 +127,7 @@ if (scenario === 'raw') {
       at: Date.now() + index,
     });
   }
+  cachedBody = ''; // do not retain the last offered body when every entry was evicted
   window.__ytscTimedtext = cached.taps[cached.taps.length - 1];
   retained = { controller: cached };
 } else if (scenario !== 'empty' && scenario !== 'code') {
