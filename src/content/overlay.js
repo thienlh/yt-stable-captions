@@ -1,6 +1,30 @@
 (() => {
   'use strict';
 
+  const EMOJI = /[\p{Extended_Pictographic}\p{Regional_Indicator}\u20e3]/u;
+  let graphemes;
+
+  // Keep emoji sequences intact and give only those glyphs the system emoji font.
+  // The outer word span still owns timing, highlighting, and line wrapping.
+  function paintWord(span, text) {
+    if (!EMOJI.test(text)) {
+      span.textContent = text;
+      return;
+    }
+    graphemes ||= new Intl.Segmenter(undefined, { granularity: 'grapheme' });
+    let end = 0;
+    for (const { segment, index } of graphemes.segment(text)) {
+      if (!EMOJI.test(segment)) continue;
+      if (index > end) span.appendChild(document.createTextNode(text.slice(end, index)));
+      const emoji = document.createElement('span');
+      emoji.className = 'ytsc-emoji';
+      emoji.textContent = segment;
+      span.appendChild(emoji);
+      end = index + segment.length;
+    }
+    if (end < text.length) span.appendChild(document.createTextNode(text.slice(end)));
+  }
+
   /**
    * Caption overlay rendered inside the YouTube player (frosted-block style).
    * Hides the native caption windows, paints one short chunk at a time and
@@ -15,6 +39,7 @@
       this.activeIndex = -1;
       this.hideStyle = null;
       this.resizeObserver = null;
+      this.lift = 0; // steps up (+) or down (-) from the style's own position
     }
 
     mount() {
@@ -32,6 +57,7 @@
         this.resizeObserver = new ResizeObserver(([entry]) => {
           this.el.style.setProperty('--ytsc-player-h', `${entry.target.clientHeight}px`);
         });
+        this.setLift(this.lift);
       }
       // First mount, or YouTube rebuilt the player (e.g. after a long sleep) and
       // left the overlay detached.
@@ -56,6 +82,17 @@
       if (chunk !== this.chunk) this._paint(chunk);
       this.el.classList.toggle('ytsc-untimed', timeMs == null);
       if (timeMs != null) this._highlight(timeMs);
+    }
+
+    /**
+     * Moves the captions up (positive) or down (negative) by whole steps, e.g. off
+     * subtitles burned into the video. styles.css sizes a step from the player height.
+     */
+    setLift(steps) {
+      this.lift = steps;
+      if (!this.el) return;
+      if (steps) this.el.style.setProperty('--ytsc-lift', String(steps));
+      else this.el.style.removeProperty('--ytsc-lift');
     }
 
     clear() {
@@ -88,7 +125,7 @@
         else if (i) this.el.appendChild(document.createTextNode(' '));
         const span = document.createElement('span');
         span.className = 'ytsc-word';
-        span.textContent = word.text;
+        paintWord(span, word.text);
         this.el.appendChild(span);
         return span;
       });

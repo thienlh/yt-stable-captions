@@ -5,6 +5,19 @@
    No url() here: Chrome and Firefox inline this sheet, and those resolve against
    the page, not the extension. */
 
+/* Animate the requested position, then clamp each frame to the current bounds.
+   Browsers without @property support simply move without the transition. */
+@property --ytsc-lift {
+  syntax: '<number>';
+  inherits: false;
+  initial-value: 0;
+}
+@property --ytsc-controls-offset {
+  syntax: '<length>';
+  inherits: false;
+  initial-value: 0px;
+}
+
 /* Frosted block (visionOS-inspired): one translucent blurred panel per chunk. */
 #ytsc-overlay {
   /* Font size = player height × --ytsc-size (popup setting, see below). */
@@ -13,7 +26,9 @@
   --ytsc-font: max(var(--ytsc-font-floor), calc(var(--ytsc-player-h, 500px) * var(--ytsc-size)));
   position: absolute;
   left: 50%;
-  bottom: 8%;
+  --ytsc-bottom-ratio: 0.08;
+  --ytsc-controls-offset: 0px;
+  bottom: 0;
   transform: translateX(-50%);
   width: max-content;
   max-width: min(88%, 42ch);
@@ -37,7 +52,16 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), 0 0.2em 0.8em rgba(0, 0, 0, 0.2);
   /* Faint shadow keeps white text legible now that the panel is lighter. */
   text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
-  transition: bottom 150ms ease-out;
+  /* Shift+K/J: 5% of the player height per step, starting at the style's own
+     position. In translate, 100% is the caption's height (including padding),
+     so the whole caption stays 8px inside the player even after wrapping,
+     resizing, or showing the controls. This also stacks with Short's pop. */
+  translate: 0 clamp(
+    calc(100% - var(--ytsc-player-h, 500px) + 8px),
+    calc((var(--ytsc-bottom-ratio) + var(--ytsc-lift, 0) * 0.05) * var(--ytsc-player-h, 500px) * -1 - var(--ytsc-controls-offset)),
+    -8px
+  );
+  transition: --ytsc-lift 150ms ease-out, --ytsc-controls-offset 150ms ease-out;
 }
 
 /* Safari/WebKit only: use the real system font (SF Pro). Chrome on Linux maps
@@ -73,11 +97,21 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 /* Sit above the control bar while it is showing, like native captions. */
 .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
-  bottom: calc(8% + 44px);
+  --ytsc-controls-offset: 44px;
 }
 
 #ytsc-overlay.ytsc-visible {
   display: block;
+}
+
+/* Some text fonts (notably SF Pro Text) include monochrome emoji glyphs.
+   Prefer the OS's color emoji font only for emoji, in every caption style. */
+#ytsc-overlay .ytsc-emoji {
+  font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", emoji;
+  font-weight: 400;
+  font-style: normal;
+  font-variant-emoji: emoji;
+  text-shadow: none;
 }
 
 /* Current-word emphasis: others dimmed, current word full white with a soft glow. */
@@ -124,7 +158,8 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay,
 html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
-  bottom: 14%;
+  --ytsc-bottom-ratio: 0.14;
+  --ytsc-controls-offset: 0px;
   /* Lower floor than Frosted's 14px: heavy outlined text at that floor swamps a small
      (browser-zoomed) player and wraps to many lines. */
   --ytsc-font-floor: 10px;

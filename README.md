@@ -103,13 +103,13 @@ Known rough edge: legitimate doubles (*that that*).
 
 ## Popup
 
-Both styles play side by side as live previews (the extension's own chunker and cleaner), so
-choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
+The three styles sit side by side as still previews that follow the size, background and highlight
+settings, so choosing one is a click on the picture. Below: text size (Tiny → XXL, seven steps), the current
 style's background level, word highlight, and clean verbatim. The little TV says whether the active
 tab is a YouTube or HackerTube video (readable via host permissions; no `tabs` permission); when
 permission is missing (Firefox can withhold it), an **Allow video sites** button requests it. The same
-setting shortcuts work inside the popup (except `c`, which belongs to YouTube, and `Shift+L`,
-which controls the video). Kanagawa blue accent; follows the system light/dark mode.
+setting shortcuts work inside the popup (except `c`, which belongs to YouTube, and `Shift+L` and
+`Shift+K`/`Shift+J`, which control the video). Kanagawa blue accent; follows the system light/dark mode.
 
 ## Keyboard shortcuts
 
@@ -125,6 +125,7 @@ Same keys as YouTube's own captions:
 | `Alt+C` / `⌥C` | Switch style: Frosted ↔ Short |
 | `Shift+C` | Clean verbatim on/off — hide *um, uh* and stumbles like *I I I think* |
 | `Shift+L` | Toggle between the video's original captions and your preferred language |
+| `Shift+K` / `Shift+J` | Move the captions up (`K`) or down (`J`), vim-style, e.g. off subtitles burned into the video. Applies to the current video only and is never saved; the next video starts at the default position |
 
 The language shortcut starts with your browser language. Choosing a language in YouTube's
 subtitles menu replaces it immediately, including another choice on the same video and a

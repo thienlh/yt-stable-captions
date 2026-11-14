@@ -65,6 +65,7 @@ function makeController({ tracksAfter = 0 } = {}) {
     render(chunk) { this.calls.push(chunk ? `render:${chunk.text}` : 'render:null'); },
     clear() { this.calls.push('clear'); },
     destroy() { this.calls.push('destroy'); },
+    setLift(steps) { this.lift = steps; },
   };
   // The real provider's language helpers, with the player and network faked.
   const provider = Object.assign(new TrackProvider(), {
@@ -367,5 +368,80 @@ test('turning CC off in live mode clears the shown caption right away', async ()
   page.ccPressed = 'false';
   controller.renderNow(); // what the aria-pressed observer calls
   assert.equal(overlay.calls.at(-1), 'render:null');
+  controller.stop();
+});
+
+// ---- Caption position (Shift+K/J) is per video and never stored ----
+
+const shifted = (key, mods = {}) => {
+  const e = { key, shiftKey: true, altKey: false, ctrlKey: false, metaKey: false, target: null, ...mods };
+  e.defaultPrevented = false;
+  e.preventDefault = () => { e.defaultPrevented = true; };
+  e.stopImmediatePropagation = () => {};
+  return e;
+};
+
+test('Shift+K/J moves the captions for this video, within range', async () => {
+  const { controller, fetches, overlay } = makeController();
+  const toasts = [];
+  controller.showToast = (text) => toasts.push(text);
+  controller.reload();
+  await settle();
+  fetches[0].resolve(payload('captions-A'));
+  await settle();
+
+  controller.onPositionKey(shifted('K'));
+  controller.onPositionKey(shifted('K', { repeat: true }));
+  assert.equal(overlay.lift, 2);
+  assert.equal(toasts.at(-1), 'Caption position: up 2');
+
+  for (let i = 0; i < 30; i++) controller.onPositionKey(shifted('K'));
+  assert.equal(overlay.lift, controller.liftRange.max);
+  for (let i = 0; i < 30; i++) controller.onPositionKey(shifted('J'));
+  assert.equal(overlay.lift, controller.liftRange.min);
+
+  // YouTube's play/pause key, typed plainly and with Caps Lock on.
+  for (const plain of [shifted('k', { shiftKey: false }), shifted('K', { shiftKey: false })]) {
+    controller.onPositionKey(plain);
+    assert.equal(plain.defaultPrevented, false);
+  }
+  assert.equal(overlay.lift, controller.liftRange.min);
+  controller.stop();
+});
+
+test('the caption position resets on the next video and leaves storage alone', async () => {
+  const { controller, fetches, overlay } = makeController();
+  controller.showToast = () => {};
+  controller.reload();
+  await settle();
+  fetches[0].resolve(payload('captions-A'));
+  await settle();
+  controller.onPositionKey(shifted('K'));
+  controller.onPositionKey(shifted('K'));
+  assert.equal(overlay.lift, 2);
+
+  watch('B');
+  controller.reload();
+  await settle();
+  assert.equal(overlay.lift, 0);
+  fetches[1].resolve(payload('captions-B'));
+  await settle();
+  controller.onPositionKey(shifted('K'));
+  assert.equal(overlay.lift, 1, 'counts from the default, not from video A');
+  controller.stop();
+});
+
+test('Shift+K does nothing while captions are off', async () => {
+  const { controller, fetches, overlay } = makeController();
+  controller.showToast = () => {};
+  controller.reload();
+  await settle();
+  fetches[0].resolve(payload('captions-A'));
+  await settle();
+  page.ccPressed = 'false';
+  const e = shifted('K');
+  controller.onPositionKey(e);
+  assert.equal(e.defaultPrevented, false);
+  assert.equal(overlay.lift, undefined);
   controller.stop();
 });

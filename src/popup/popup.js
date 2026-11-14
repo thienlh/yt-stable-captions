@@ -2,51 +2,45 @@
   'use strict';
 
   /**
-   * Popup: shows both caption styles playing live, edits the settings, and
+   * Popup: previews each caption style, edits the settings, and
    * says whether the active tab is a YouTube or HackerTube video (or asks for
    * site access when it is missing). Settings are written to storage;
    * settings-bridge.js applies them to open video tabs.
    */
-  const { CaptionChunker, Disfluency, cueAtTime, Settings } = globalThis.YTSC;
-  const { DEFAULTS, STYLES, SIZES, SIZE_LABELS, SIZE_VALUES, WINDOWS, windowLabel, sizeMigration, highlightSetting } = Settings;
+  const { Settings } = globalThis.YTSC;
+  const { DEFAULTS, STYLES, SIZES, SIZE_LABELS, WINDOWS, windowLabel, sizeMigration, highlightSetting } = Settings;
   const api = globalThis.browser ?? globalThis.chrome;
   const store = api.storage.sync ?? api.storage.local; // Safari may lack sync
 
   const state = { ...DEFAULTS };
   const $ = (id) => document.getElementById(id);
 
-  // ---------- Live previews (the extension's own chunker and cleaner) ----------
+  // ---------- Style previews ----------
 
   const FROSTED_LEVELS = { clear: [0.12, 10], light: [0.25, 14], medium: [0.38, 16], dark: [0.55, 18], solid: [0.78, 20] };
   const BOX_ALPHA = { off: 0, 25: 0.25, 50: 0.5, 75: 0.75, 100: 1 }; // Short's and Boring's background
 
-  const SAMPLE = '[Music] So, um, I I think captions should feel, uh, calm and easy. Every word lands where you expect it.';
-  const SAMPLE_WORDS = (() => {
-    let t = 400;
-    return SAMPLE.split(' ').map((text) => {
-      const startMs = t;
-      t += text === '[Music]' ? 1400 : 170 + 32 * text.length + (/[.,]$/.test(text) ? 240 : 0);
-      return { text, startMs, endMs: t - 40 };
-    });
-  })();
-  const LOOP_MS = SAMPLE_WORDS[SAMPLE_WORDS.length - 1].endMs + 1400;
-  let chunks = {}; // per style: each chunks to its own length
-  const rebuildChunks = () => {
-    const words = state.clean ? new Disfluency().clean(SAMPLE_WORDS) : SAMPLE_WORDS;
-    chunks = Object.fromEntries(STYLES.map((style) => [style, new CaptionChunker({ style }).build(words)]));
-  };
+  // A still caption per style: the look, without words changing under the eye.
+  // The second word is marked, as the word being spoken.
+  const SAMPLE = ['learn', 'something', 'new'];
 
   class Preview {
     constructor(el) {
       this.el = el;
       this.style = el.dataset.preview;
-      this.cap = document.createElement('div');
-      this.cap.className = `cap ${this.style}`;
-      el.appendChild(this.cap);
+      const cap = document.createElement('div');
+      cap.className = `cap ${this.style}`;
+      SAMPLE.forEach((text, i) => {
+        if (i) cap.append(' ');
+        const span = document.createElement('span');
+        span.className = i === 1 ? 'w cur' : 'w';
+        span.textContent = text;
+        cap.append(span);
+      });
+      el.appendChild(cap);
     }
 
     apply() {
-      this.el.style.setProperty('--pv-size', SIZE_VALUES[state.size]);
       const [alpha, blur] = FROSTED_LEVELS[state.frostedWindow] || FROSTED_LEVELS.medium;
       this.el.style.setProperty('--pv-alpha', alpha);
       this.el.style.setProperty('--pv-blur', `${blur}px`);
@@ -55,35 +49,6 @@
       this.el.style.setProperty('--pv-tt-pad', shortAlpha ? '.12em .45em' : '0');
       this.el.style.setProperty('--pv-boring-alpha', BOX_ALPHA[state.boringWindow] ?? 0.75);
       this.el.classList.toggle('plain', !state[highlightSetting(this.style)]);
-      this.current = undefined; // repaint: the words may have changed
-    }
-
-    render(t) {
-      const chunk = cueAtTime(chunks[this.style], t);
-      if (chunk !== this.current) {
-        this.current = chunk;
-        this.cap.textContent = '';
-        this.cap.classList.remove('fresh');
-        if (!chunk) {
-          this.cap.classList.remove('on');
-          return;
-        }
-        this.spans = chunk.words.map((w, i) => {
-          if (i) this.cap.append(' ');
-          const span = document.createElement('span');
-          span.className = 'w';
-          span.textContent = w.text;
-          this.cap.append(span);
-          return span;
-        });
-        this.cap.classList.add('on');
-        void this.cap.offsetWidth; // restart the Short pop-in
-        this.cap.classList.add('fresh');
-      }
-      if (!chunk) return; // still between chunks
-      let active = -1;
-      chunk.words.forEach((w, i) => { if (w.startMs <= t) active = i; });
-      this.spans.forEach((s, i) => s.classList.toggle('cur', i === active));
     }
   }
   const previews = [...document.querySelectorAll('[data-preview]')].map((el) => new Preview(el));
@@ -144,9 +109,7 @@
   }
 
   function update(patch, { persist = true } = {}) {
-    const cleanChanged = 'clean' in patch && patch.clean !== state.clean;
     Object.assign(state, patch);
-    if (cleanChanged) rebuildChunks();
     render();
     if (persist) store.set(patch).catch(() => {});
   }
@@ -277,7 +240,6 @@
 
   // ---------- Start ----------
 
-  rebuildChunks();
   render();
   // A size saved on the old ladder is moved first (see Settings.sizeMigration).
   store.get(['size', 'sizeLadder'])
@@ -286,14 +248,4 @@
     .then(() => store.get(DEFAULTS))
     .then((saved) => update(saved, { persist: false }), () => {});
   showStatus();
-
-  // Read the clock here rather than trusting the rAF timestamp: that one can
-  // precede t0 (a negative time shows nothing) and runs on its own timeline.
-  const t0 = performance.now();
-  const frame = () => {
-    const t = (performance.now() - t0) % LOOP_MS;
-    previews.forEach((p) => p.render(t));
-    requestAnimationFrame(frame);
-  };
-  requestAnimationFrame(frame);
 })();
