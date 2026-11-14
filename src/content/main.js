@@ -62,6 +62,10 @@
       this.captionChoiceMs = 5000;
       this.applyingPlayerTrack = false;
       this.toastTimer = 0;
+      // Caption position (Shift+K up / Shift+J down, vim-style): for the current video only, never stored.
+      this.liftVideoId = null;
+      this.liftSteps = 0;
+      this.liftRange = { min: -1, max: 14 };
     }
 
     start() {
@@ -72,6 +76,7 @@
       window.addEventListener('keydown', (e) => {
         this.onCaptionMenuEvent(e);
         this.onLanguageKey(e);
+        this.onPositionKey(e);
       }, true);
       // Capture runs before YouTube's own menu handler, so a caption click is armed
       // before the player applies the track.
@@ -327,6 +332,40 @@
       e.preventDefault();
       e.stopImmediatePropagation();
       void this.toggleCaptionLanguage();
+    }
+
+    onPositionKey(e) {
+      // Shifted only: plain j and k are YouTube's rewind and pause (so is Caps Lock's K).
+      if (e.key !== 'K' && e.key !== 'J') return;
+      if (!e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return; // held down repeats
+      const target = e.target;
+      if (target?.isContentEditable || target?.closest?.('input, textarea, select, [contenteditable]')) return;
+      if ((this.mode !== 'timeline' && this.mode !== 'live') || !this.captionsEnabled()) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      this.moveCaptions(e.key === 'K' ? 1 : -1);
+    }
+
+    /** Nudges the captions for this video only; a new video starts at the default. */
+    moveCaptions(delta) {
+      this.followLiftVideo(this.currentVideoId());
+      const { min, max } = this.liftRange;
+      const steps = Math.min(max, Math.max(min, this.liftSteps + delta));
+      this.liftSteps = steps;
+      this.overlay.setLift?.(steps);
+      const where = steps === 0 ? 'default'
+        : steps === max ? 'highest'
+          : steps === min ? 'lowest'
+            : `${steps > 0 ? 'up' : 'down'} ${Math.abs(steps)}`;
+      this.showToast(`Caption position: ${where}`);
+    }
+
+    followLiftVideo(videoId) {
+      if (videoId === this.liftVideoId) return;
+      this.liftVideoId = videoId;
+      if (!this.liftSteps) return;
+      this.liftSteps = 0;
+      this.overlay.setLift?.(0);
     }
 
     browserLanguage() {
@@ -733,6 +772,7 @@
       const gen = ++this.gen; // supersedes any older reload, load or tap refetch
       // A tap may already have installed this video's timeline (checked below).
       const id = this.currentVideoId();
+      this.followLiftVideo(id);
       if (!id) {
         // Also the mini player: leave its native captions alone.
         this.release('idle');

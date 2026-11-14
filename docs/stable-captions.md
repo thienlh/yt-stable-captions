@@ -20,6 +20,7 @@ YouTube's auto-captions scroll word by word, so you end up reading a moving line
 | `⌥C` / `Alt+C` | Switch style |
 | `Shift+C` | Clean verbatim on/off |
 | `Shift+L` | Original captions ↔ preferred language (auto-translate when needed) |
+| `Shift+K` / `Shift+J` | Move captions up (`K`) / down (`J`), e.g. off subtitles burned into the video (this video only, not saved) |
 
 ## Get it
 

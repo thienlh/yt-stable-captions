@@ -7,7 +7,8 @@
    * the shortcuts that change settings (=/+ and - size, w window, h word
    * highlight, Shift+C clean verbatim, Alt/Option+C style).
    * (`c` stays YouTube's: the overlay follows the player's CC toggle. Shift+L
-   * is handled by main.js, which owns caption tracks and the player API.)
+   * is handled by main.js, which owns caption tracks and the player API, and so is
+   * Shift+K/J, a caption position that lasts for one video and is never stored.)
    * Runs in the ISOLATED world (the only place with the extension APIs); the
    * page-world overlay needs no code for this, styles.css keys off the attributes.
    * Single responsibility: extension-owned state/resources -> DOM.
