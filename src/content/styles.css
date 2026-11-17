@@ -157,10 +157,8 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 /* ---------- Optional "Short" style, internal key "tiktok" (popup setting → html[data-ytsc-style]) ---------- */
 
-html[data-ytsc-style="tiktok"] #ytsc-overlay,
-html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
+html[data-ytsc-style="tiktok"] #ytsc-overlay {
   --ytsc-bottom-ratio: 0.14;
-  --ytsc-controls-offset: 0px;
   /* Lower floor than Frosted's 14px: heavy outlined text at that floor swamps a small
      (browser-zoomed) player and wraps to many lines. */
   --ytsc-font-floor: 10px;

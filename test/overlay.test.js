@@ -109,10 +109,12 @@ test('every style can reach the bottom inset at small and large player sizes', (
   overlay.mount();
   try {
     for (const [height, ratio, controls, expected] of [
-      [720, 0.14, 0, -3], // Short
+      [720, 0.14, 0, -3], // Short, controls hidden
+      [720, 0.14, 44, -4], // Short, controls visible
       [720, 0.08, 0, -2], // Frosted / Boring, controls hidden
       [720, 0.08, 44, -3], // Frosted / Boring, controls visible
       [203, 0.14, 0, -3],
+      [203, 0.14, 44, -7],
       [203, 0.08, 0, -1],
       [203, 0.08, 44, -6],
       [200, 0.14, 0, -2], // Exact boundary despite floating-point ratio arithmetic.
