@@ -111,6 +111,7 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
   font-weight: 400;
   font-style: normal;
   font-variant-emoji: emoji;
+  -webkit-text-stroke: 0;
   text-shadow: none;
 }
 
@@ -177,10 +178,12 @@ html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-over
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: none;
-  text-shadow:
-    -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000,
-    -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
-    0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  /* A continuous outline avoids stepped edges around letters and accents.
+     Paint the fill last so the stroke doesn't thin the glyphs; the outer half
+     of the 0.12em stroke preserves the previous 0.06em outline. */
+  -webkit-text-stroke: 0.12em #000;
+  paint-order: stroke fill;
+  text-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.35);
 }
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay.ytsc-fresh {

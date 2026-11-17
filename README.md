@@ -165,7 +165,8 @@ Firefox notes:
 - `browser_specific_settings.gecko` gives a fixed add-on ID (needed for `storage.sync` and
   AMO signing) and declares no data collection. Chrome warns about the unknown key; harmless
 - Minimum 128 because that is the first Firefox with `"world": "MAIN"` content scripts
-  (Chrome: 111, set as `minimum_chrome_version`). There is no fallback: injecting
+  (Chrome added these in 111; our minimum is 123 for `paint-order` on HTML caption text).
+  There is no fallback: injecting
   `<script src>` from an isolated content script is blocked by YouTube's CSP
 - Permanent installs need the zip signed by AMO (listed or unlisted)
 

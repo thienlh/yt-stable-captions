@@ -52,7 +52,10 @@ globalThis.document = {
   createTextNode: (text) => Object.assign(new FakeElement('#text'), { _text: text }),
   querySelector: (selector) => (selector === '.html5-video-player' ? player : null),
 };
-globalThis.getComputedStyle = () => ({ position: 'relative' });
+globalThis.getComputedStyle = (el) => ({
+  position: 'relative',
+  getPropertyValue: (name) => el.style.props[name] || '',
+});
 globalThis.ResizeObserver = class { observe() {} disconnect() {} };
 
 require('../src/content/overlay.js');
@@ -98,6 +101,33 @@ test('a caption lift set before mount, or kept across a remount, still applies',
   overlay.setLift(0);
   assert.ok(!('--ytsc-lift' in overlay.el.style.props), 'default position leaves no override');
   overlay.destroy();
+});
+
+test('every style can reach the bottom inset at small and large player sizes', () => {
+  const overlay = new CaptionOverlay();
+  assert.equal(overlay.getMinLift(), 0, 'no movement before a player is mounted');
+  overlay.mount();
+  try {
+    for (const [height, ratio, controls, expected] of [
+      [720, 0.14, 0, -3], // Short
+      [720, 0.08, 0, -2], // Frosted / Boring, controls hidden
+      [720, 0.08, 44, -3], // Frosted / Boring, controls visible
+      [203, 0.14, 0, -3],
+      [203, 0.08, 0, -1],
+      [203, 0.08, 44, -6],
+      [200, 0.14, 0, -2], // Exact boundary despite floating-point ratio arithmetic.
+    ]) {
+      player.clientHeight = height;
+      overlay.el.style.setProperty('--ytsc-bottom-ratio', String(ratio));
+      overlay.el.style.setProperty('--ytsc-controls-offset', `${controls}px`);
+      assert.equal(overlay.getMinLift(), expected, `${height}px, ratio ${ratio}, controls ${controls}px`);
+    }
+    player.clientHeight = 0;
+    assert.equal(overlay.getMinLift(), 0, 'a hidden player does not produce an invalid range');
+  } finally {
+    delete player.clientHeight;
+    overlay.destroy();
+  }
 });
 
 test('emoji keep their full sequences and the surrounding word timing', () => {

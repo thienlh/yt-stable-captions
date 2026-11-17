@@ -66,6 +66,8 @@ function makeController({ tracksAfter = 0 } = {}) {
     clear() { this.calls.push('clear'); },
     destroy() { this.calls.push('destroy'); },
     setLift(steps) { this.lift = steps; },
+    minLift: -2,
+    getMinLift() { return this.minLift; },
   };
   // The real provider's language helpers, with the player and network faked.
   const provider = Object.assign(new TrackProvider(), {
@@ -407,6 +409,44 @@ test('Shift+K/J moves the captions for this video, within range', async () => {
   }
   assert.equal(overlay.lift, controller.liftRange.min);
   controller.stop();
+});
+
+test('downward movement reaches the overlay boundary and reverses without extra key presses', () => {
+  const { controller, overlay } = makeController();
+  const toasts = [];
+  controller.showToast = (text) => toasts.push(text);
+  overlay.minLift = -3; // Short in a 720px player.
+
+  controller.moveCaptions(-1);
+  assert.equal(toasts.at(-1), 'Caption position: down 1');
+  controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -2, 'can move below the former one-step limit');
+  assert.equal(toasts.at(-1), 'Caption position: down 2');
+  controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -3);
+  assert.equal(toasts.at(-1), 'Caption position: lowest');
+
+  for (let i = 0; i < 5; i++) controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -3, 'extra presses at the edge do not accumulate');
+  controller.moveCaptions(1);
+  assert.equal(overlay.lift, -2);
+});
+
+test('the downward range follows layout changes without leaving invisible steps below the edge', () => {
+  const { controller, overlay } = makeController();
+  controller.showToast = () => {};
+  overlay.minLift = -6; // Small player with controls visible.
+  for (let i = 0; i < 6; i++) controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -6);
+
+  overlay.minLift = -2; // Larger player, hidden controls, or a different style.
+  controller.moveCaptions(1);
+  assert.equal(overlay.lift, -1, 'one upward press moves away from the new lower boundary');
+
+  overlay.minLift = -3;
+  controller.moveCaptions(-1);
+  controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -3, 'an expanded range is available immediately');
 });
 
 test('the caption position resets on the next video and leaves storage alone', async () => {

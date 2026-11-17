@@ -95,6 +95,20 @@
       else this.el.style.removeProperty('--ytsc-lift');
     }
 
+    /** First downward step that reaches the shared bottom edge in styles.css. */
+    getMinLift() {
+      const height = this.el?.parentNode?.clientHeight;
+      if (!height) return 0;
+      const style = getComputedStyle(this.el);
+      const ratio = parseFloat(style.getPropertyValue('--ytsc-bottom-ratio')) || 0;
+      const controls = parseFloat(style.getPropertyValue('--ytsc-controls-offset')) || 0;
+      // Match the CSS clamp's 8px inset and 5%-of-player-height steps. Round
+      // down so the last step reaches the edge; CSS clamps any overshoot.
+      const steps = (8 - controls - ratio * height) / (0.05 * height);
+      // Avoid an extra step when an exact boundary computes as -2.0000000000000004.
+      return Math.min(0, Math.floor(steps + 1e-9));
+    }
+
     clear() {
       this.chunk = null;
       this.spans = [];
