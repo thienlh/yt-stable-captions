@@ -65,7 +65,7 @@
       // Caption position (Shift+K up / Shift+J down, vim-style): for the current video only, never stored.
       this.liftVideoId = null;
       this.liftSteps = 0;
-      this.liftRange = { min: -1, max: 14 };
+      this.liftRange = { min: 0, max: 14 };
     }
 
     start() {
@@ -349,8 +349,12 @@
     /** Nudges the captions for this video only; a new video starts at the default. */
     moveCaptions(delta) {
       this.followLiftVideo(this.currentVideoId());
+      this.liftRange.min = this.overlay.getMinLift();
       const { min, max } = this.liftRange;
-      const steps = Math.min(max, Math.max(min, this.liftSteps + delta));
+      // Resizing or changing styles can shorten the range.
+      // Discard steps beyond the edge so reversing direction moves immediately.
+      const current = Math.min(max, Math.max(min, this.liftSteps));
+      const steps = Math.min(max, Math.max(min, current + delta));
       this.liftSteps = steps;
       this.overlay.setLift?.(steps);
       const where = steps === 0 ? 'default'

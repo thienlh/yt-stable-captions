@@ -54,12 +54,13 @@
   text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
   /* Shift+K/J: 5% of the player height per step, starting at the style's own
      position. In translate, 100% is the caption's height (including padding),
-     so the whole caption stays 8px inside the player even after wrapping,
-     resizing, or showing the controls. This also stacks with Short's pop. */
+     so the whole caption stays 8px inside the player after wrapping or resizing.
+     Lift the lower boundary with the controls too: manual positioning must not
+     cancel their clearance. This also stacks with Short's pop. */
   translate: 0 clamp(
     calc(100% - var(--ytsc-player-h, 500px) + 8px),
     calc((var(--ytsc-bottom-ratio) + var(--ytsc-lift, 0) * 0.05) * var(--ytsc-player-h, 500px) * -1 - var(--ytsc-controls-offset)),
-    -8px
+    calc(-8px - var(--ytsc-controls-offset))
   );
   transition: --ytsc-lift 150ms ease-out, --ytsc-controls-offset 150ms ease-out;
 }
@@ -111,6 +112,7 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
   font-weight: 400;
   font-style: normal;
   font-variant-emoji: emoji;
+  -webkit-text-stroke: 0;
   text-shadow: none;
 }
 
@@ -156,10 +158,8 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 /* ---------- Optional "Short" style, internal key "tiktok" (popup setting → html[data-ytsc-style]) ---------- */
 
-html[data-ytsc-style="tiktok"] #ytsc-overlay,
-html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-overlay {
+html[data-ytsc-style="tiktok"] #ytsc-overlay {
   --ytsc-bottom-ratio: 0.14;
-  --ytsc-controls-offset: 0px;
   /* Lower floor than Frosted's 14px: heavy outlined text at that floor swamps a small
      (browser-zoomed) player and wraps to many lines. */
   --ytsc-font-floor: 10px;
@@ -177,10 +177,12 @@ html[data-ytsc-style="tiktok"] .html5-video-player:not(.ytp-autohide) #ytsc-over
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
   box-shadow: none;
-  text-shadow:
-    -0.06em -0.06em 0 #000, 0.06em -0.06em 0 #000,
-    -0.06em 0.06em 0 #000, 0.06em 0.06em 0 #000,
-    0 0.08em 0 #000, 0 0.12em 0.25em rgba(0, 0, 0, 0.6);
+  /* A continuous outline avoids stepped edges around letters and accents.
+     Paint the fill last so the stroke doesn't thin the glyphs; the outer half
+     of the 0.12em stroke preserves the previous 0.06em outline. */
+  -webkit-text-stroke: 0.12em #000;
+  paint-order: stroke fill;
+  text-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.35);
 }
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay.ytsc-fresh {
