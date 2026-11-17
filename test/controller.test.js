@@ -435,11 +435,11 @@ test('downward movement reaches the overlay boundary and reverses without extra 
 test('the downward range follows layout changes without leaving invisible steps below the edge', () => {
   const { controller, overlay } = makeController();
   controller.showToast = () => {};
-  overlay.minLift = -6; // Small player with controls visible.
-  for (let i = 0; i < 6; i++) controller.moveCaptions(-1);
-  assert.equal(overlay.lift, -6);
+  overlay.minLift = -3; // Short.
+  for (let i = 0; i < 3; i++) controller.moveCaptions(-1);
+  assert.equal(overlay.lift, -3);
 
-  overlay.minLift = -2; // Larger player, hidden controls, or a different style.
+  overlay.minLift = -2; // Switch to Frosted in a large player.
   controller.moveCaptions(1);
   assert.equal(overlay.lift, -1, 'one upward press moves away from the new lower boundary');
 

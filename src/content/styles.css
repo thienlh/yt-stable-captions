@@ -54,12 +54,13 @@
   text-shadow: 0 0.03em 0.12em rgba(0, 0, 0, 0.35);
   /* Shift+K/J: 5% of the player height per step, starting at the style's own
      position. In translate, 100% is the caption's height (including padding),
-     so the whole caption stays 8px inside the player even after wrapping,
-     resizing, or showing the controls. This also stacks with Short's pop. */
+     so the whole caption stays 8px inside the player after wrapping or resizing.
+     Lift the lower boundary with the controls too: manual positioning must not
+     cancel their clearance. This also stacks with Short's pop. */
   translate: 0 clamp(
     calc(100% - var(--ytsc-player-h, 500px) + 8px),
     calc((var(--ytsc-bottom-ratio) + var(--ytsc-lift, 0) * 0.05) * var(--ytsc-player-h, 500px) * -1 - var(--ytsc-controls-offset)),
-    -8px
+    calc(-8px - var(--ytsc-controls-offset))
   );
   transition: --ytsc-lift 150ms ease-out, --ytsc-controls-offset 150ms ease-out;
 }

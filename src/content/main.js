@@ -351,7 +351,7 @@
       this.followLiftVideo(this.currentVideoId());
       this.liftRange.min = this.overlay.getMinLift();
       const { min, max } = this.liftRange;
-      // Resizing, changing styles, or hiding controls can shorten the range.
+      // Resizing or changing styles can shorten the range.
       // Discard steps beyond the edge so reversing direction moves immediately.
       const current = Math.min(max, Math.max(min, this.liftSteps));
       const steps = Math.min(max, Math.max(min, current + delta));
