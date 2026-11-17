@@ -43,16 +43,17 @@
       if (!current.length) return false;
       const last = current[current.length - 1];
       // Standalone words (e.g. the ♪ music cue) always get a chunk of their own.
-      // A manual caption line starts its own chunk and is not cut mid-line.
+      // A manual caption cue starts its own chunk. Only preserved lines bypass
+      // the normal break rules; estimated timing alone says nothing about size.
       if (next.cueStart || next.standalone || last.standalone) return true;
-      if (next.estimated && last.estimated) return false;
+      if (next.preserveLine && last.preserveLine) return false;
       return next.startMs - last.endMs >= this.opts.pauseMs;
     }
 
     /** No room for the next word. */
     isFull(current, next) {
       if (!current.length) return false;
-      if (next.estimated && current[current.length - 1].estimated) return false;
+      if (next.preserveLine && current[current.length - 1].preserveLine) return false;
       return current.length >= this.opts.maxWords || !this.fits([...current, next]);
     }
 
@@ -62,7 +63,7 @@
 
     breakAfter(current) {
       const last = current[current.length - 1];
-      if (!last || last.estimated) return false;
+      if (!last || last.preserveLine) return false;
       if (this.text.sentenceIsComplete(last.text)) return true;
       return current.length >= this.opts.minCommaWords && this._endsClause(last);
     }
@@ -127,7 +128,7 @@
      * overlay can show it the way a subtitle is read, top line then bottom line.
      */
     _balanceManual(words) {
-      if (words.length < 2 || words.some((w) => !w.estimated || w.lineBreak)) return words;
+      if (words.length < 2 || words.some((w) => !w.preserveLine || w.lineBreak)) return words;
       const ends = [];
       let used = 0;
       words.forEach((word, i) => {
