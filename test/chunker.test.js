@@ -212,8 +212,8 @@ test('parseWords spreads manual sentence timing and drops rolling repeats', () =
   const parser = new Json3Parser();
   const manual = parser.parseWords({ events: [{ tStartMs: 0, dDurationMs: 1000, segs: [{ utf8: 'aa bb' }] }] });
   assert.deepEqual(manual, [
-    { text: 'aa', startMs: 0, endMs: 500, estimated: true, cueStart: true },
-    { text: 'bb', startMs: 500, endMs: 1000, estimated: true },
+    { text: 'aa', startMs: 0, endMs: 500, estimated: true, preserveLine: true, cueStart: true },
+    { text: 'bb', startMs: 500, endMs: 1000, estimated: true, preserveLine: true },
   ]);
 
   const rolling = parser.parseWords({
@@ -224,4 +224,126 @@ test('parseWords spreads manual sentence timing and drops rolling repeats', () =
     ],
   });
   assert.deepEqual(rolling.map((x) => x.text), ['Was', 'bedeutet', 'dieses', 'Wort?']);
+});
+
+// Reconstructed from the reported screenshot, not a downloaded video fixture.
+const lectureText = 'So the number of rules you find is about the same as the number of examples you have.';
+
+test('the reported lecture sentence uses short timed chunks in every style', () => {
+  const words = new Json3Parser().parseWords({ events: [
+    { tStartMs: 189000, dDurationMs: 5000, segs: [{ utf8: lectureText }] },
+  ] });
+  assert.ok(words.every((word) => word.estimated && !word.preserveLine));
+  const snapshot = structuredClone(words);
+  for (const style of ['frosted', 'tiktok', 'boring']) {
+    for (const clean of [false, true]) {
+      const input = clean ? new Disfluency().clean(words) : words;
+      const chunks = new CaptionChunker({ style }).build(input);
+      assert.ok(chunks.length > 1, style);
+      assert.equal(chunks.map((chunk) => chunk.text).join(' '), lectureText);
+      assert.equal(chunks[0].startMs, 189000);
+      for (const [i, chunk] of chunks.entries()) {
+        assert.ok(chunk.words.length <= (style === 'boring' ? 7 : 6), chunk.text);
+        assert.ok(chunk.text.length <= (style === 'boring' ? 42 : 30), chunk.text);
+        assert.equal(chunk.words.some((word) => word.lineBreak), false);
+        assert.equal(cueAtTime(chunks, chunk.startMs), chunk);
+        assert.ok(chunk.endMs > chunk.startMs);
+        if (chunks[i + 1]) assert.ok(chunk.endMs <= chunks[i + 1].startMs);
+      }
+    }
+  }
+  assert.deepEqual(words, snapshot, 'style changes and cleaning leave source timing intact');
+});
+
+test('long unpunctuated manual captions and occasional authored wraps still split', () => {
+  const texts = [lectureText.slice(0, -1), lectureText.replace('find is', 'find\nis'), lectureText];
+  const words = new Json3Parser().parseWords({ events: texts.map((text, i) => ({
+    tStartMs: i * 5000, dDurationMs: 5000, segs: [{ utf8: text }],
+  })) });
+  const chunks = new CaptionChunker().build(new Disfluency().clean(words));
+  assert.equal(chunks.map((chunk) => chunk.text).join(' '), texts.join(' ').replace(/\s+/g, ' '));
+  assert.ok(chunks.every((chunk) => chunk.text.length <= 30));
+  assert.ok(chunks.every((chunk) => chunk.words.every((word) => !word.lineBreak && !word.preserveLine)));
+  for (const start of [0, 5000, 10000]) assert.equal(cueAtTime(chunks, start).startMs, start);
+});
+
+test('estimated word timing alone does not suppress size, sentence or pause breaks', () => {
+  const words = [
+    ...sentence(lectureText),
+    w('Next.', 10000),
+    w('Later', 12000), w('words', 12300),
+  ].map((word) => ({ ...word, estimated: true }));
+  const chunks = new CaptionChunker().build(words);
+  assert.ok(chunks.every((chunk) => chunk.text.length <= 30));
+  assert.deepEqual(chunks.slice(-2).map((chunk) => chunk.text), ['Next.', 'Later words']);
+  assert.ok(chunks.some((chunk) => chunk.text.endsWith('have.')));
+});
+
+test('punctuated lyrics, repeats and filler-shaped lyrics stay whole in every style', () => {
+  const texts = ['Ah, come back to me.', 'Ah, come back to me.', 'Stay', 'Stay'];
+  const words = new Json3Parser().parseWords({ events: texts.map((text, i) => ({
+    tStartMs: i * 3000, dDurationMs: 3000, segs: [{ utf8: text }],
+  })) });
+  assert.ok(words.every((word) => word.estimated && word.preserveLine));
+  for (const style of ['frosted', 'tiktok', 'boring']) {
+    const chunks = new CaptionChunker({ style }).build(new Disfluency().clean(words));
+    assert.deepEqual(chunks.map((chunk) => chunk.text), texts);
+    assert.deepEqual(chunks.map((chunk) => chunk.startMs), [0, 3000, 6000, 9000]);
+    assert.equal(chunks[0].endMs, 3000);
+  }
+});
+
+test('an oversized lyric cue splits safely without cleaning away sung repetitions', () => {
+  const text = 'Ah come back come back to me and stay with me until the morning light shines through';
+  const words = new Json3Parser().parseWords({ events: [
+    { tStartMs: 0, dDurationMs: 8000, segs: [{ utf8: text }] },
+    { tStartMs: 8000, dDurationMs: 3000, segs: [{ utf8: 'Ah come back' }] },
+  ] });
+  const chunks = new CaptionChunker().build(new Disfluency().clean(words));
+  assert.equal(chunks.slice(0, -1).map((chunk) => chunk.text).join(' '), text);
+  assert.ok(chunks.slice(0, -1).every((chunk) => chunk.text.length <= 30));
+  assert.equal(chunks.at(-1).text, 'Ah come back');
+  assert.equal(chunks.at(-1).startMs, 8000);
+});
+
+test('slow manual cues stay continuously visible when split, while real cue gaps remain', () => {
+  const text = 'Ah come back come back to me and stay with me until the morning light shines through';
+  const words = new Json3Parser().parseWords({ events: [
+    { tStartMs: 0, dDurationMs: 30000, segs: [{ utf8: text }] },
+    { tStartMs: 32000, dDurationMs: 3000, segs: [{ utf8: 'Ah come back' }] },
+  ] });
+  const slowWords = words.filter((word) => word.startMs < 30000);
+  for (let i = 1; i < slowWords.length; i++) {
+    assert.equal(slowWords[i - 1].endMs, slowWords[i].startMs, 'estimated intervals must stay continuous');
+  }
+  assert.equal(slowWords.at(-1).endMs, 30000);
+  for (const style of ['frosted', 'tiktok', 'boring']) {
+    for (const clean of [false, true]) {
+      const chunks = new CaptionChunker({ style }).build(clean ? new Disfluency().clean(words) : words);
+      const slowChunks = chunks.slice(0, -1);
+      assert.ok(slowChunks.length > 1);
+      assert.equal(slowChunks.map((chunk) => chunk.text).join(' '), text);
+      for (let i = 1; i < slowChunks.length; i++) {
+        assert.equal(slowChunks[i - 1].endMs, slowChunks[i].startMs, `${style}: no blank interval between chunks`);
+        assert.ok(cueAtTime(chunks, slowChunks[i].startMs - 1));
+      }
+      for (const time of [21471, 22058, 26765, 26911, 29999]) assert.ok(cueAtTime(chunks, time));
+      assert.equal(cueAtTime(chunks, 31000), null, 'silence between authored cues is still blank');
+      assert.equal(cueAtTime(chunks, 32000)?.text, 'Ah come back');
+    }
+  }
+});
+
+test('word-timed auto-captions retain exact starts and normal short chunking', () => {
+  const texts = lectureText.split(' ');
+  const words = new Json3Parser().parseWords({ events: [{
+    tStartMs: 189000,
+    dDurationMs: 6000,
+    segs: texts.map((text, i) => ({ utf8: `${i ? ' ' : ''}${text}`, tOffsetMs: i * 300 })),
+  }] });
+  assert.equal(words.some((word) => word.estimated || word.preserveLine || word.lineBreak), false);
+  assert.deepEqual(words.map((word) => word.startMs), texts.map((_, i) => 189000 + i * 300));
+  const chunks = new CaptionChunker().build(new Disfluency().clean(words));
+  assert.equal(chunks.map((chunk) => chunk.text).join(' '), lectureText);
+  assert.ok(chunks.every((chunk) => chunk.text.length <= 30));
 });

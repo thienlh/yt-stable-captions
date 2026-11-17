@@ -1,6 +1,10 @@
 (() => {
   'use strict';
 
+  // Untimed prose and lyrics have the same payload shape. Preserve a manual
+  // cue only when it fits two balanced lines; longer cues need short chunks.
+  const MAX_PRESERVED_LINE_CHARS = 64;
+
   const loadDep = (key, path) => {
     if (globalThis.YTSC?.[key]) return globalThis.YTSC[key];
     if (typeof require !== 'undefined') return require(path)[key];
@@ -128,11 +132,12 @@
 
     /**
      * JSON3 -> flat list of timed words { text, startMs, endMs }.
-     * ASR tracks carry per-word seg offsets. Plain lyric lines (no offsets, and
+     * ASR tracks carry per-word seg offsets. Plain manual lines (no offsets, and
      * the track does not already break lines itself) are `estimated`: timing is
-     * only the line's span spread by length, the first word is `cueStart`, and
-     * the chunker keeps the line together. A one-word lyric cue gets the same
-     * flags, so it is not glued to the previous line or dropped as a filler.
+     * only the line's span spread by length, and the first word is `cueStart`.
+     * Bounded cues also get `preserveLine` so the chunker keeps them together.
+     * Estimated timing alone never disables chunk limits. A one-word lyric cue
+     * gets the same flags, so it is not glued to the previous line or dropped as a filler.
      * The overlay still highlights from those times; `h` turns that off.
      * Formatted captions that already contain newlines stay on the old path:
      * short chunks and the same highlight.
@@ -144,9 +149,9 @@
       );
       // Most cues already have a newline: a formatted subtitle, not a lyric line.
       const formatted = this._formattedTrack(events);
-      // One real multi-word line means the untimed cues are lyrics, including
-      // a one-word cue like "stay". A stream of single words is still ASR.
-      const lyric = !formatted && this._lyricTrack(events);
+      // A plain manual track may contain lyrics or prose. Include one-word
+      // cues like "stay", but leave a stream of single-word ASR events alone.
+      const manualLines = !formatted && this._manualLineTrack(events);
 
       let words = [];
       let prevTexts = [];
@@ -175,11 +180,17 @@
             ? overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length))
             : this._windowGrew(prevTexts, texts, overlap);
         if (rolling && startMs <= prevEndMs + 1000) eventWords = eventWords.slice(overlap);
-        // Lyric lines have no per-word times and no authored wrap. Keep each
-        // cue together, including a one-word cue. Highlight still follows the
-        // spread times. Formatted captions are chunked as before.
-        if (lyric && !hasOffsets && !rolling) {
+        // Untimed manual cues may be lyrics or prose. Keep short lines whole,
+        // including one-word lyrics, but don't let a long sentence bypass the
+        // chunk limits just because its word timing is estimated.
+        if (manualLines && !hasOffsets && !rolling) {
+          const preserveLine = eventWords.map((w) => w.text).join(' ').length <= MAX_PRESERVED_LINE_CHARS;
           for (const word of eventWords) word.estimated = true;
+          if (preserveLine) {
+            for (const word of eventWords) word.preserveLine = true;
+          } else {
+            for (const word of eventWords) delete word.lineBreak;
+          }
           eventWords[0].cueStart = true;
         }
         prevTexts = texts;
@@ -194,7 +205,11 @@
         const nextStart = words[i + 1]?.startMs;
         if (nextStart > word.startMs) word.endMs = Math.min(word.endMs, nextStart);
         // ASR events stay on screen long after their last word was spoken.
-        word.endMs = Math.min(word.endMs, word.startMs + (word.timed ? 1200 : 2000));
+        // Manual word intervals span the authored cue continuously. Capping
+        // those would invent silence inside a slow cue when it is chunked.
+        if (!word.estimated) {
+          word.endMs = Math.min(word.endMs, word.startMs + (word.timed ? 1200 : 2000));
+        }
         if (word.endMs <= word.startMs) word.endMs = word.startMs + 300;
         delete word.timed;
         // The newline in a formatted cue is how YouTube fits the window, not a
@@ -205,12 +220,12 @@
     }
 
     /**
-     * True when this untimed track has a real lyric line: two or more words that
+     * True when this untimed track has a manual line: two or more words that
      * are not just a rolling window growing ("Was" → "Was bedeutet").
      */
-    _lyricTrack(events) {
+    _manualLineTrack(events) {
       if (events.some((event) => this._hasWordOffsets(event))) return false;
-      let lyricLines = 0;
+      let manualLines = 0;
       let prevTexts = [];
       for (const event of events) {
         if (this.text.isRollupBreak(event)) continue;
@@ -219,9 +234,9 @@
         if (!texts.length) continue;
         const grew = this._windowGrew(prevTexts, texts, this.merger.overlapSize(prevTexts, texts));
         prevTexts = texts;
-        if (!grew && texts.length >= 2) lyricLines++;
+        if (!grew && texts.length >= 2) manualLines++;
       }
-      return lyricLines > 0;
+      return manualLines > 0;
     }
 
     /** An untimed rolling window: the new line is the previous one plus more words ("Was" → "Was bedeutet"). */
