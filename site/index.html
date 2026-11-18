@@ -455,6 +455,11 @@
     transform: scale(1.08);
     text-shadow: inherit;
   }
+  @media (color-gamut: p3) and (forced-colors: none) {
+    .screen[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active {
+      color: color(display-p3 1 0.883 0.152);
+    }
+  }
   .screen[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word,
   .screen[data-ytsc-highlight="false"] #ytsc-overlay .ytsc-word.ytsc-active {
     opacity: 1;

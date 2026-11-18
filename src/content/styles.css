@@ -24,6 +24,8 @@
   --ytsc-size: 0.03;
   --ytsc-font-floor: 14px;
   --ytsc-font: max(var(--ytsc-font-floor), calc(var(--ytsc-player-h, 500px) * var(--ytsc-size)));
+  --ytsc-highlight-color: #ffe135;
+  --ytsc-hdr-highlight-color: #ffed76;
   position: absolute;
   left: 50%;
   --ytsc-bottom-ratio: 0.08;
@@ -118,8 +120,34 @@ html[data-ytsc-boring-window="100"] { --ytsc-boring-alpha: 1; }
 
 /* Current-word emphasis: others dimmed, current word full white with a soft glow. */
 #ytsc-overlay .ytsc-word {
-  opacity: 0.68;
+  opacity: var(--ytsc-word-opacity, 0.68);
   transition: opacity 90ms linear, text-shadow 90ms linear;
+}
+
+/* Extend each yellow's chroma in Display P3 at the same OKLCH lightness and hue. */
+@media (color-gamut: p3) and (forced-colors: none) {
+  @supports (color: color(display-p3 1 1 0)) {
+    #ytsc-overlay {
+      --ytsc-highlight-color: color(display-p3 1 0.883 0.152);
+      --ytsc-hdr-highlight-color: color(display-p3 1 0.932 0.449);
+    }
+  }
+}
+
+/* YouTube toggles this badge with the playing rendition, even when the controls
+   are hidden. Lift the glyphs on HDR displays. On compositors that clip filters
+   at SDR white, the higher resting opacity still helps Frosted captions. */
+@media (dynamic-range: high) and (forced-colors: none) {
+  .html5-video-player:has(.ytp-hdr-quality-badge) #ytsc-overlay {
+    --ytsc-word-opacity: 0.88;
+    --ytsc-highlight-color: var(--ytsc-hdr-highlight-color);
+  }
+
+  .html5-video-player:has(.ytp-hdr-quality-badge) #ytsc-overlay .ytsc-word {
+    /* WebKit clips the boost at SDR white when it paints the filter inline. */
+    will-change: filter;
+    filter: brightness(1.3);
+  }
 }
 
 #ytsc-overlay .ytsc-word.ytsc-active {
@@ -196,7 +224,7 @@ html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word {
 }
 
 html[data-ytsc-style="tiktok"] #ytsc-overlay .ytsc-word.ytsc-active {
-  color: #ffe135;
+  color: var(--ytsc-highlight-color);
   transform: scale(1.08);
   text-shadow: inherit;
 }
@@ -231,7 +259,7 @@ html[data-ytsc-style="boring"] #ytsc-overlay .ytsc-word.ytsc-active {
 
 /* More specific than the highlight-off rule below, which follows the other styles' setting. */
 html[data-ytsc-style="boring"][data-ytsc-boring-highlight="true"] #ytsc-overlay .ytsc-word.ytsc-active {
-  color: #ffe135;
+  color: var(--ytsc-highlight-color);
 }
 
 /* Word highlight off (popup / h): every word as is, in both styles. After the
