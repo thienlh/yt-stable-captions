@@ -41,6 +41,7 @@
 }
 
 :root {
+  --ytsc-highlight-color: #ffe135;
   --accent: #7e9cd8; /* Kanagawa */
   --accent-ink: #5f7fc2; /* same hue, deep enough for text on the light background */
   --bg: #fbfaf8;
@@ -53,6 +54,11 @@
   --line: rgba(var(--ink-rgb), 0.07);
   --spring: cubic-bezier(.34, 1.56, .64, 1);
   color-scheme: light dark;
+}
+@media (color-gamut: p3) and (forced-colors: none) {
+  @supports (color: color(display-p3 1 1 0)) {
+    :root { --ytsc-highlight-color: color(display-p3 1 0.883 0.152); }
+  }
 }
 @media (prefers-color-scheme: dark) {
   :root {
@@ -126,7 +132,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .status[data-state="on"] .w2 { animation-delay: -0.9s; }
 .status[data-state="on"] .screen { animation: crt-on 420ms ease-out; }
 /* The yellow word hops along the caption, as in the Short style. */
-@keyframes say { 0% { fill: #ffe135; } 50% { fill: #fff; } }
+@keyframes say { 0% { fill: var(--ytsc-highlight-color); } 50% { fill: #fff; } }
 /* An old set warming up: a bright line that opens into the picture. */
 @keyframes crt-on {
   0% { transform: scale(1, 0.04); filter: brightness(3); }
@@ -240,9 +246,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   border-radius: 0.15em;
   background: rgba(8, 8, 8, var(--pv-boring-alpha, 0.75));
 }
-.cap.boring .w.cur { color: #ffe135; }
+.cap.boring .w.cur { color: var(--ytsc-highlight-color); }
 .cap.tiktok .w { display: inline-block; transition: color 80ms, transform 80ms; }
-.cap.tiktok .w.cur { color: #ffe135; transform: scale(1.08); }
+.cap.tiktok .w.cur { color: var(--ytsc-highlight-color); transform: scale(1.08); }
 /* Word highlight off: the previews show each caption plainly, like the video. */
 .pv.plain .cap .w, .pv.plain .cap .w.cur { opacity: 1; color: inherit; transform: none; text-shadow: inherit; }
 
