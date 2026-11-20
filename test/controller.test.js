@@ -485,3 +485,24 @@ test('Shift+K does nothing while captions are off', async () => {
   assert.equal(overlay.lift, undefined);
   controller.stop();
 });
+
+// ---- Ads play in the same <video>, on their own clock ----
+
+test('no caption is shown while an ad plays, and captions return after it', async () => {
+  const { controller, fetches, overlay } = makeController();
+  controller.reload();
+  await settle();
+  fetches[0].resolve(payload('hello'));
+  await settle();
+
+  const classes = new Set(['html5-video-player', 'ad-showing']);
+  const player = { classList: { contains: (name) => classes.has(name) } };
+  controller.video = { isConnected: true, paused: true, currentTime: 12, closest: () => player };
+  controller.renderNow();
+  assert.equal(overlay.calls.at(-1), 'render:null');
+
+  classes.delete('ad-showing');
+  controller.renderNow();
+  assert.equal(overlay.calls.at(-1), 'render:hello');
+  controller.stop();
+});

@@ -153,7 +153,11 @@
       // cues like "stay", but leave a stream of single-word ASR events alone.
       const manualLines = !formatted && this._manualLineTrack(events);
 
-      let words = [];
+      // Pass 1: which words each event adds. Rolling windows repeat the previous
+      // window's words; keep only new ones. Untimed captions only count as a
+      // window when the new line extends the previous one ("Was" → "Was bedeutet").
+      // Sharing a word or two, or repeating the line, is a lyric, not a window.
+      const blocks = [];
       let prevTexts = [];
       let prevEndMs = -Infinity;
       events.forEach((event, i) => {
@@ -165,21 +169,38 @@
           const nextStart = Number(events[i + 1]?.tStartMs);
           endMs = nextStart > startMs ? nextStart : startMs + 1800;
         }
-        let eventWords = this._eventWords(event, startMs, endMs);
-        if (!eventWords.length) return;
-
-        // Rolling windows repeat the previous window's words; keep only new ones.
-        // Untimed captions only count as a window when the new line extends the
-        // previous one ("Was" → "Was bedeutet"). Sharing a word or two, or
-        // repeating the line, is a lyric, not a window.
-        const texts = eventWords.map((w) => w.text);
+        const texts = this._eventWords(event, startMs, endMs).map((w) => w.text);
+        if (!texts.length) return;
         const overlap = this.merger.overlapSize(prevTexts, texts);
         const hasOffsets = this._hasWordOffsets(event);
         const rolling =
           formatted || hasOffsets
             ? overlap >= 2 || (overlap >= 1 && (event.aAppend || overlap === prevTexts.length))
             : this._windowGrew(prevTexts, texts, overlap);
-        if (rolling && startMs <= prevEndMs + 1000) eventWords = eventWords.slice(overlap);
+        const drop = rolling && startMs <= prevEndMs + 1000 ? overlap : 0;
+        blocks.push({ event, startMs, endMs, hasOffsets, rolling, drop });
+        prevTexts = texts;
+        prevEndMs = endMs;
+      });
+
+      // Pass 2, backwards: time each event's new words. An untimed block stays on
+      // screen after its words were said (ASR can arrive as two-line blocks that
+      // each overlap the next by seconds). Spreading its words over that whole
+      // span would interleave them with the next block's ("or two of Grand before
+      // Theft"), so they end where the next block in the same caption window says
+      // its first new word. A repeat adds no words, so it is no cutoff.
+      const nextNewWordMs = new Map();
+      for (let b = blocks.length - 1; b >= 0; b--) {
+        const block = blocks[b];
+        const { event, startMs, hasOffsets, rolling } = block;
+        const windowId = event.wWinId ?? null;
+        let endMs = block.endMs;
+        const cutoff = nextNewWordMs.get(windowId);
+        if (!hasOffsets && cutoff > startMs && cutoff < endMs) endMs = cutoff;
+        const eventWords = this._eventWords(event, startMs, endMs).slice(block.drop);
+        block.words = eventWords;
+        if (!eventWords.length) continue;
+        nextNewWordMs.set(windowId, eventWords[0].startMs);
         // Untimed manual cues may be lyrics or prose. Keep short lines whole,
         // including one-word lyrics, but don't let a long sentence bypass the
         // chunk limits just because its word timing is estimated.
@@ -193,10 +214,8 @@
           }
           eventWords[0].cueStart = true;
         }
-        prevTexts = texts;
-        prevEndMs = endMs;
-        words.push(...eventWords);
-      });
+      }
+      let words = blocks.flatMap((block) => block.words);
 
       words.sort((a, b) => a.startMs - b.startMs);
       // An event can also open with a mark that belongs to the previous event's last word.
