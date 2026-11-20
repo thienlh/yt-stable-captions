@@ -8,12 +8,15 @@ const { execFileSync } = require('child_process');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'dist', 'safari');
-const SKIP = new Set(['.git', '.context', 'safari', '.gitignore', 'dist', 'node_modules', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md']);
+const SKIP = new Set([
+  'safari', 'dist', 'node_modules', '_site', 'site',
+  'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md',
+]);
 
 fs.rmSync(out, { recursive: true, force: true });
 fs.mkdirSync(out, { recursive: true });
 for (const name of fs.readdirSync(root)) {
-  if (SKIP.has(name)) continue;
+  if (SKIP.has(name) || name.startsWith('.')) continue;
   fs.cpSync(path.join(root, name), path.join(out, name), {
     recursive: true,
     filter: (src) => path.basename(src) !== '.DS_Store',
