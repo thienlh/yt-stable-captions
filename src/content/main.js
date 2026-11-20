@@ -858,6 +858,11 @@
       return !button || button.getAttribute('aria-pressed') !== 'false';
     }
 
+    /** YouTube marks its player while an ad plays in the main video element. */
+    adShowing() {
+      return Boolean(this.video?.closest?.('.html5-video-player')?.classList.contains('ad-showing'));
+    }
+
     attachVideo() {
       this.video = document.querySelector('video.html5-main-video');
       this.renderNow();
@@ -883,7 +888,8 @@
         // No video yet: its 'loadeddata'/'play' event calls back in.
         if (!this.video) return;
         const timeMs = this.video.currentTime * 1000;
-        const cue = this.captionsEnabled() ? this.lookup.atTime(this.cues, timeMs) : null;
+        // An ad plays in the same <video>, so its clock is not the video's.
+        const cue = this.captionsEnabled() && !this.adShowing() ? this.lookup.atTime(this.cues, timeMs) : null;
         this.overlay.render(cue, timeMs);
         if (!this.video.paused) this.raf = requestAnimationFrame(tick);
       };

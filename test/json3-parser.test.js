@@ -151,3 +151,74 @@ test('parseWords drops a repeated window even when its punctuation segs split di
   assert.deepEqual(words.map((w) => w.text), ['hello,', 'world', 'again']);
   assert.equal(words[2].startMs, 1400);
 });
+
+test('parseWords keeps word order when untimed two-line ASR blocks overlap the next block', () => {
+  // YouTube ASR (Nov 2026): one seg per two-line block, no word offsets, and
+  // each block stays up seconds after the next one starts.
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, id: 1, wpWinPosId: 2, wsWinStyleId: 1 },
+      {
+        tStartMs: 2879,
+        dDurationMs: 6401,
+        wWinId: 1,
+        segs: [{ utf8: 'So Oliver, we\'re recording a video right\nnow just a day or two before the release', acAsrConf: 0 }],
+      },
+      {
+        tStartMs: 7520,
+        dDurationMs: 4880,
+        wWinId: 1,
+        segs: [{ utf8: 'of Grand Theft Auto 6. We\'ve been\nplaying it. We have a lot of opinions to', acAsrConf: 0 }],
+      },
+      {
+        tStartMs: 11280,
+        dDurationMs: 5200,
+        wWinId: 1,
+        segs: [{ utf8: 'share today, which we\'re going to get\ninto, but I wanted to ask you first,', acAsrConf: 0 }],
+      },
+    ],
+  });
+  assert.equal(
+    words.map((w) => w.text).join(' '),
+    'So Oliver, we\'re recording a video right now just a day or two before the release ' +
+      'of Grand Theft Auto 6. We\'ve been playing it. We have a lot of opinions to ' +
+      'share today, which we\'re going to get into, but I wanted to ask you first,'
+  );
+  const release = words.find((w) => w.text === 'release');
+  assert.ok(release.endMs <= 7520, 'a block\'s words end before the next block starts');
+  assert.equal(words.find((w) => w.text === 'of').startMs, 7520);
+  assert.ok(words.every((w) => !w.lineBreak), 'formatted newlines are not kept as lines');
+});
+
+test('an untimed block runs until the next block says a word, not until it starts', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 2400, segs: [{ utf8: 'first cue here\nsecond line' }] },
+      { tStartMs: 500, dDurationMs: 3000, segs: [{ utf8: 'later', tOffsetMs: 2500 }, { utf8: ' words', tOffsetMs: 2800 }] },
+    ],
+  });
+  assert.equal(words.find((w) => w.text === 'line').endMs, 2400);
+  assert.equal(words.find((w) => w.text === 'later').startMs, 3000);
+});
+
+test('a repeated window does not cut the block it repeats short', () => {
+  const line = 'a lyric line here\nand another one';
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 4000, segs: [{ utf8: line }] },
+      { tStartMs: 500, dDurationMs: 3500, segs: [{ utf8: line }] },
+    ],
+  });
+  assert.deepEqual(words.map((w) => w.text), ['a', 'lyric', 'line', 'here', 'and', 'another', 'one']);
+  assert.equal(words.at(-1).endMs, 4000);
+});
+
+test('a block in another caption window does not cut an untimed block short', () => {
+  const words = new Json3Parser().parseWords({
+    events: [
+      { tStartMs: 0, dDurationMs: 6000, wWinId: 1, segs: [{ utf8: 'a six second lyric\nthat keeps on going' }] },
+      { tStartMs: 1000, dDurationMs: 500, wWinId: 2, segs: [{ utf8: '[bell]' }] },
+    ],
+  });
+  assert.equal(words.find((w) => w.text === 'going').endMs, 6000);
+});
