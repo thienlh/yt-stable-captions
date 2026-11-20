@@ -8,7 +8,7 @@ const root = path.join(__dirname, '..');
 const out = path.join(root, 'dist', 'chrome');
 const SKIP = new Set([
   '.git', '.github', '.conductor', '.context', 'safari', '.gitignore', 'dist', 'node_modules',
-  '_site', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md',
+  '_site', 'site', 'test', 'playground', 'design', 'docs', 'scripts', 'package.json', 'README.md',
 ]);
 
 fs.rmSync(out, { recursive: true, force: true });
